@@ -1,0 +1,855 @@
+openapi: 3.0.3
+info:
+  title: FinFast V1 Core Banking API — proposed contract
+  version: 0.1.0-proposal
+  description: Design-stage, NOT an approved deployed interface. Financial semantics are defined in canonical FinFast discovery docs 01–08 and PRD 09. Only simulated funds; VND integers serialized as decimal strings. Endpoints are proposed and subject to design review.
+servers:
+- url: https://finfast.example.invalid
+  description: PLACEHOLDER — no cloud provider or host chosen
+paths:
+  /api/v1/auth/csrf:
+    get:
+      operationId: getCsrf
+      summary: Fetch public browser CSRF token
+      tags:
+      - Identity
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CsrfInfo'
+  /api/v1/auth/register:
+    post:
+      operationId: registerCustomer
+      summary: Register Customer and atomically provision one zero-balance Account
+      tags:
+      - Identity
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegistrationResponse'
+        '409': &id006
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422': &id007
+          description: Final business rejection (durably retained for financial intents)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503': &id001
+          description: Technical/unknown outcome; resolve same key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistrationRequest'
+      security: &id002
+      - csrfHeader: []
+  /api/v1/auth/login:
+    post:
+      operationId: login
+      summary: Authenticate and establish server-side session
+      tags:
+      - Identity
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionInfo'
+        '401': &id003
+          description: Unauthenticated or expired session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503': *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      security: *id002
+  /api/v1/auth/logout:
+    post:
+      operationId: logout
+      summary: Invalidate active session
+      tags:
+      - Identity
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericMessage'
+        '401': *id003
+      security: &id008
+      - cookieAuth: []
+        csrfHeader: []
+  /api/v1/auth/session:
+    get:
+      operationId: getSession
+      summary: Read minimal current authenticated principal
+      tags:
+      - Identity
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionInfo'
+        '401': *id003
+      security: &id004
+      - cookieAuth: []
+  /api/v1/accounts/me:
+    get:
+      operationId: myAccount
+      summary: Read owned Customer Account and available balance
+      tags:
+      - Accounts
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountOverview'
+        '401': *id003
+        '403': &id005
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security: *id004
+  /api/v1/transfers:
+    post:
+      operationId: createTransfer
+      summary: Post synchronous internal transfer or replay final outcome
+      tags:
+      - Transfers
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResult'
+        '401': *id003
+        '403': *id005
+        '409': *id006
+        '422': *id007
+        '503': *id001
+        '202':
+          description: Concurrent same-key intent is still processing; non-final
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResult'
+      description: Must return COMPLETED only after atomic posting/final-outcome commit. Replays require current authorization; business rejection has no financial posting. Concurrent same-key request may return 202 PROCESSING.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferRequest'
+      security: *id008
+      parameters:
+      - &id010
+        in: header
+        name: Idempotency-Key
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description: Same token for retries of original intent; no automatic expiry within dataset.
+  /api/v1/request-outcomes/resolve:
+    post:
+      operationId: resolveOutcome
+      summary: Resolve original scoped intent by key without a transaction reference
+      tags:
+      - Transfers
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResult'
+        '401': *id003
+        '403': *id005
+        '404': &id009
+          description: Unavailable or unknown resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409': *id006
+        '503': *id001
+        '202':
+          description: Still processing; retry same key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResult'
+      description: Only own initiator+operation+key is resolvable. Unresolved in-flight work may produce non-final PROCESSING / UNKNOWN; missing record is not proof of no prior commit if processing uncertainty exists.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveRequest'
+      security: *id008
+  /api/v1/accounts/me/history:
+    get:
+      operationId: myHistory
+      summary: Read deterministic snapshot-bound own committed movements
+      tags:
+      - History
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryPage'
+        '401': *id003
+        '403': *id005
+        '422': *id007
+      security: *id004
+      parameters:
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          default: 20
+          minimum: 1
+          maximum: 100
+      - in: query
+        name: cursor
+        schema:
+          type: string
+        description: Opaque bound continuation token
+  /api/v1/transactions/{reference}/receipt:
+    get:
+      operationId: getReceipt
+      summary: Read authorized immutable participant receipt
+      tags:
+      - History
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Receipt'
+        '401': *id003
+        '404': *id009
+      security: *id004
+      parameters:
+      - in: path
+        name: reference
+        required: true
+        schema:
+          type: string
+  /api/v1/admin/accounts:
+    get:
+      operationId: adminAccounts
+      summary: List minimum necessary Customer Account metadata
+      tags:
+      - Admin
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminAccountList'
+        '401': *id003
+        '403': *id005
+      security: *id004
+  /api/v1/admin/allocations:
+    post:
+      operationId: allocateFunds
+      summary: Allocate finite treasury funds with required atomic success audit
+      tags:
+      - Admin
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResult'
+        '401': *id003
+        '403': *id005
+        '409': *id006
+        '422': *id007
+        '503': *id001
+        '202':
+          description: Concurrent same-key funding still processing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResult'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AllocationRequest'
+      security: *id008
+      parameters:
+      - *id010
+  /api/v1/admin/accounts/{accountNumber}/status:
+    post:
+      operationId: updateAccountStatus
+      summary: Reasoned ACTIVE/FROZEN change with atomic success audit
+      tags:
+      - Admin
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusChangeResponse'
+        '401': *id003
+        '403': *id005
+        '404': *id009
+        '422': *id007
+        '503': *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatusChangeRequest'
+      security: *id008
+      parameters:
+      - in: path
+        name: accountNumber
+        required: true
+        schema:
+          type: string
+  /api/v1/admin/financial-transactions:
+    get:
+      operationId: adminFinancial
+      summary: Inspect immutable Financial Transactions including GENESIS
+      tags:
+      - Admin
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminFinancialList'
+        '401': *id003
+        '403': *id005
+      security: *id004
+  /api/v1/admin/audit-events:
+    get:
+      operationId: adminAudits
+      summary: Inspect Admin Audit Events separately from financial postings
+      tags:
+      - Admin
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminAuditList'
+        '401': *id003
+        '403': *id005
+      security: *id004
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: FINFAST_SESSION
+      description: Server-managed session; invalidated on logout/expiry.
+    csrfHeader:
+      type: apiKey
+      in: header
+      name: X-CSRF-TOKEN
+      description: Browser CSRF token required for mutations.
+  schemas:
+    MoneyVnd:
+      type: string
+      pattern: ^(0|[1-9][0-9]*)$
+      description: Decimal string encoding whole VND; requests for positive amounts must exceed zero. Check signed 64-bit upper bounds in the Core.
+      example: '200000'
+    AccountStatus:
+      type: string
+      enum:
+      - ACTIVE
+      - FROZEN
+    AccountType:
+      type: string
+      enum:
+      - CUSTOMER
+      - TREASURY
+    UserRole:
+      type: string
+      enum:
+      - CUSTOMER
+      - ADMIN
+    RegistrationRequest:
+      type: object
+      required:
+      - displayName
+      - email
+      - password
+      properties:
+        displayName:
+          type: string
+          description: Synthetic display name
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          description: Never echo/store as plaintext
+      additionalProperties: false
+    RegistrationResponse:
+      type: object
+      required:
+      - customerId
+      - accountNumber
+      - status
+      - currency
+      - balanceVnd
+      properties:
+        customerId:
+          type: string
+        accountNumber:
+          type: string
+        status:
+          $ref: '#/components/schemas/AccountStatus'
+        currency:
+          type: string
+          enum:
+          - VND
+        balanceVnd:
+          $ref: '#/components/schemas/MoneyVnd'
+      additionalProperties: false
+    LoginRequest:
+      type: object
+      required:
+      - email
+      - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      additionalProperties: false
+    SessionInfo:
+      type: object
+      required:
+      - userId
+      - role
+      properties:
+        userId:
+          type: string
+        role:
+          $ref: '#/components/schemas/UserRole'
+        displayName:
+          type: string
+      additionalProperties: false
+    CsrfInfo:
+      type: object
+      required:
+      - token
+      properties:
+        token:
+          type: string
+          description: CSRF token; never logged
+      additionalProperties: false
+    AccountOverview:
+      type: object
+      required:
+      - accountNumber
+      - type
+      - status
+      - currency
+      - balanceVnd
+      - availableBalanceVnd
+      properties:
+        accountNumber:
+          type: string
+        type:
+          $ref: '#/components/schemas/AccountType'
+        status:
+          $ref: '#/components/schemas/AccountStatus'
+        currency:
+          type: string
+          enum:
+          - VND
+        balanceVnd:
+          $ref: '#/components/schemas/MoneyVnd'
+        availableBalanceVnd:
+          $ref: '#/components/schemas/MoneyVnd'
+      additionalProperties: false
+    TransferRequest:
+      type: object
+      required:
+      - recipientAccountNumber
+      - amountVnd
+      properties:
+        recipientAccountNumber:
+          type: string
+        amountVnd:
+          $ref: '#/components/schemas/MoneyVnd'
+        note:
+          type: string
+          description: Optional; canonicalized as specified by the chosen design
+      additionalProperties: false
+    AllocationRequest:
+      type: object
+      required:
+      - targetAccountNumber
+      - amountVnd
+      - reason
+      properties:
+        targetAccountNumber:
+          type: string
+        amountVnd:
+          $ref: '#/components/schemas/MoneyVnd'
+        reason:
+          type: string
+          description: Non-empty authorized Admin reason
+      additionalProperties: false
+    StatusChangeRequest:
+      type: object
+      required:
+      - desiredStatus
+      - reason
+      properties:
+        desiredStatus:
+          $ref: '#/components/schemas/AccountStatus'
+        reason:
+          type: string
+          description: Non-empty Admin reason
+      additionalProperties: false
+    StatusChangeResponse:
+      type: object
+      required:
+      - outcome
+      - accountNumber
+      - status
+      properties:
+        outcome:
+          type: string
+          enum:
+          - CHANGED
+          - UNCHANGED
+        accountNumber:
+          type: string
+        status:
+          $ref: '#/components/schemas/AccountStatus'
+      additionalProperties: false
+    OperationResult:
+      type: object
+      required:
+      - outcome
+      properties:
+        outcome:
+          type: string
+          enum:
+          - COMPLETED
+          - REJECTED
+          - PROCESSING
+          - UNKNOWN
+        reference:
+          type: string
+          description: Only for COMPLETED committed movement
+        code:
+          type: string
+          description: Business rejection or nonfinal reason
+        message:
+          type: string
+        amountVnd:
+          $ref: '#/components/schemas/MoneyVnd'
+        currency:
+          type: string
+          enum:
+          - VND
+        committedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    ResolveRequest:
+      type: object
+      required:
+      - operationType
+      - idempotencyKey
+      properties:
+        operationType:
+          type: string
+          enum:
+          - INTERNAL_TRANSFER
+          - DEMO_ALLOCATION
+        idempotencyKey:
+          type: string
+          description: Original intent key, scoped by authenticated initiator and operation
+      additionalProperties: false
+    HistoryItem:
+      type: object
+      required:
+      - reference
+      - type
+      - direction
+      - amountVnd
+      - currency
+      - counterpartyLabel
+      - committedAt
+      properties:
+        reference:
+          type: string
+        type:
+          type: string
+          enum:
+          - INTERNAL_TRANSFER
+          - DEMO_ALLOCATION
+        direction:
+          type: string
+          enum:
+          - INCOMING
+          - OUTGOING
+        amountVnd:
+          $ref: '#/components/schemas/MoneyVnd'
+        currency:
+          type: string
+          enum:
+          - VND
+        counterpartyLabel:
+          type: string
+        committedAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    HistoryPage:
+      type: object
+      required:
+      - items
+      - nextCursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/HistoryItem'
+        nextCursor:
+          type: string
+          nullable: true
+          description: Opaque snapshot-bounded cursor, null when no more eligible rows
+      additionalProperties: false
+    Receipt:
+      type: object
+      required:
+      - reference
+      - type
+      - amountVnd
+      - currency
+      - sourceLabel
+      - destinationLabel
+      - committedAt
+      - status
+      properties:
+        reference:
+          type: string
+        type:
+          type: string
+          enum:
+          - INTERNAL_TRANSFER
+          - DEMO_ALLOCATION
+        amountVnd:
+          $ref: '#/components/schemas/MoneyVnd'
+        currency:
+          type: string
+          enum:
+          - VND
+        sourceLabel:
+          type: string
+        destinationLabel:
+          type: string
+        committedAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+          - COMPLETED
+      additionalProperties: false
+    AdminAccount:
+      type: object
+      required:
+      - accountNumber
+      - customerId
+      - displayName
+      - status
+      - balanceVnd
+      properties:
+        accountNumber:
+          type: string
+        customerId:
+          type: string
+        displayName:
+          type: string
+        status:
+          $ref: '#/components/schemas/AccountStatus'
+        balanceVnd:
+          $ref: '#/components/schemas/MoneyVnd'
+      additionalProperties: false
+    AdminAccountList:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminAccount'
+      additionalProperties: false
+    AdminFinancialTransaction:
+      type: object
+      required:
+      - reference
+      - type
+      - amountVnd
+      - currency
+      - committedAt
+      - entries
+      properties:
+        reference:
+          type: string
+        type:
+          type: string
+          enum:
+          - INTERNAL_TRANSFER
+          - DEMO_ALLOCATION
+          - GENESIS
+        amountVnd:
+          $ref: '#/components/schemas/MoneyVnd'
+        currency:
+          type: string
+          enum:
+          - VND
+        committedAt:
+          type: string
+          format: date-time
+        entries:
+          type: array
+          items:
+            type: object
+            required:
+            - accountNumber
+            - deltaVnd
+            properties:
+              accountNumber:
+                type: string
+              deltaVnd:
+                type: string
+                pattern: ^-?(0|[1-9][0-9]*)$
+            additionalProperties: false
+      additionalProperties: false
+    AdminFinancialList:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminFinancialTransaction'
+      additionalProperties: false
+    AdminAuditEvent:
+      type: object
+      required:
+      - timestamp
+      - administratorId
+      - action
+      - target
+      - reason
+      - outcome
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        administratorId:
+          type: string
+        action:
+          type: string
+        target:
+          type: string
+        reason:
+          type: string
+        outcome:
+          type: string
+        reference:
+          type: string
+        beforeStatus:
+          $ref: '#/components/schemas/AccountStatus'
+        afterStatus:
+          $ref: '#/components/schemas/AccountStatus'
+      additionalProperties: false
+    AdminAuditList:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminAuditEvent'
+      additionalProperties: false
+    ErrorResponse:
+      type: object
+      required:
+      - code
+      - message
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+          description: Privacy-safe and free of credentials or session data
+        outcome:
+          type: string
+          enum:
+          - REJECTED
+          - PROCESSING
+          - UNKNOWN
+      additionalProperties: false
+    GenericMessage:
+      type: object
+      required:
+      - message
+      properties:
+        message:
+          type: string
+      additionalProperties: false
+
