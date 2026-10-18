@@ -4,7 +4,8 @@ WORKDIR /workspace
 COPY .mvn/ .mvn/
 COPY mvnw pom.xml ./
 COPY src/ src/
-RUN chmod +x mvnw && ./mvnw --batch-mode --no-transfer-progress package
+# Container integration tests run separately with a Docker daemon, outside image builds.
+RUN chmod +x mvnw && ./mvnw --batch-mode --no-transfer-progress -DexcludedGroups=integration package
 
 FROM eclipse-temurin:21.0.12.1_1-jre-noble@sha256:35501d3f93173b420ac9001658eb68157e813316b865087e345c187fca422c4c AS runtime
 
