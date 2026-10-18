@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: FinFast V1 Core Banking API — proposed contract
   version: 0.1.0-proposal
-  description: Design-stage, NOT an approved deployed interface. Financial semantics are defined in canonical FinFast discovery docs 01–08 and PRD 09. Only simulated funds; VND integers serialized as decimal strings. Endpoints are proposed and subject to design review.
+  description: Design-stage single source of truth, NOT an approved deployed interface. Financial semantics are defined in canonical FinFast discovery docs 01–08 and PRD 09. Only simulated funds; VND integers serialized as decimal strings. Endpoints are proposed and subject to design review.
 servers:
 - url: https://finfast.example.invalid
   description: PLACEHOLDER — no cloud provider or host chosen
@@ -40,13 +40,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '422': &id007
-          description: Final business rejection (durably retained for financial intents)
+          description: Business or validation error; no final financial outcome is implied.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '503': &id001
-          description: Technical/unknown outcome; resolve same key
+          description: Technical/unknown outcome. For financial intents, retain the original key and payload and resolve or retry safely; this is not a final business rejection.
           content:
             application/json:
               schema:
@@ -156,15 +156,20 @@ paths:
         '401': *id003
         '403': *id005
         '409': *id006
-        '422': *id007
+        '422': &financialRejectionResponse
+          description: Durably committed final business rejection with zero financial postings; replayable using the original idempotency key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinancialRejectionResponse'
         '503': *id001
         '202':
-          description: Concurrent same-key intent is still processing; non-final
+          description: Non-final coordination response; PROCESSING only when the same intent is known active, otherwise UNKNOWN. Retain the original key.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/OperationResult'
-      description: Must return COMPLETED only after atomic posting/final-outcome commit. Replays require current authorization; business rejection has no financial posting. Concurrent same-key request may return 202 PROCESSING.
+      description: Must return COMPLETED only after atomic posting/final-outcome commit. Replays require current authorization; business rejection has no financial posting. Concurrent same-key requests may wait or return non-final PROCESSING / UNKNOWN. Canonical intent comparison includes note; changed payload conflicts.
       requestBody:
         required: true
         content:
@@ -206,12 +211,12 @@ paths:
         '409': *id006
         '503': *id001
         '202':
-          description: Still processing; retry same key
+          description: Non-final PROCESSING / UNKNOWN; resolve or retry using the original key
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/OperationResult'
-      description: Only own initiator+operation+key is resolvable. Unresolved in-flight work may produce non-final PROCESSING / UNKNOWN; missing record is not proof of no prior commit if processing uncertainty exists.
+      description: Only own initiator+operation+key is resolvable. Unresolved in-flight work may produce non-final PROCESSING / UNKNOWN; a missing or unavailable record is not proof of financial failure. Retain the original key and payload until an authorized final result is resolved.
       requestBody:
         required: true
         content:
@@ -303,10 +308,10 @@ paths:
         '401': *id003
         '403': *id005
         '409': *id006
-        '422': *id007
+        '422': *financialRejectionResponse
         '503': *id001
         '202':
-          description: Concurrent same-key funding still processing
+          description: Non-final funding coordination response; PROCESSING only when the same intent is known active, otherwise UNKNOWN. Retain the original key.
           content:
             application/json:
               schema:
@@ -526,7 +531,7 @@ components:
           $ref: '#/components/schemas/MoneyVnd'
         note:
           type: string
-          description: Optional; canonicalized as specified by the chosen design
+          description: Optional; the proposed canonical intent preserves exact text and distinguishes omission from an empty string. Changing note with a finalized key conflicts.
       additionalProperties: false
     AllocationRequest:
       type: object
@@ -541,7 +546,7 @@ components:
           $ref: '#/components/schemas/MoneyVnd'
         reason:
           type: string
-          description: Non-empty authorized Admin reason
+          description: Non-empty authorized Admin reason; included exactly in the proposed canonical funding intent. Changing reason with a finalized key conflicts.
       additionalProperties: false
     StatusChangeRequest:
       type: object
@@ -844,6 +849,17 @@ components:
           - PROCESSING
           - UNKNOWN
       additionalProperties: false
+    FinancialRejectionResponse:
+      allOf:
+      - $ref: '#/components/schemas/ErrorResponse'
+      - type: object
+        required:
+        - outcome
+        properties:
+          outcome:
+            type: string
+            enum:
+            - REJECTED
     GenericMessage:
       type: object
       required:

@@ -1,11 +1,11 @@
 # 10 — FinFast V1 Delivery Backlog
 
-> Status: **PROPOSED engineering decomposition**, not assigned or approved. Derived from [PRD 09](../baseline/09-product-requirements.md), canonical [use cases 04](../baseline/04-use-cases.md), and [business rules 06](../baseline/06-business-rules.md). All P0 requirements remain mandatory regardless of delivery order. P1 is explicitly excluded from V1 completion.
+> Status: **PROPOSED engineering decomposition**, not assigned or approved. Derived from [PRD 09](09-product-requirements.md), canonical [use cases 04](../01-discovery/04-use-cases.md), and [business rules 06](../01-discovery/06-business-rules.md). All P0 requirements remain mandatory regardless of delivery order. P1 is explicitly excluded from V1 completion.
 
 ## Planning conventions
 
 - **Epic** = customer/business outcome; **story** = independently verifiable thin slice; **task** = engineering work (implementation, design, verification). Issue IDs `BK-*` are new *planning IDs*, not substitutes for `FR-*`, `UC-*`, `BR-*`, or `AC-*`.
-- Priority P0 means V1 release-blocking. Suggested size S/M/L describes relative implementation effort, **not hours**. Owners, sprint dates, team size, and velocity are unassigned.
+- Priority P0 means V1 release-blocking. Suggested size S/M/L describes relative implementation effort, **not hours**. The architecture is sized for a six-person team; individual owners, sprint dates and velocity are unassigned.
 - A story is Done only with code, documentation/contract updates, relevant tests, review, CI success, deployable artifact, and evidence linked to its AC IDs; no financial feature is Done with unit tests alone.
 - Backlog sequencing follows PRD section 11 slices; vertical delivery and technical spikes can run in parallel. A slice is not a requirement to merge unfinished work.
 
@@ -15,7 +15,7 @@
 |---|---|---|---|---|---|
 | BK-001 | E0 — Verify course rubric and deployment requirements (EV-001) | P0 | S | NFR-005, EV-001 | None; gate for topology |
 | BK-002 | E0 — Verify cloud/storage/TLS feasibility and budget (EV-002) | P0 | M | NFR-005, EV-002 | BK-001 |
-| BK-003 | E0 — ADRs: boundaries, consistency/idempotency, pagination | P0 | M | NFR-001/002/003/006; FR-005/006/007 | BK-001 evidence before final approval |
+| BK-003 | E0 — Review architecture decisions: boundaries, consistency/idempotency, pagination | P0 | M | NFR-001/002/003/006; FR-005/006/007 | BK-001 evidence before final approval |
 | BK-004 | E0 — Repository baseline: CI, Docker, migrations, config, health checks | P0 | M | NFR-005/006 | BK-002 |
 | BK-005 | E1 Identity — Customer registration with unique normalized email and atomic account provisioning | P0 | L | FR-001; UC-AUTH-01; AC-001/027/035/037 | BK-003/004 |
 | BK-006 | E1 Identity — Protected Admin bootstrap (not self-registration) | P0 | M | FR-001/002; AC-024/027/030 | BK-004 |
@@ -75,3 +75,16 @@ Definition of Done: PR approved; mandatory tests green; invariant/replay evidenc
 - Identity/admin: session design, authorization, controlled bootstrap, audits, freeze controls.
 - Platform/quality: Docker/CI/cloud, test harness, benchmark, release evidence.
 - Cross-team contracts are reviewed before implementation. Suggested ownership is **not** an assertion of actual team assignments.
+
+## Technical review work within existing backlog items
+
+These refinements do not add business capabilities, renumber acceptance criteria or mark implementation stories Done. The detailed design remains subject to [25 decision review](../6-governance/25-design-decision-register.md).
+
+| Existing items | Required technical work before/alongside implementation | Source |
+|---|---|---|
+| BK-003/004 | Review agreed modular/hexagonal structure and proposed API allowlist; select compatible Modulith/ArchUnit checks. Maintain the documentation-only Swagger UI/CI already provided; backend build/migrations/deployment CI remain future work. | [15 §3](../03-design/15-system-architecture.md#3-module-ownership-and-the-controlled-posting-path), [README workflow](../README.md#browse-the-api-locally-doc-01) |
+| BK-010/012/013 | Implement one Ledger-owned posting path with Accounts-owned state; outer use-case transaction includes both balances, facts, final outcome and required allocation audit. | [16 §5](../03-design/16-domain-model-and-data-design.md#5-transaction-boundaries-and-outcomes-arc-02), TD-015 |
+| BK-011/022 | Run small real-PostgreSQL idempotency PoC before adopting advisory coordination; test canonicalization, concurrency, missing outcome and crash recovery. | [22 PoC](../05-verification/22-test-strategy-and-acceptance.md#postgresql-idempotency-proof-of-concept-arc-04), TD-003 |
+| BK-012/013/017/022 | Verify shared lock order for transfers, Treasury allocations and freeze; audit failure rollback, opposite-direction transfers and bounded same-key technical retries. | [16 §6](../03-design/16-domain-model-and-data-design.md#6-locking-and-isolation-discipline-arc-03), TD-002 |
+| BK-014/021/023 | Validate late-commit pagination and benchmark the global counter separately from Account/Treasury contention; preserve PRD reference workload. | [16 §8](../03-design/16-domain-model-and-data-design.md#8-history-ordering-and-global-sequence-risk-arc-05), TD-004/014 |
+| BK-021/022 | Add actual module-boundary negative tests and proxied transaction/fault tests; record canonical AC/CONS runtime evidence. | [22 strategy](../05-verification/22-test-strategy-and-acceptance.md), TD-016 |

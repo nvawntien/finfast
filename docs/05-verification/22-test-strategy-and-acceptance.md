@@ -1,6 +1,6 @@
 # 22 — V1 Test Strategy, Canonical Acceptance Execution and Failure Evidence
 
-> **PROPOSED test execution plan** grounded in [04 — 38 canonical AC scenarios](../baseline/04-use-cases.md), [06 — 19 CONS risk views](../baseline/06-business-rules.md), and [09 PRD §§9–11](../baseline/09-product-requirements.md). The canonical Given/When/Then in 04 remains normative. `T-*` is a test execution grouping, not new business acceptance criteria. **No tests are asserted passing.**
+> **PROPOSED test execution plan** grounded in [04 — 38 canonical AC scenarios](../01-discovery/04-use-cases.md), [06 — 19 CONS risk views](../01-discovery/06-business-rules.md), and [09 PRD §§9–11](../02-requirements/09-product-requirements.md). The canonical Given/When/Then in 04 remains normative. `T-*` is a test execution grouping, not new business acceptance criteria. **No banking acceptance, concurrency or performance tests are asserted passing.** Documentation checks are distinct from these runtime evidence gates.
 
 ## Test levels and environments
 
@@ -80,9 +80,50 @@ The list above covers **AC-001 through AC-038 exactly once as primary grouped ow
 - Freeze-first and movement-first schedules enforced with barriers; validate effective ordering and atomic audit (AC-018/019).
 - Reconcile after all coordinated workloads on a consistent committed snapshot (AC-022/023).
 
+## Transaction and module verification (ARC-01/02/06)
+
+**Planned execution; no new canonical AC IDs.** Reuse existing T-* groups and AC/CONS mappings above. Review the [15 API allowlist](../03-design/15-system-architecture.md#32-allowed-module-dependencies-arc-06) and [16 transaction design](../03-design/16-domain-model-and-data-design.md#5-transaction-boundaries-and-outcomes-arc-02) before writing the application.
+
+- Architecture tests: after compatible tooling is selected, verify module acyclicity, explicit named `api` interfaces, no foreign `internal`/repository/entity imports, and allowed caller/method pairs for posting, Account mutation and GENESIS. Negative fixtures must demonstrate that each prohibited dependency is detected. Naming a package `internal` is not sufficient evidence.
+- Module integration: Identity registration through Customer/Accounts creates all three records or none; Ledger through Accounts posts both sides or none; Transfers joins Ledger/Idempotency; Administration joins Ledger/Idempotency/audit or Accounts/status/audit. History remains read-only and authorized. Bootstrap tests are separately controlled, never exposed as runtime fault endpoints.
+- Spring proxy/commit: invoke the real application bean through the proxy and the HTTP boundary. Inject failure during method body, JPA flush, required audit/outcome persistence and actual commit. Check checked/unchecked exception rollback policy and ensure the client never receives COMPLETED before confirmed commit (AC-010/011/019/033).
+- Final rejection: validate insufficient funds before writes, commit rejection normally, add funds using a different authorized intent, then replay the first key and confirm its original rejection. Failure to persist that rejection must remain a technical/non-final result (AC-015/033).
+- Independent transaction regression: detect accidental REQUIRES_NEW for any required effect; no committed audit, outcome, entry or balance survives a rolled-back parent. Verify restricted mutation APIs fail when called without an enclosing transaction (AC-010/019/022/023).
+
+## PostgreSQL idempotency proof-of-concept (ARC-04)
+
+**PROPOSED small experiment to implement before the financial engine; NOT RUN.** Run on an isolated real PostgreSQL dataset with the intended major version, READ COMMITTED and multiple independent connections. Use a minimal scope/outcome and paired-balance/posting fixture to exercise [16 §7](../03-design/16-domain-model-and-data-design.md#7-idempotency-and-recovery-arc-04); do not install a production feature or public fault API. Record full-scope uniqueness, canonicalization/hash version, lock/timeouts, durability settings (`fsync`, `full_page_writes`, `synchronous_commit`, persistent storage) and every transaction's begin/lock/commit events. Synchronize schedules with barriers and observed database waits, not sleeps alone.
+
+| Schedule | Assertions / existing acceptance trace |
+|---|---|
+| Two identical full-scope requests; A holds scope lock before B begins | B waits or returns non-final; after A commits, B's **new statement** sees the final outcome; exactly one paired posting/reference (AC-005/013/014) |
+| Same scope, changed recipient/amount/note/reason | B gets conflict after A finalizes; no second posting; exact canonical intent comparison wins over any hash match (AC-006) |
+| Initially rejected, then later funding/unfreeze | Same key replays stored rejection; a new key reevaluates current eligibility (AC-015) |
+| A crashes/connection is terminated before commit, including after first balance/entry write | All tentative effects roll back, lock releases, B with original key can safely execute (AC-010/033) |
+| A commits, then response delivery is suppressed and client restarts | Original key recovers original reference/outcome; no new posting (AC-011/021/034) |
+| Lookup sees no row while A is in flight, or cannot reach the primary | Absence/unavailability is non-final; coordinated retry waits and rereads; it never generates a new key automatically (AC-011/033) |
+| Distinct full scopes forced to share one advisory-lock hash | They may wait unnecessarily but never replay/conflict with each other; both can finalize correctly (AC-034) |
+| Deliberate full-key uniqueness race in an isolated defense-in-depth variant | Unique violation rolls back all loser effects; reload original result in a fresh transaction (AC-014/022/023) |
+| Same text key across different initiators or operation types; unauthorized lookup | Scope isolation and role/ownership enforced; no private result leak (AC-024/034) |
+| Reconnect/restart with prior success and rejection records | No key reuse/expiry or reseeding; both results retain original meaning (AC-021/034) |
+
+Also compare a minimal transactional unique-intent-row variant using exactly the same schedules; show no separately committed unfinished PROCESSING record. Test canonicalization vectors and fingerprint version upgrades without losing historical replay. Capture one final outcome at most, one movement at most, two entries for success, zero for rejection, matching balances, required funding audit and conserved supply after each schedule (AC-013/019/022/023). Approval of TD-003 depends on this evidence, not on the conceptual table alone.
+
+## Additional PostgreSQL concurrency schedules (ARC-03)
+
+Extend the existing harness with distinct-key Treasury allocations competing for remaining supply; verify all lock Treasury/recipient in Account ID order, no negative balance and correct rejection outcomes. Execute both freeze-first and funding-first schedules, including failure of freeze audit (AC-008/018/019/023/032).
+
+Force a deadlock in a controlled test variant and a lock-timeout on an intentionally held participant/scope row. Confirm full rollback, bounded fresh-transaction same-key retry, eventual original outcome or honest non-final response, and released locks; no database exception becomes a permanent business rejection (AC-007/017/033). Verify Account ordering with IDs whose Java/default comparator ordering could differ from PostgreSQL UUID ordering. After every run reconcile on a consistent committed snapshot, checking missing/duplicate entries and required audits (AC-022/023). H2/in-memory tests cannot substitute for these PostgreSQL checks.
+
+## History and counter-contention experiment (ARC-05)
+
+Follow [16 §8](../03-design/16-domain-model-and-data-design.md#8-history-ordering-and-global-sequence-risk-arc-05). Hold an earlier posting before commit, start a second disjoint posting and fetch history. Prove the global counter prevents a later-position commit from overtaking the first, and rollback does not create visible financial facts. Traverse pages during new commits: stable initial bound, no missing/duplicate authorized movements, valid default/max size, immutable references, no rejected requests or other Customer's records (AC-025/024/031).
+
+Run the prescribed benchmark below unchanged before separate diagnostic loads. For disjoint pairs, hot Account, duplicate scope and Treasury fan-in, collect offered/achieved throughput; p50/p95/p99; scope/Account/counter wait and hold time; retries/deadlocks/timeouts; database CPU/I/O/commit latency; and reconciliation. Use the documented 10/25/50/100 requests/s diagnostic sweep only within resource capacity. Record actual PostgreSQL version/settings, resource limits and observation overhead. Distinguish counter contention from Treasury or other account contention. TD-004/014 reconsideration requires measured impact and a replacement passing the same pagination/fault tests; no proven bottleneck or benchmark result is asserted.
+
 ## PRD performance test (NFR-004; EV-003)
 
-Use the **exact** fixture/schedule/clean-pass acceptance criteria in [13 quality plan](13-quality-attributes.md) and [09 PRD §9](../baseline/09-product-requirements.md). Dedicated 100-Customer, 50-pair dataset; 300 warm-up intents and 3,000 measured intents, every 100ms; report primary attempts separately from recovered outcomes. Zero financial-invariant violations. EV-003 remains AWAITING MEASUREMENT, not a passed gate.
+Use the **exact** fixture/schedule/clean-pass acceptance criteria in [09 PRD §9](../02-requirements/09-product-requirements.md). Dedicated 100-Customer, 50-pair dataset; 300 warm-up intents and 3,000 measured intents, every 100ms; report primary attempts separately from recovered outcomes. Zero financial-invariant violations. EV-003 remains AWAITING MEASUREMENT, not a passed gate.
 
 ## Evidence record template
 
@@ -104,3 +145,7 @@ reviewer: TODO
 ```
 
 An AC is not considered passed until execution-specific evidence exists. The 38 ACs and 19 CONS lenses must be indexed in the trace matrix and release report.
+
+## Documentation tooling checks (DOC-01/03)
+
+The [documentation CI workflow](../../.github/workflows/docs.yml) validates the design OpenAPI file, all local `$ref` pointers, duplicate YAML keys, local Markdown paths/heading anchors and Compose configuration using pinned tools. Use the [README commands](../README.md#validate-documentation-locally-and-in-ci) locally. Swagger browser rendering and Mermaid rendering can be checked separately during review; these are documentation checks, not financial acceptance tests. No AC/CONS is marked PASS by a successful documentation workflow.

@@ -78,7 +78,7 @@ sequenceDiagram
         Core->>Core: Record final rejection without financial postings
         Core-->>Alice: Business rejection
     else Technical failure or concurrent processing
-        Core-->>Alice: Non-final or uncertain outcome; resolve with same key
+        Core-->>Alice: Non-final or uncertain outcome, resolve with same key
     end
 ```
 

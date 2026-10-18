@@ -1,0 +1,18 @@
+name: finfast-docs
+
+services:
+  swagger-ui:
+    image: swaggerapi/swagger-ui:v5.32.15
+    ports:
+      - "127.0.0.1:8081:8080"
+    environment:
+      SWAGGER_JSON: /spec/openapi-v1.yaml
+      VALIDATOR_URL: "none"
+      SUPPORTED_SUBMIT_METHODS: "[]"
+    volumes:
+      - type: bind
+        source: ./docs/03-design/contracts/openapi-v1.yaml
+        target: /spec/openapi-v1.yaml
+        read_only: true
+        bind:
+          create_host_path: false

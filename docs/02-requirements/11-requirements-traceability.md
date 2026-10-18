@@ -1,6 +1,6 @@
 # 11 — Requirement-to-Delivery Traceability Matrix
 
-> **Generated mapping** from [PRD §10](../baseline/09-product-requirements.md), [04 canonical AC](../baseline/04-use-cases.md), [06 canonical BR](../baseline/06-business-rules.md), and the proposed [backlog 10](10-product-backlog.md). This is **design-time coverage**, not evidence of executed tests. FR/UC/AC/BR/CONS original identifiers remain unchanged.
+> **Generated mapping** from [PRD §10](09-product-requirements.md), [04 canonical AC](../01-discovery/04-use-cases.md), [06 canonical BR](../01-discovery/06-business-rules.md), and the proposed [backlog 10](10-product-backlog.md). This is **design-time coverage**, not evidence of executed tests. FR/UC/AC/BR/CONS original identifiers remain unchanged.
 
 ## Functional requirement to use case/acceptance/issue
 
@@ -150,5 +150,5 @@
 
 1. Add requirement IDs to each GitHub issue, PR and change/spec; connect to business rules and AC IDs as applicable.
 2. Record actual automated test IDs and run evidence in the corresponding AC row; a passing test is not implied by a trace link.
-3. During release verify every P0 FR/UX/NFR, 38 BRs, 38 ACs, and CONS risk links are covered; follow [release checklist](23-uat-and-release-checklist.md).
+3. During release verify every P0 FR/UX/NFR, 38 BRs, 38 ACs, and CONS risk links are covered; follow [release checklist](../05-verification/23-uat-and-release-checklist.md).
 4. If a design change affects business meaning, return to the project owner for a policy change and update 01–09; a technical design choice alone is not authorization to change the V1 scope.

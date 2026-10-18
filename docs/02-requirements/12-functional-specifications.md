@@ -1,6 +1,6 @@
 # 12 — Functional Specifications (behavioral contracts)
 
-> Status: **DERIVED specification for engineering review**. The source of approved business meaning remains [04 use cases](../baseline/04-use-cases.md), [06 rules](../baseline/06-business-rules.md), and [09 PRD](../baseline/09-product-requirements.md). Endpoint paths, DTO fields, numeric range, and internal mechanisms in companion designs are *proposals*, not new approved banking rules.
+> Status: **DERIVED specification for engineering review**. The source of approved business meaning remains [04 use cases](../01-discovery/04-use-cases.md), [06 rules](../01-discovery/06-business-rules.md), and [09 PRD](09-product-requirements.md). Endpoint paths, DTO fields, numeric range, and internal mechanisms in companion designs are *proposals*, not new approved banking rules.
 
 ## Universal conventions
 
@@ -76,7 +76,7 @@
 
 ## Functional cross-cutting decisions still to be ratified
 
-- API field schemas/error codes and numeric range: [17 API contracts](17-api-contracts.md), [OpenAPI proposal](contracts/openapi-v1.yaml).
-- Synchronization/locking/commit sequence: [20 ADR](20-adr-financial-atomicity-and-idempotency.md), [21 ADR](21-adr-history-continuation.md).
-- Session TTL, CSRF mechanism, explicit privacy of not-found vs forbidden: [15 architecture](15-system-architecture.md), [25 decision register](25-design-decision-register.md).
+- API field schemas/error codes and numeric range: [17 API contracts](../03-design/17-api-contracts.md), [OpenAPI proposal](../03-design/contracts/openapi-v1.yaml).
+- Synchronization/locking/commit sequence: [16 transaction/idempotency design](../03-design/16-domain-model-and-data-design.md#5-transaction-boundaries-and-outcomes-arc-02), [16 history ordering](../03-design/16-domain-model-and-data-design.md#8-history-ordering-and-global-sequence-risk-arc-05).
+- Session TTL, CSRF mechanism, explicit privacy of not-found vs forbidden: [15 architecture](../03-design/15-system-architecture.md), [25 decision register](../6-governance/25-design-decision-register.md).
 - No feature or service in this document is authorized to extend beyond PRD V1 exclusions.

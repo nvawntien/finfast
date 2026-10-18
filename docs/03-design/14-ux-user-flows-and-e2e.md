@@ -91,4 +91,4 @@ flowchart LR
 | WEB-07 | Navigate empty and >100-record history; add movements between pages | No duplicate/omitted eligible movements, proper page limit | AC-025/038 |
 | WEB-08 | Customer/Admin pages on 360×800, 768×1024, 1440×900 plus 200% zoom/keyboard | Required flows, status text and controls usable; document browsers | AC-038 |
 
-For backend acceptance, keep the original AC-001..AC-038 definitions in [04](../baseline/04-use-cases.md); WEB IDs are execution artifacts, not replacement policy.
+For backend acceptance, keep the original AC-001..AC-038 definitions in [04](../01-discovery/04-use-cases.md); WEB IDs are execution artifacts, not replacement policy.

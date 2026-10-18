@@ -13,14 +13,14 @@ This PRD defines what FinFast V1 must deliver, how users experience it, and what
 
 | Source | Requirements input |
 |---|---|
-| [01 - Product Vision and V1 Scope](./01-product-vision-and-scope.md) | Product outcomes, release boundaries, priorities, channels, and initial constraints |
-| [02 - Domain Glossary](./02-domain-glossary.md) | Canonical terminology and distinctions between identities, accounts, requests, postings, and audit records |
-| [03 - Actors and Stakeholders](./03-actors.md) | CUSTOMER and ADMIN permissions and ownership boundaries |
-| [04 - Use Case Catalogue](./04-use-cases.md) | Ten use cases and 38 canonical acceptance scenarios |
-| [05 - Business Process Flows](./05-business-processes.md) | BP-01 through BP-06, including controlled initialization and recovery |
-| [06 - Business Rules](./06-business-rules.md) | All 38 mandatory business rules and CONS-01 through CONS-19 risk mappings |
-| [07 - Assumptions, Questions, and Decision Log](./07-assumptions-and-questions.md) | A-001 through A-014, OQ-001 through OQ-013, DEC-001 through DEC-008, and EV-001 through EV-003 |
-| [08 - PRD Handoff](./08-prd-handoff.md) | Consolidated discovery coverage, evidence boundaries, and readiness gates |
+| [01 - Product Vision and V1 Scope](../01-discovery/01-product-vision-and-scope.md) | Product outcomes, release boundaries, priorities, channels, and initial constraints |
+| [02 - Domain Glossary](../01-discovery/02-domain-glossary.md) | Canonical terminology and distinctions between identities, accounts, requests, postings, and audit records |
+| [03 - Actors and Stakeholders](../01-discovery/03-actors.md) | CUSTOMER and ADMIN permissions and ownership boundaries |
+| [04 - Use Case Catalogue](../01-discovery/04-use-cases.md) | Ten use cases and 38 canonical acceptance scenarios |
+| [05 - Business Process Flows](../01-discovery/05-business-processes.md) | BP-01 through BP-06, including controlled initialization and recovery |
+| [06 - Business Rules](../01-discovery/06-business-rules.md) | All 38 mandatory business rules and CONS-01 through CONS-19 risk mappings |
+| [07 - Assumptions, Questions, and Decision Log](../01-discovery/07-assumptions-and-questions.md) | A-001 through A-014, OQ-001 through OQ-013, DEC-001 through DEC-008, and EV-001 through EV-003 |
+| [08 - PRD Handoff](../01-discovery/08-prd-handoff.md) | Consolidated discovery coverage, evidence boundaries, and readiness gates |
 
 The existing UC, BR, AC, CONS, A, OQ, DEC, BP, and EV identifiers retain their meanings. The use cases, rules, and acceptance scenarios remain canonical in their linked documents. New FR, UX, and NFR identifiers organize delivery requirements without replacing those identifiers. A policy change requires an explicit project-owner decision and updates to affected source requirements.
 
@@ -324,7 +324,7 @@ Record deviations and their causes against EV-003 for owner review. A missed pro
 
 ### 10.1 Functional requirement coverage
 
-The [canonical acceptance matrix](./04-use-cases.md#4-acceptance-scenario-matrix) defines each AC. References below preserve all 10 use cases and all 38 scenarios without duplicating their Given/When/Then definitions. UX/NFR checks supplement that matrix as specified in section 8. CONS-01 through CONS-19 remain risk views of the same ACs in [06](./06-business-rules.md#7-high-risk-consistency-scenarios).
+The [canonical acceptance matrix](../01-discovery/04-use-cases.md#4-acceptance-scenario-matrix) defines each AC. References below preserve all 10 use cases and all 38 scenarios without duplicating their Given/When/Then definitions. UX/NFR checks supplement that matrix as specified in section 8. CONS-01 through CONS-19 remain risk views of the same ACs in [06](../01-discovery/06-business-rules.md#7-high-risk-consistency-scenarios).
 
 | Requirement | Use cases / process | Canonical acceptance scenarios |
 |---|---|---|
@@ -345,7 +345,7 @@ The [canonical acceptance matrix](./04-use-cases.md#4-acceptance-scenario-matrix
 
 ### 10.2 Mandatory business-rule coverage
 
-This matrix extends the [canonical per-rule UC/AC coverage](./06-business-rules.md#mandatory-rule-coverage) with PRD requirement IDs. All 38 business rules are P0; the mapping is coverage, not a claim that tests passed.
+This matrix extends the [canonical per-rule UC/AC coverage](../01-discovery/06-business-rules.md#mandatory-rule-coverage) with PRD requirement IDs. All 38 business rules are P0; the mapping is coverage, not a claim that tests passed.
 
 | Business rule | PRD requirement coverage |
 |---|---|

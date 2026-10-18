@@ -1,6 +1,6 @@
 # 23 — UAT, Release Readiness and Project-Owner Signoff
 
-> Status: **UNEXECUTED checklist** derived from [PRD §10–§12](../baseline/09-product-requirements.md). Completing this document requires linked runtime evidence; no boxes imply completed work today. Release acceptance authority belongs to the project owner, not the author of these outputs.
+> Status: **UNEXECUTED checklist** derived from [PRD §10–§12](../02-requirements/09-product-requirements.md). Completing this document requires linked runtime evidence; no boxes imply completed work today. Release acceptance authority belongs to the project owner, not the author of these outputs.
 
 ## A. Product requirements and coverage
 
