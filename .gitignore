@@ -1,0 +1,38 @@
+# Java / Maven (the Wrapper JAR is required source tooling).
+target/
+out/
+.m2/
+*.class
+*.jar
+!**/.mvn/wrapper/maven-wrapper.jar
+
+# Local IDE configuration.
+.idea/
+.vscode/
+*.iml
+.classpath
+.project
+.settings/
+.factorypath
+
+# Environment secrets and private credentials.
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+
+# Logs, temporary files and OS metadata.
+logs/
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db

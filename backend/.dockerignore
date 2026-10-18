@@ -1,0 +1,32 @@
+# Send only the files needed to build and test the application.
+**
+!pom.xml
+!mvnw
+!.mvn/
+!.mvn/wrapper/
+!.mvn/wrapper/maven-wrapper.jar
+!.mvn/wrapper/maven-wrapper.properties
+!src/
+!src/**
+
+# Exclude local artifacts or credentials even if placed inside src/.
+**/target/
+**/.git/
+**/.idea/
+**/.vscode/
+**/.aws/
+**/.ssh/
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/*.jks
+**/credentials
+**/settings.xml
+**/*.log
+**/*.tmp
+**/*.temp
+**/*~
+**/.DS_Store

@@ -1,0 +1,54 @@
+package com.finfast;
+
+import org.flywaydb.core.Flyway;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.testcontainers.postgresql.PostgreSQLContainer;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+@SpringBootTest
+@Tag("integration")
+@Import(PostgresIntegrationTests.ContainerConfiguration.class)
+class PostgresIntegrationTests {
+
+    @Test
+    void connectsAndInitializesFlywayWithoutBusinessMigrations(
+            @Autowired PostgreSQLContainer postgres,
+            @Autowired JdbcTemplate jdbc,
+            @Autowired Flyway flyway) {
+        assertThat(postgres.isRunning()).isTrue();
+        assertThat(jdbc.queryForObject("SELECT 1", Integer.class)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT current_database()", String.class)).isEqualTo("finfast_test");
+        assertThat(jdbc.queryForObject("SHOW server_version", String.class)).startsWith("16.15");
+        assertThat(flyway.validateWithResult().validationSuccessful).isTrue();
+        assertThat(flyway.info().applied()).isEmpty();
+        assertThat(flyway.info().pending()).isEmpty();
+        assertThat(jdbc.queryForList(
+                "SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename",
+                String.class)).containsExactly("flyway_schema_history");
+    }
+
+    @TestConfiguration(proxyBeanMethods = false)
+    static class ContainerConfiguration {
+
+        @Bean
+        @ServiceConnection
+        PostgreSQLContainer postgres() {
+            // Same verified PostgreSQL 16.15-alpine3.24 manifest used by Compose.
+            return new PostgreSQLContainer(
+                    "postgres@sha256:"
+                            + "721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea")
+                    .withDatabaseName("finfast_test")
+                    .withUsername("finfast_test")
+                    .withPassword("finfast_test");
+        }
+    }
+}
