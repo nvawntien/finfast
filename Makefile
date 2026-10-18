@@ -5,7 +5,7 @@ DOCKER_COMPOSE ?= docker compose
 MAVEN ?= ./mvnw
 HEALTH_URL ?= http://localhost:8080/actuator/health
 
-.PHONY: help setup up down restart logs ps test build health docs-up docs-down
+.PHONY: help setup up start stop down restart logs ps test build health docs-up docs-down
 
 help: ## Show available commands.
 	@printf 'Usage: make <target>\n\n'
@@ -22,6 +22,12 @@ setup: ## Create .env from .env.example without overwriting an existing file.
 
 up: ## Build and start the backend and PostgreSQL in the background.
 	cd "$(ROOT_DIR)" && $(DOCKER_COMPOSE) -f compose.yaml up --build -d
+
+start: ## Start existing stopped containers without rebuilding or recreating them.
+	cd "$(ROOT_DIR)" && $(DOCKER_COMPOSE) -f compose.yaml start
+
+stop: ## Stop running containers without removing them.
+	cd "$(ROOT_DIR)" && $(DOCKER_COMPOSE) -f compose.yaml stop
 
 down: ## Stop the application stack and preserve database volumes.
 	cd "$(ROOT_DIR)" && $(DOCKER_COMPOSE) -f compose.yaml down
