@@ -19,7 +19,7 @@ global commit counter remains provisional and requires performance benchmarking.
 | `account` | Unique immutable number; at most one Account per Customer; type/owner compatibility; ACTIVE/FROZEN, VND, nonnegative balance; Treasury always ACTIVE |
 | `financial_transaction` | Unique reference and positive commit sequence; allowed type, positive amount and VND |
 | `ledger_entry` | Transaction/Account FKs; nonzero delta; unique Transaction/Account pair |
-| `dataset_control` | Singleton ID 1; Treasury/GENESIS FKs; positive immutable initial supply; nonnegative mutable commit counter |
+| `dataset_control` | Singleton ID 1; Treasury/GENESIS FKs; positive immutable initial supply; counter initialized from GENESIS and advanced exactly by one |
 | `request_outcome` | Scoped uniqueness; final COMPLETED/REJECTED shape; operation, canonicalization and fingerprint checks |
 | `admin_audit_event` | Actor/target/transaction FKs; unique optional transaction; valid action/outcome/reason and allocation/status-change shapes |
 
@@ -53,14 +53,16 @@ Only these four additional indexes are defined:
   exclusion remain application responsibilities, not hash-only comparisons.
 - Blank checks use PostgreSQL's POSIX whitespace class; stored values are not
   automatically trimmed. Email normalization remains an application concern.
-- Account `id`, `account_number` and `account_type` are fixed after insertion.
-  `protect_account_identity` rejects identity changes, row deletion and truncation.
+- Account `id`, `account_number`, `account_type` and `customer_id` are fixed after insertion.
+  `protect_account_identity` rejects identity/ownership changes, row deletion and truncation.
   Retaining Account rows prevents number reassignment without a ninth tombstone
   table. Balance/status updates remain possible within the row constraints.
 - `protect_dataset_control` checks on INSERT that the two references have Treasury
-  and GENESIS types. Account type immutability and V2 fact immutability keep these
+  and GENESIS types and `last_commit_seq` equals that GENESIS's `commit_seq`.
+  Account type immutability and V2 fact immutability keep these
   links valid. Updates cannot alter the singleton ID, references or initial supply;
-  DELETE/TRUNCATE are rejected. Updates of `last_commit_seq` remain possible.
+  DELETE/TRUNCATE are rejected. Every UPDATE must advance `last_commit_seq` by
+  exactly one; exhaustion is rejected before BIGINT addition can overflow in the guard.
   Counter-only updates do not read or lock Accounts, preserving the future
   Account-before-dataset lock order. No posting/counter-allocation algorithm is
   implemented, and the counter is not a PostgreSQL sequence.
@@ -98,6 +100,8 @@ Row constraints and append-only guards do not establish correct financial postin
   amount must match `initial_supply_vnd`. No schema CHECK proves these cross-row facts.
 - Authorization must establish CUSTOMER ownership and ADMIN actors/targets, validate
   ACTIVE status/funds under deterministic Account locks and reject self-transfers.
+  FKs do not prevent an ADMIN User from having a Customer profile, require an audit
+  actor to have ADMIN role, or require an audited target to be a CUSTOMER Account.
 - Balance changes, posting facts, final outcomes and required success audit must
   commit atomically. SUCCESS must only be reported after commit confirmation.
 - Idempotency requires transaction-scoped advisory coordination, full canonical
@@ -113,9 +117,48 @@ can insert Treasury, its GENESIS transaction, positive Ledger Entry and then Dat
 Control in one transaction with explicit supply and counter values. It must verify
 their financial consistency; migrations neither initialize nor reseed the dataset.
 
-The existing Testcontainers smoke test covers migration/validation, expected empty
-tables and connectivity. Comprehensive constraint, trigger, rollback, idempotency
-and concurrency coverage belongs to Step 4B.2 and financial module integration tests.
+## Database integration tests
+
+From `backend/`, with Java 21 and a Testcontainers-compatible container runtime:
+
+```sh
+./mvnw test
+./mvnw package
+```
+
+The tests reuse the pinned PostgreSQL 16.15 Testcontainers configuration. No host
+PostgreSQL or manually started Compose stack is needed. Container connection details
+override local datasource settings; tests never target the persistent developer database.
+
+| Test class | Coverage |
+|---|---|
+| `PostgresIntegrationTests` | Fresh V1/V2 migration and validation, eight empty banking tables, connectivity |
+| `SchemaStructureTests` | Named PK/FK/UNIQUE/CHECK definitions, four approved indexes, enabled triggers/functions |
+| `IdentityAndAccountConstraintTests` | User/profile constraints, Account ownership/type/status/currency/balance rules |
+| `SchemaIdentityAndCounterTests` | Immutable Account identity/ownership, removal guards, immutable dataset configuration, exact counter increments, exhaustion and GENESIS consistency |
+| `FinancialTransactionAndLedgerTests` | Financial row constraints, uniqueness/FKs and UPDATE/DELETE/TRUNCATE append-only guards, including zero-match statements |
+| `DatasetControlConstraintTests` | Singleton, positive supply, reference types, counter rejection and removal guards |
+| `RequestOutcomeConstraintTests` | Scoped case-sensitive opaque keys, field bounds, final-outcome shapes and JSONB round trips |
+| `AdminAuditConstraintTests` | Allocation/status audit shapes, common constraints, FKs and unique audited transaction |
+| `DatabaseAtomicityAndConcurrencyTests` | Four explicit rollback scenarios, concurrent counter increments and concurrent outcome uniqueness |
+
+Ordinary constraint tests roll back fixtures; savepoints recover expected PostgreSQL
+statement errors without disabling triggers. Commit/concurrency tests create a separate
+database per test inside the disposable Testcontainer, commit setup explicitly, control
+JDBC commit/rollback and verify results from independent connections. Testcontainer
+teardown removes those databases without modifying developer volumes or running clean.
+Concurrency tests use latches, bounded database/network/test timeouts and observed
+[`pg_blocking_pids`](https://www.postgresql.org/docs/16/functions-info.html#FUNCTIONS-INFO-SESSION-TABLE)
+waits, with worker failures propagated; they use no scheduling sleeps or stress workload.
+
+These tests exercise database-enforced PK/FK/UNIQUE/CHECK constraints, partial unique
+indexes, Account identity/ownership immutability, dataset rules and append-only facts.
+Rollback tests demonstrate PostgreSQL transaction behavior using test-only SQL, not
+implemented posting services. Counter serialization does not prove account-lock ordering;
+the uniqueness race does not implement or prove advisory-lock request coordination.
+Balanced paired entries, ledger/balance reconciliation, service-level atomic outcomes,
+authorization, mandatory success audits, complete controlled GENESIS and counter
+performance remain responsibilities of future application tests and benchmarks.
 
 ## Adding future migrations safely
 
