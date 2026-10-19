@@ -12,6 +12,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
@@ -20,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PostgresIntegrationTests {
 
     @Test
-    void connectsAndInitializesFlywayWithoutBusinessMigrations(
+    void connectsAndAppliesBankingSchemaWithoutSeedData(
             @Autowired PostgreSQLContainer postgres,
             @Autowired JdbcTemplate jdbc,
             @Autowired Flyway flyway) {
@@ -29,11 +31,21 @@ class PostgresIntegrationTests {
         assertThat(jdbc.queryForObject("SELECT current_database()", String.class)).isEqualTo("finfast_test");
         assertThat(jdbc.queryForObject("SHOW server_version", String.class)).startsWith("16.15");
         assertThat(flyway.validateWithResult().validationSuccessful).isTrue();
-        assertThat(flyway.info().applied()).isEmpty();
+        assertThat(flyway.info().applied())
+                .extracting(migration -> migration.getVersion().getVersion())
+                .containsExactly("1", "2");
         assertThat(flyway.info().pending()).isEmpty();
         assertThat(jdbc.queryForList(
                 "SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename",
-                String.class)).containsExactly("flyway_schema_history");
+                String.class)).containsExactly(
+                        "account", "admin_audit_event", "app_user", "customer", "dataset_control",
+                        "financial_transaction", "flyway_schema_history", "ledger_entry", "request_outcome");
+
+        for (String table : List.of("account", "admin_audit_event", "app_user", "customer", "dataset_control",
+                "financial_transaction", "ledger_entry", "request_outcome")) {
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM public." + table, Long.class))
+                    .as("%s starts empty", table).isZero();
+        }
     }
 
     @TestConfiguration(proxyBeanMethods = false)
