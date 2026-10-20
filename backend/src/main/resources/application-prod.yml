@@ -1,0 +1,12 @@
+logging:
+  structured:
+    format:
+      console: ecs
+    ecs:
+      service:
+        environment: ${APP_ENV:production}
+
+spring:
+  output:
+    ansi:
+      enabled: never
