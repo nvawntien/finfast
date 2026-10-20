@@ -1,7 +1,7 @@
-# Metrics, dashboard and operational alerts — Step 4D.4
+# Metrics, dashboard and operational alerts
 
 Use the existing [setup workflow](README.md). Grafana stays at
-**http://localhost:3300**; frontend port 3000 and Swagger UI port 8081 are unchanged.
+**http://localhost:3300**; frontend host port 3000 is reserved and Swagger UI uses 8081.
 `make observability-up` starts all six telemetry services. `make observed-up` enables
 ECS logs, tracing and metrics; `make observability-health` checks all six readiness
 endpoints. Return to ordinary mode with `make up`, then `make observability-down`.
@@ -53,12 +53,19 @@ recorded. There is no business-layer instrumentation.
 queries. There is no PostgreSQL exporter, synthetic DB poller or database-up metric.
 Use existing Actuator database health for diagnosis; dedicated DB monitoring is later work.
 
+| Signal | What it establishes |
+|---|---|
+| Scrape failure (`up=0` or expected target absent) | Prometheus cannot collect metrics; the backend may still serve other HTTP endpoints |
+| Backend HTTP failure (5xx) | A request failed; metrics scraping can remain UP and no financial result is implied |
+| PostgreSQL health failure | While the backend runs, Actuator's database check fails and aggregate health returns DOWN/503 even if metrics remain scrapeable |
+| Connection pool pressure | Active/max or pending acquisition indicates contention; it does not by itself prove DB unavailability |
+
 ## Dashboard and latency
 
 Open **Dashboards → FinFast → FinFast — Backend Overview**, or
 http://localhost:3300/d/finfast-backend-overview. The provisioned
 [dashboard JSON](grafana/dashboards/backend-overview.json) contains the exact PromQL.
-Its five sections cover scrape/uptime, HTTP status classes/rate/counts, latency,
+Its 19 panels in five sections cover scrape/uptime, HTTP status classes/rate/counts, latency,
 JVM/CPU and Hikari occupancy/acquisition/timeouts. The environment selector filters
 application metrics; the single configured scrape target is shown independently.
 Missing series remain **No data**. Rates need at least two scrape samples; no traffic
@@ -68,6 +75,8 @@ HTTP histograms have 11 finite boundaries: 5, 10, 25, 50, 100, 250, 500ms and
 1, 2, 5, 10s, plus `+Inf`. These explicit buckets bound series count. Quantiles are
 interpolated estimates; observations beyond the last finite boundary cannot yield
 precise tail estimates. No client-side quantiles or exemplar integration is added.
+With few requests, p95/p99 can be unstable; dashboard quantiles are not a workload
+benchmark or evidence that the proposed banking performance target has been met.
 
 Examples in Grafana Explore, using the Prometheus datasource:
 
@@ -141,18 +150,26 @@ developer database for fault tests. Only one backend should own the `backend` DN
 alias on that telemetry network. With host ports 8080/3300 available:
 
 ```bash
-cp .env.example .env.metrics.verify
-make observability-setup OBSERVABILITY_ENV=.env.observability.verify
+cp -n .env.example .env.metrics.verify
+make observability-setup OBSERVABILITY_ENV=.env.observability.metrics.verify
 # Choose Grafana credentials, FINFAST_APP_PROJECT=finfast-metrics-verify and
-# FINFAST_OBSERVABILITY_NETWORK=finfast_metrics_verify in .env.observability.verify.
+# FINFAST_OBSERVABILITY_NETWORK=finfast_metrics_verify in .env.observability.metrics.verify.
 # Choose a separate DB name/password and an unused POSTGRES_PORT in .env.metrics.verify.
-make observability-up OBSERVABILITY_ENV=.env.observability.verify OBSERVABILITY_PROJECT=finfast-metrics-verify-stack
-docker compose --env-file .env.metrics.verify --env-file .env.observability.verify -p finfast-metrics-verify -f compose.yaml -f compose.observed.yaml -f observability/compose.metrics-verify.yaml up --build -d
-python3 observability/tests/verify_metrics.py --environment-file .env.observability.verify
-python3 observability/tests/verify_stack.py --environment-file .env.observability.verify --probe-url http://localhost:8080
-docker compose --env-file .env.metrics.verify --env-file .env.observability.verify -p finfast-metrics-verify -f compose.yaml -f compose.observed.yaml -f observability/compose.metrics-verify.yaml down
-make observability-down OBSERVABILITY_ENV=.env.observability.verify OBSERVABILITY_PROJECT=finfast-metrics-verify-stack
+make observability-up OBSERVABILITY_ENV=.env.observability.metrics.verify OBSERVABILITY_PROJECT=finfast-metrics-verify-stack
+docker compose --env-file .env.metrics.verify --env-file .env.observability.metrics.verify -p finfast-metrics-verify -f compose.yaml -f compose.observed.yaml -f observability/compose.metrics-verify.yaml up --build -d
+python3 observability/tests/verify_metrics.py --environment-file .env.observability.metrics.verify
+python3 observability/tests/verify_stack.py --environment-file .env.observability.metrics.verify --probe-url http://localhost:8080
+docker compose --env-file .env.metrics.verify --env-file .env.observability.metrics.verify -p finfast-metrics-verify -f compose.yaml -f compose.observed.yaml -f observability/compose.metrics-verify.yaml down
+make observability-down OBSERVABILITY_ENV=.env.observability.metrics.verify OBSERVABILITY_PROJECT=finfast-metrics-verify-stack
 ```
+
+These ignored files are operator-owned test settings, separate from the developer's
+`.env` and `.env.observability` and the trace-only verification example. Setup preserves
+existing files; neither script generates/deletes credentials or needs developer secrets
+when given `--environment-file`. Use literal values without dollar interpolation or
+inline comments; the Python reader is not a full Compose dotenv parser. Protect retained
+configuration and reuse the initialized Grafana credentials on subsequent runs;
+shutdown preserves all volumes.
 
 The metrics script checks actual stored metrics, counter increments, p95/p99,
 dashboard queries and rule/Alertmanager discovery. It does not stop containers.
@@ -169,18 +186,13 @@ removes blocks first; WAL/head data need additional disk. Alertmanager retains s
 for 72h. These named volumes are independent of PostgreSQL. Retention configuration
 is validated; a complete 72h expiry cycle has not been exercised.
 
-Use `docker stats --no-stream` for all six containers. RAM/CPU/disk grow with active
-series, buckets, queries and retention; the prior four-service 670 MiB snapshot is
-not a budget for the expanded stack. Allow headroom for the backend and image builds.
-After real dashboard/log/trace queries on 2026-10-20, a snapshot measured Grafana
-758 MiB, Alloy 50.2 MiB, Loki 90.8 MiB, Tempo 94.4 MiB, Prometheus 38.3 MiB and
-Alertmanager 19.3 MiB: about 1,051 MiB total, 381 MiB above the earlier snapshot.
-The two new processes used about 58 MiB; the total difference also reflects changed
-query workload/caches, not a controlled measurement of their incremental cost.
-The [final review snapshot](architecture-review.md#resource-observation) includes
-post-restart measurements, the backend/PostgreSQL and allocated storage separately.
-Stopping any monitoring component cannot change HTTP/financial outcomes; samples
-missed while Prometheus is stopped are not backfilled.
+Use `docker stats` interactively or `docker stats --no-stream` for a snapshot.
+The [resource observation](architecture-review.md#resource-observation) is the single
+location for dated RAM/storage measurements, including backend/PostgreSQL separately.
+Usage depends on traffic, active series, query workload, caches and retention; allow
+headroom for the application and image builds. Telemetry is optional. Fault checks
+verify backend HTTP/database availability, not unimplemented financial services or
+posting atomicity. Samples missed while Prometheus is stopped are not backfilled.
 
 - Target down: verify observed profile, shared network/DNS and target scrape errors;
   normal backend mode deliberately does not expose Prometheus.

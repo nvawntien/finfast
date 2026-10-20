@@ -1,4 +1,4 @@
-# Logging, HTTP errors and tracing — Steps 4D.1–4D.2
+# Logging, HTTP errors and tracing
 
 Implemented technical foundation for Java 21 / Spring Boot 4.1.1. The generic HTTP
 codes below are technical decisions for this step, not approval of new banking
@@ -8,8 +8,9 @@ behavior or implementation of the proposed financial endpoints in [API design](1
 
 Domain models, domain services, application use cases, posting orchestration,
 business validation and persistence business operations do not import logging APIs,
-Logback or MDC. Propagate typed errors or explicit results; preserve the cause when
-wrapping technical failures (`new SomeException(safeMessage, cause)`). No custom
+Logback, MDC, Micrometer, OpenTelemetry or Prometheus APIs. Propagate typed errors or
+explicit results; preserve causes when wrapping technical failures
+(`new SomeException(safeMessage, cause)`). No custom
 Logger facade, logging service, business logging interface or method-wide AOP is needed.
 
 Log at the terminal infrastructure boundary once. The MVC boundary logs unexpected
@@ -19,9 +20,19 @@ Retries should report the terminal failure rather than repeat the same stack at 
 
 ## Formats and configuration
 
-Use the existing Boot-managed SLF4J 2 / Logback dependencies. No encoder dependency
-is added. Boot's ECS encoder writes production JSON. `logback-spring.xml` only
+SLF4J 2 is the logging API; Logback is Spring Boot's default implementation.
+Both are Boot-managed; no third-party encoder dependency is added.
+Boot's ECS encoder writes production JSON. `logback-spring.xml` only
 registers the module/trace/safe-exception converters and selects one stdout appender.
+
+| Concept | Meaning |
+|---|---|
+| Application log | A deliberately emitted diagnostic event; automatic HTTP tracing/metrics do not log every successful request |
+| Java exception stack trace | Exception types, frames and cause/suppressed relationships, safely rendered within a log event |
+| Distributed trace | Instrumented spans with Trace/Span IDs; separate from logs and Java exception stacks |
+
+Business events and durable PostgreSQL ledger/audit records require their own reviewed
+design; application telemetry does not automatically create or replace them.
 
 | Setting | Behavior |
 |---|---|
@@ -65,9 +76,10 @@ JVM/process stderr diagnostics are separate from application JSON stdout.
 
 The dotted correlation/event keys are literal JSON keys, using ECS dotted notation;
 quote the entire key when extracting it. Boot's standard metadata/error objects remain
-nested. This avoids adding a duplicate `error` object for `error.code`. The future
-Alloy/Loki parser must follow this layout consistently, preserve full trace IDs and
-avoid using request/trace IDs or financial values as stream labels.
+nested. This avoids adding a duplicate `error` object for `error.code`. The current
+Alloy/Loki pipeline follows this layout, preserving full IDs in content and using
+only service/environment/level/module stream labels. Do not add correlation or
+financial identifiers as stream labels.
 
 Field ownership is explicit: Boot owns standard nested metadata and `error.type` /
 `error.stack_trace`; `LoggingJsonCustomizer` owns the literal dotted keys above and
@@ -162,7 +174,9 @@ decision; the configured probability applies to new roots. A valid trace/span ID
 exist on an unsampled request. Correlated logs therefore need not have a stored trace.
 Sampling changes telemetry volume and never determines financial outcomes.
 
-Enable export in the backend process's environment, for example:
+Native export can be enabled when an OTLP/HTTP receiver is reachable from the host,
+for example at the following address. The bundled Alloy has no host-published OTLP
+port, so this command alone does not connect a native backend to that container:
 
 ```bash
 OTLP_TRACES_ENABLED=true \
@@ -171,10 +185,12 @@ OTLP_TRACES_ENDPOINT=http://localhost:4318/v1/traces \
 ```
 
 Run this command from `backend/` with the native datasource environment described in
-the root README. Docker Compose does not automatically forward arbitrary `.env` keys:
-these settings must reach the backend container environment when export is later wired
-into infrastructure. Inside a container, `localhost` refers to that container; use the
-future collector's reachable network hostname. No collector is created here.
+the root README. For Docker, `make observed-up` already uses `compose.observed.yaml`
+to enable export and set `http://alloy:4318/v1/traces` on the shared network. Ordinary
+`make up` disables that integration. Compose does not forward arbitrary environment-file
+keys into containers; only explicitly configured fields are passed. Container `localhost`
+refers to that container. See the [stack runbook](../../observability/README.md)
+for the implemented collector topology and environment-file setup.
 
 The opt-in property is `management.tracing.export.otlp.enabled`, separate from the SDK.
 `management.opentelemetry.tracing.export.otlp.transport=http` uses connect timeout 1s
@@ -204,6 +220,9 @@ Never deliberately put secrets into span names, attributes or resource configura
 Handled MVC errors retain their HTTP status/outcome tags; an HTTP 500 does not by
 itself guarantee an OTel `ERROR` status in this instrumentation. The export filter
 preserves the status supplied by the SDK rather than inventing financial outcomes.
+The verified string attribute is `status="500"`; use HTTP status labels in Prometheus
+and the runbook's [HTTP 5xx TraceQL query](../../observability/README.md#http-5xx-semantics),
+including spans with OTel status `UNSET`.
 
 ## Severity and error taxonomy
 
@@ -246,6 +265,8 @@ The boundary uses MVC's configured `ContentNegotiationManager`. If a different e
 occurs but the client cannot accept JSON, preserve its original status and headers
 with an empty body instead of triggering a second error during serialization. For
 example, an unexpected failure with `Accept: application/xml` remains 500, logged once.
+An explicit JSON `q=0` overrides a less-specific positive wildcard; specific acceptable
+vendor JSON remains supported. The boundary preserves status/headers in both cases.
 They omit `outcome`; neither `REJECTED`, `PROCESSING` nor `UNKNOWN` is inferred.
 Already-committed responses and unusable async responses retain framework behavior.
 Actuator health retains its own status/body. Failures outside MVC, including future
@@ -277,14 +298,14 @@ cutoff; Boot handles circular references. Remote serialized Throwable proxies ar
 used and conservatively render the type only. This does not sanitize secrets deliberately
 interpolated into a log's human message; use constant, safe boundary messages.
 
-## Verification and later work
+## Verification and operational references
 
 With Java 21 and Docker: `cd backend && ./mvnw test`, then `./mvnw package`.
 `LoggingContractTests` verifies actual YAML configuration, ECS event fields/metadata,
 severity, ANSI on/off, package labels, context allowlisting and safe cause rendering.
 JSON assertions enable Jackson's strict duplicate-key detection. `LoggingOutputTests`
-launches test-only child JVMs using the real `logback-spring.xml` in local and prod
-modes, without a datasource or server. It injects a synthetic canary into root, cause
+launches test-only child JVMs using the real `logback-spring.xml` in local, prod and
+observability modes, without a datasource or server. It injects a synthetic canary into root, cause
 and suppressed exception messages, verifies their absence from actual encoder output,
 checks retained types/frames, parses every production stdout record strictly, and
 verifies Micrometer correlation and MDC cleanup. No diagnostic endpoint ships in the JAR.
@@ -301,16 +322,16 @@ request overlap, async completion, safe errors and collector-independent health.
 Sliced tests with `@AutoConfigureTracing` alone provide a no-op tracer and are not
 evidence for this behavior. `RequestCorrelationFilterTests` checks cleanup, nested
 errors and redispatch. `TracingConfigurationTests` binds the real YAML to Boot's
-properties. `HttpTracingOutputTests` runs full HTTP child JVMs in local/prod modes,
-strictly parses ECS and verifies opt-in OTLP against a loopback responder returning
+properties. `HttpTracingOutputTests` runs full HTTP child JVMs in local/prod/observability
+modes, strictly parses ECS and verifies opt-in OTLP against a loopback responder returning
 503, including absence of the exception canary in actual protobuf request payloads.
 
-Step 4D.3 adds an optional local Alloy → Loki/Tempo → Grafana stack; see the
+The optional local Alloy → Loki/Tempo → Grafana stack is implemented; see the
 [setup and end-to-end verification guide](../../observability/README.md). Grafana is
 localhost:3300, leaving host port 3000 reserved for the frontend. The observed overlay
 uses a shared Docker network and exports to Alloy; normal backend startup stays
-collector-independent. Step 4D.4 adds optional Prometheus scraping, recording/alerting
-rules, Alertmanager and a Grafana backend dashboard; see the
+collector-independent. Implemented metrics include optional Prometheus scraping,
+recording/alerting rules, Alertmanager and a Grafana backend dashboard; see the
 [metrics and alerting guide](../../observability/metrics-and-alerts.md). Only the
 observability profile exposes the metrics endpoint; business code remains free of
 meter/logging/tracing calls. No financial module, audit publisher or migration is

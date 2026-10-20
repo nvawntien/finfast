@@ -21,7 +21,7 @@
 | Data, atomicity, locking, idempotency and history ordering | [16 domain/data design](03-design/16-domain-model-and-data-design.md) |
 | External API contract | [17 API workflow/contracts](03-design/17-api-contracts.md), [OpenAPI source](03-design/contracts/openapi-v1.yaml) |
 | Implemented logging, HTTP errors and tracing | [Logging/error/tracing standard](03-design/logging-and-error-handling.md) |
-| Optional local Grafana, Alloy, Loki and Tempo | [Observability setup and verification](../observability/README.md) |
+| Optional six-service observability stack and local credentials | [Observability setup and verification](../observability/README.md) |
 | Prometheus metrics, dashboard and Alertmanager | [Metrics and alerting](../observability/metrics-and-alerts.md) |
 | Observability review and deployment limitations | [Architecture review](../observability/architecture-review.md) |
 | Quality and performance | [PRD §9](02-requirements/09-product-requirements.md), [22 verification](05-verification/22-test-strategy-and-acceptance.md) |
@@ -36,6 +36,10 @@
 - **Provisional target** EV-003: transfer-request p95 ≤2s at 10 new requests/s for five minutes, with **actual** environment and correctness evidence required; no measured outcome is claimed.
 
 ## Folder map
+
+This map covers documentation tooling and the handoff pack. See the
+[root project map](../README.md#project-structure-and-documentation) for implemented
+backend and observability paths.
 
 ```text
 finfast/
@@ -55,6 +59,11 @@ finfast/
 ```
 
 **Planned, not present:** standalone 13 quality-attributes, 18 P1 event contracts, 19–21 ADRs (ADR-001..003), 24 cloud deployment runbook, and a machine-readable coverage report. Current quality/benchmark requirements are in PRD 09/22; boundary rationale is in 15; atomicity/idempotency/history proposals are in 16; statuses are in 25; coverage is in 11. No missing file is a completed deliverable. P1 event contracts remain optional. The backend/database and observability foundations now exist; see the [root README](../README.md) for implemented behavior. Banking business modules remain unimplemented.
+
+The [migration README](../backend/src/main/resources/db/migration/README.md) records
+the concrete schema approvals from Step 4B.1. Historical proposal labels in design
+documents do not override those scoped approvals or imply that posting algorithms,
+financial APIs or the counter performance target have been implemented/validated.
 
 ## Browse the API locally (DOC-01)
 
@@ -95,6 +104,9 @@ git diff --check
 ```
 
 The [CI workflow](../.github/workflows/docs.yml) runs schema validation, local Markdown path/heading checks, all local OpenAPI JSON-pointer checks (including unused components), duplicate YAML-key checks and Compose configuration validation on relevant pushes/PRs or manual dispatch. [Pinned tools](../scripts/requirements-docs.txt) include `openapi-spec-validator` and `markdown-it-py`; image/action releases are also version pinned. Upgrade pins through review and rerun the checks. The [checker](../scripts/check_docs.py) does not fetch remote links or prove runtime banking behavior. Browser rendering and Mermaid checks are separate review checks, not claimed as jobs in this workflow.
+
+The checker starts from `docs/**/*.md`; outgoing links in the root README and
+observability runbooks need additional review when those files change.
 
 The OpenAPI YAML remains the design-stage source of truth. Future Springdoc integration must follow [17 — Spring Boot implementation guidance](03-design/17-api-contracts.md#future-spring-boot-integration); no Springdoc dependency or second maintained specification is introduced now.
 

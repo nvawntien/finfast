@@ -65,6 +65,10 @@ this point-in-time lookup is not a permanent security gate.
 
 ## Verified scope and evidence
 
+This section records the Step 4D.5 execution on **2026-10-20**, not continuously
+certified results. A documentation-only audit checks source/configuration and available
+reports; it does not imply these integration or fault drills have been rerun.
+
 The 2026-10-20 review uses new Compose project/network/volume names, temporary local
 credentials and a PostgreSQL database comment as a persistence marker. It never connects
 to or resets a developer database. Production migrations and the banking API contract
@@ -150,8 +154,8 @@ and log/trace queries. `docker stats --no-stream` measured the following snapsho
 
 Read-only `du` of the seven isolated volumes measured about **117.6 MiB** allocated
 telemetry data and **46.3 MiB** PostgreSQL data. Images, container layers and daemon
-stdout storage are additional. Recently restarted caches explain why this snapshot
-is lower than the earlier 1,051 MiB observation; it is not a controlled optimization
+stdout storage are additional. Cache/workload states differ from the earlier 1,051 MiB
+observation; the lower snapshot is not a controlled optimization
 comparison, peak measurement, capacity test or memory limit. Allow several GiB of
 headroom for queries, the backend and Docker/Maven builds. Telemetry remains optional.
 

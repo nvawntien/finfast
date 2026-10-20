@@ -1,6 +1,6 @@
-# Optional local observability — Steps 4D.3–4D.4
+# Optional local observability
 
-The stack now includes Prometheus, Alertmanager and a provisioned backend dashboard.
+Six optional telemetry services support logs, traces, metrics and local alerts.
 See [metrics, dashboards and alert validation](metrics-and-alerts.md) for the metrics
 contract, operational thresholds and database-monitoring limitations.
 The [architecture review](architecture-review.md) records verification evidence,
@@ -21,34 +21,66 @@ make observed-up
 make observability-health
 ```
 
-`.env.observability` is ignored; its example contains no admin credentials.
+Run these commands from the repository root with GNU Make, Docker/Compose and curl.
+`make observability-setup` copies the committed `.env.observability.example` only
+when the runtime file is missing; existing files and symlinks are left unchanged.
+Choose both Grafana credentials manually before startup. Missing/empty values fail
+Compose interpolation with `Set GRAFANA_ADMIN_USER` / `Set GRAFANA_ADMIN_PASSWORD`;
+there is no generated or default admin password. The runtime file is Git-ignored
+and excluded from both Docker build contexts. Restrict access to local secret files
+(for example, `chmod 600 .env.observability` on POSIX systems).
+
 `observed-up` also invokes the idempotent `observability-up`. The latter waits for
 Grafana's healthcheck, which probes all six services using Grafana's verified curl
 binary. Loki and Tempo images have no shell/HTTP client; they are not given fake
 shell healthchecks. Their `/ready` endpoints and Alloy's `/-/ready` are checked over
 Docker DNS. Grafana checks its `/api/health`. No fixed startup sleep is required.
 
-Use `GRAFANA_PORT=3330 make observability-up` for http://localhost:3330, or set the
-value in the environment file. Internal datasources still use `loki:3100` and
-`tempo:3200`; no internal caller uses the host-mapped Grafana port.
+Set `GRAFANA_PORT=3330` in `.env.observability` for http://localhost:3330. A one-command
+environment override also works, but repeat it for every subsequent `observability-up`
+or `observed-up` invocation to avoid reverting the port. Internal datasources use
+`loki:3100`, `tempo:3200` and `prometheus:9090`; no internal caller uses Grafana's host port.
+
+| Setting | Source and default |
+|---|---|
+| `GRAFANA_ADMIN_USER`, `GRAFANA_ADMIN_PASSWORD` | Local runtime file; both required, initialize a fresh Grafana volume |
+| `GRAFANA_PORT` | Local runtime file; host 3300 → container 3000, loopback only |
+| `FINFAST_APP_PROJECT` | Local runtime file; `finfast`, exact application Compose project to collect |
+| `FINFAST_OBSERVABILITY_NETWORK` | Local runtime file; `finfast_observability`, must match the backend overlay |
+| `DOCKER_SOCKET_PATH` | Local runtime file; `/var/run/docker.sock`, rootless engines may differ |
+| `OBSERVABILITY_ENV`, `OBSERVABILITY_PROJECT` | Make variables; `.env.observability` and `finfast-observability` |
+| `APP_ENV`, `DEPLOYMENT_VERSION`, `TRACING_SAMPLING_PROBABILITY` | Observed backend interpolation; `local`, `dev`, `1.0` |
+
+Arbitrary keys in an environment file are not automatically injected into containers.
+The observed overlay explicitly enables trace export to `http://alloy:4318/v1/traces`;
+native export and production sampling are described in the
+[tracing contract](../docs/03-design/logging-and-error-handling.md#sampling-resources-and-optional-otlp-export).
 
 Return to pretty-console mode with `make up`, then `make observability-down`.
 The latter uses Compose **stop**, preserving containers, positions, network and
 volumes, including when a running observed backend remains attached. It does not
 manage the backend/PostgreSQL project. Do not use `down -v` for normal shutdown.
+`make start`/`restart` retain the existing backend mode; use `make up` to reapply
+ordinary configuration. For complete shutdown use `make down`,
+`make observability-down` and, if running, `make docs-down`; named volumes persist.
 Changing Grafana environment credentials after its persistent database is initialized
 does not reset an existing account; change that account through Grafana administration.
 
 ## Topology and versions
 
-| Component | Pinned release | Local persistent storage |
-|---|---|---|
-| Grafana | 13.2.4 | SQLite/settings in `grafana_data` |
-| Alloy | 1.20.1 | Docker tail positions in `alloy_data` |
-| Loki | 3.7.8 | Filesystem/TSDB v13 in `loki_data` |
-| Tempo | 2.10.8 | Local blocks/WAL in `tempo_data` |
-| Prometheus | 3.15.0 | TSDB in `prometheus_data`, 72h/1GB retention |
-| Alertmanager | 0.34.1 | Routing/deduplication state in `alertmanager_data`, 72h retention |
+| Component | Responsibility | Pinned release | Local persistent storage |
+|---|---|---|---|
+| Grafana | Visualize logs, traces, metrics and dashboards | 13.2.4 | SQLite/settings in `grafana_data` |
+| Alloy | Collect/forward Docker logs and OTLP traces | 1.20.1 | Docker tail positions in `alloy_data` |
+| Loki | Store/query application logs | 3.7.8 | Filesystem/TSDB v13 in `loki_data` |
+| Tempo | Store/query distributed traces | 2.10.8 | Local blocks/WAL in `tempo_data` |
+| Prometheus | Scrape/query metrics and evaluate alert rules | 3.15.0 | TSDB in `prometheus_data`, 72h/1GB retention |
+| Alertmanager | Group, deduplicate and route alerts | 0.34.1 | State in `alertmanager_data`, 72h retention |
+
+Signal paths: Logback ECS → Docker stdout → Alloy → Loki → Grafana;
+Micrometer/OpenTelemetry → OTLP → Alloy → Tempo → Grafana;
+Actuator `/actuator/prometheus` → Prometheus → Grafana;
+Prometheus alert rules → Alertmanager → `local-only`. Alloy does not collect metrics.
 
 Verified image digests are pinned in [Compose](../compose.observability.yaml).
 Tempo 2.10 supports this single-binary filesystem setup without Kafka or object storage.
@@ -71,7 +103,7 @@ independent storage; shared engines need distinct project/network names and host
 
 ## Logs and traces in Explore
 
-Grafana provisions fixed UIDs `finfast-loki` and `finfast-tempo`. Start with Loki:
+In Grafana **Explore**, select **FinFast Loki** (`finfast-loki`) and start with:
 
 ```logql
 {service_name="finfast-backend"}
@@ -92,11 +124,18 @@ Trace/span/request IDs remain content, never stream labels. Search a known ID wi
 Expand a correlated log row and select **View trace in Tempo**. The derived field
 matches the literal dotted JSON key `"trace.id"` and preserves all 32 hex characters.
 It uses an internal datasource link, not a hardcoded browser port. Tempo also has a
-custom logs link back to Loki. Sampling and 72-hour retention can leave a log with no
-stored trace. Startup logs are correctly untraced; a Trace ID does not itself emit a log.
+custom logs link back to Loki. Sampling, collector downtime and retention can leave
+a log with no stored trace. Startup logs are correctly untraced; automatic HTTP tracing
+and metrics do not emit an application log for every successful request.
 Tempo 2.x search responses can omit leading zeroes in hexadecimal IDs. The verifier
 normalizes only that search representation; ECS and stored trace-by-ID assertions
 still require and compare the original full 128-bit identifier.
+
+Select **FinFast Tempo** (`finfast-tempo`) to search traces, or
+**FinFast Prometheus** (`finfast-prometheus`) for metrics. The provisioned
+[FinFast — Backend Overview](http://localhost:3300/d/finfast-backend-overview) dashboard
+shows HTTP/JVM/Hikari data; its [metrics guide](metrics-and-alerts.md#dashboard-and-latency)
+explains No data states and quantile estimates.
 
 ### HTTP 5xx semantics
 
@@ -120,6 +159,9 @@ exception rendering protects both stdout modes. Raw URLs, request bodies, creden
 account numbers and idempotency keys are not added to telemetry. Alloy does not dump
 headers or OTLP payloads. Debug endpoints exist only in the separate test fixture image.
 Logs/traces never replace immutable ledger records or durable financial audits/outcomes.
+Safe exception rendering and canary tests do not sanitize arbitrary developer-written
+messages. Docker/stdout access and Grafana log/trace access can expose diagnostics;
+restrict access and never deliberately emit sensitive values.
 
 **Docker socket access is highly privileged. A read-only mount does not make the Docker
 API read-only.** Direct socket discovery was selected for portable local Docker/Desktop
@@ -146,6 +188,7 @@ consumption depends on traffic, queries and Go caches. Measure rather than assum
 The [review measurements](architecture-review.md#resource-observation) cover all six
 telemetry services, backend/PostgreSQL separately and allocated volume sizes. These
 light-workload snapshots are observations, not memory limits or capacity guarantees.
+Retention is validated configuration, not proof of a complete 72h expiry cycle.
 
 ```bash
 docker stats --no-stream
@@ -169,6 +212,17 @@ python3 observability/tests/verify_stack.py --environment-file .env.observabilit
 docker compose --env-file .env.observability.verify -f observability/compose.verify.yaml down
 make observability-down OBSERVABILITY_ENV=.env.observability.verify OBSERVABILITY_PROJECT=finfast-observability-verify-stack
 ```
+
+The example is committed; `.env.observability` is developer-owned; the ignored
+`.env.observability.verify` is operator-owned test configuration with separate credentials.
+Neither verification script creates/deletes credentials, starts/stops containers or
+requires the normal developer secret file when `--environment-file` is supplied.
+You perform setup and cleanup explicitly. Shutdown above preserves telemetry containers,
+network and volumes; keep their configuration protected while retained. On reuse, keep
+the initialized Grafana credentials or choose a fresh isolated project/network; editing
+the file does not reset the stored password. No volume reset is part of this workflow.
+For verifier files, use literal values without dollar interpolation or inline comments;
+the Python reader is not a full Compose dotenv parser.
 
 The script defaults to Grafana **http://localhost:3300** and probe localhost:18080;
 override `--grafana-url` / `--probe-url` alongside the Compose host-port settings.
