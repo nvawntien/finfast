@@ -23,6 +23,7 @@
 | Implemented logging, HTTP errors and tracing | [Logging/error/tracing standard](03-design/logging-and-error-handling.md) |
 | Optional local Grafana, Alloy, Loki and Tempo | [Observability setup and verification](../observability/README.md) |
 | Prometheus metrics, dashboard and Alertmanager | [Metrics and alerting](../observability/metrics-and-alerts.md) |
+| Observability review and deployment limitations | [Architecture review](../observability/architecture-review.md) |
 | Quality and performance | [PRD §9](02-requirements/09-product-requirements.md), [22 verification](05-verification/22-test-strategy-and-acceptance.md) |
 | Release and decision gates | [23 UAT/release checklist](05-verification/23-uat-and-release-checklist.md), [25 technical decisions](6-governance/25-design-decision-register.md) |
 
@@ -53,7 +54,7 @@ finfast/
     └── 6-governance/                 # 25 decision register
 ```
 
-**Planned, not present:** standalone 13 quality-attributes, 18 P1 event contracts, 19–21 ADRs (ADR-001..003), 24 cloud deployment runbook, and a machine-readable coverage report. Current quality/benchmark requirements are in PRD 09/22; boundary rationale is in 15; atomicity/idempotency/history proposals are in 16; statuses are in 25; coverage is in 11. No missing file is a completed deliverable. P1 event contracts remain optional. There are no application build files or Spring modules yet.
+**Planned, not present:** standalone 13 quality-attributes, 18 P1 event contracts, 19–21 ADRs (ADR-001..003), 24 cloud deployment runbook, and a machine-readable coverage report. Current quality/benchmark requirements are in PRD 09/22; boundary rationale is in 15; atomicity/idempotency/history proposals are in 16; statuses are in 25; coverage is in 11. No missing file is a completed deliverable. P1 event contracts remain optional. The backend/database and observability foundations now exist; see the [root README](../README.md) for implemented behavior. Banking business modules remain unimplemented.
 
 ## Browse the API locally (DOC-01)
 

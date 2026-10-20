@@ -104,6 +104,13 @@ state. The default receiver is `local-only`, with **no external notification del
 Firing alerts and resolution can be inspected through its internal API. A dashboard
 is not proof that a notification reached a person.
 
+Absence detection runs only while Prometheus is running. Stopping the entire optional
+stack stops evaluation; it cannot emit an alert while offline. If Prometheus remains
+running while the backend is deliberately stopped or returned to ordinary mode, the
+expected target is unavailable and the alert is intentional. Stop the optional stack
+too when monitoring is not wanted. Missing-target alerts have a job label but cannot
+recover instance/environment labels from a series that no longer exists.
+
 Add reviewed webhook/email receivers and secret injection through Alertmanager
 configuration in a future task. Never put real tokens in Git or send test notifications
 to external recipients without explicit authorization.
@@ -119,7 +126,8 @@ docker compose --env-file .env.observability -f compose.observability.yaml exec 
 docker compose --env-file .env.observability -f compose.observability.yaml exec -T alertmanager amtool check-config /etc/alertmanager/alertmanager.yaml
 ```
 
-Rule fixtures cover healthy/down/missing targets, transient failures, low traffic,
+Rule fixtures cover healthy/down/missing targets, a previously healthy target becoming
+stale, HTTP counter resets, transient failures, low traffic,
 sustained 5xx/latency, normal latency, saturated pools and missing/zero maximums.
 Java tests use isolated PostgreSQL 16 Testcontainers for HTTP metrics, bounded routes,
 privacy, pool metrics, histogram buckets and ordinary-mode endpoint exclusion.
@@ -169,6 +177,8 @@ After real dashboard/log/trace queries on 2026-10-20, a snapshot measured Grafan
 Alertmanager 19.3 MiB: about 1,051 MiB total, 381 MiB above the earlier snapshot.
 The two new processes used about 58 MiB; the total difference also reflects changed
 query workload/caches, not a controlled measurement of their incremental cost.
+The [final review snapshot](architecture-review.md#resource-observation) includes
+post-restart measurements, the backend/PostgreSQL and allocated storage separately.
 Stopping any monitoring component cannot change HTTP/financial outcomes; samples
 missed while Prometheus is stopped are not backfilled.
 

@@ -11,3 +11,14 @@
 **/*.tmp
 **/*.pem
 **/*.key
+
+# Match the backend's credential exclusions for the test image's source COPY.
+**/.aws/
+**/.ssh/
+**/.env
+**/.env.*
+**/*.p12
+**/*.pfx
+**/*.jks
+**/credentials
+**/settings.xml

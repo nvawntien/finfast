@@ -3,6 +3,7 @@ package com.finfast.common.observability;
 import io.micrometer.tracing.Tracer;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter;
+import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.context.request.async.DeferredResult;
 
+import java.io.IOException;
 import java.sql.SQLException;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
@@ -80,6 +82,12 @@ final class HttpTracingFixtures {
             // Exercise servlet ASYNC redispatch without pretending to propagate MDC to an executor.
             result.setResult(snapshot());
             return result;
+        }
+
+        @GetMapping("/test-only/tracing-send-error")
+        void sendError(HttpServletResponse response) throws IOException {
+            // Exercise the real container's ERROR dispatch, outside MVC exception advice.
+            response.sendError(500);
         }
 
         private Snapshot snapshot() {

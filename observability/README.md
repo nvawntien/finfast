@@ -3,6 +3,8 @@
 The stack now includes Prometheus, Alertmanager and a provisioned backend dashboard.
 See [metrics, dashboards and alert validation](metrics-and-alerts.md) for the metrics
 contract, operational thresholds and database-monitoring limitations.
+The [architecture review](architecture-review.md) records verification evidence,
+security patch exceptions and requirements before external deployment.
 
 Grafana browser URL: **http://localhost:3300**. Host port 3000 is reserved for the
 frontend; Grafana uses port 3000 internally. Override the host mapping with
@@ -141,9 +143,9 @@ backend stdout rotates at 3 × 10MB; telemetry volumes still need disk monitorin
 Allow a few GiB of free RAM/disk for the optional stack plus backend/builds; actual
 consumption depends on traffic, queries and Go caches. Measure rather than assume:
 
-A light-workload validation snapshot on 2026-10-20 measured about 670 MiB total:
-Grafana 439 MiB, Alloy 39 MiB, Loki 65 MiB and Tempo 127 MiB. Grafana was the largest
-consumer in that run; these are observations, not memory limits or capacity guarantees.
+The [review measurements](architecture-review.md#resource-observation) cover all six
+telemetry services, backend/PostgreSQL separately and allocated volume sizes. These
+light-workload snapshots are observations, not memory limits or capacity guarantees.
 
 ```bash
 docker stats --no-stream

@@ -1,11 +1,14 @@
 package com.finfast;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.ApplicationContext;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,9 +33,14 @@ class PrometheusMetricsTests {
     private static final String CANARY = "FINFAST_METRICS_SECRET_MUST_NOT_APPEAR_4D4";
     @LocalServerPort int port;
     @Autowired JdbcTemplate jdbc;
+    @Autowired ApplicationContext application;
 
     @Test
     void observedEndpointExportsRealJvmProcessAndPostgresPoolMetrics() throws Exception {
+        assertThat(application.getBeansOfType(MeterRegistry.class).values())
+                .filteredOn(registry -> !(registry instanceof CompositeMeterRegistry))
+                .singleElement().satisfies(registry -> assertThat(registry.getClass().getName())
+                        .isEqualTo("io.micrometer.prometheusmetrics.PrometheusMeterRegistry"));
         assertThat(jdbc.queryForObject("SELECT 1", Integer.class)).isEqualTo(1);
         assertThat(get("/actuator/health").body()).isEqualTo("{\"status\":\"UP\"}");
         var response = get("/actuator/prometheus");

@@ -16,6 +16,7 @@ direction and the proposals awaiting review.
 |---|---|
 | Java | 21 LTS (container: Eclipse Temurin 21.0.12.1+1) |
 | Spring Boot | 4.1.1, using its parent POM for dependency management |
+| Tomcat / Jackson 3 | 11.0.26 / 3.1.7, targeted security patch overrides |
 | Maven runtime | 3.9.11 |
 | Maven Wrapper | 3.3.4, with checked-in launcher scripts and JAR |
 | Packaging | Executable JAR, `com.finfast:finfast-backend:0.0.1` |
@@ -31,6 +32,8 @@ Both Docker base images are pinned to verified manifest digests in
 [`backend/Dockerfile`](backend/Dockerfile). The PostgreSQL image is also pinned to
 a verified manifest digest in [`compose.yaml`](compose.yaml). Maven distribution
 and Wrapper JAR SHA-256 checksums are pinned in the Wrapper properties.
+The [observability architecture review](observability/architecture-review.md)
+records the security patch rationale and local-versus-production boundaries.
 
 ## Prerequisites
 

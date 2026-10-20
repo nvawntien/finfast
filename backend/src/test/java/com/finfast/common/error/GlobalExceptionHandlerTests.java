@@ -152,7 +152,8 @@ class GlobalExceptionHandlerTests {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"application/xml", "application/json;q=0"})
+    @ValueSource(strings = {"application/xml", "application/json;q=0",
+            "application/json;q=0, */*;q=1", "application/json;q=0, application/*;q=0.8"})
     void unexpectedFailureWithUnacceptableRepresentationDoesNotLeakOrReportTwice(String accept) throws Exception {
         mvc.perform(get("/test-only/unexpected").header("Accept", accept))
                 .andExpect(status().isInternalServerError())
@@ -175,7 +176,10 @@ class GlobalExceptionHandlerTests {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"application/json", "application/vnd.finfast+json", "*/*"})
+    @ValueSource(strings = {"application/json", "application/vnd.finfast+json", "*/*",
+            "application/*;q=0, application/json;q=1",
+            "*/*;q=0, application/vnd.finfast+json;q=1",
+            "application/json;q=0, application/vnd.finfast+json;q=1"})
     void acceptableJsonErrorsRetainTheSafeContract(String accept) throws Exception {
         mvc.perform(get("/test-only/unexpected").header("Accept", accept))
                 .andExpect(status().isInternalServerError())

@@ -374,3 +374,82 @@ tests:
   - eval_time: 10m
     alertname: HikariPoolNearExhaustion
     exp_alerts: []
+- name: previously healthy target disappears with stale marker
+  interval: 1m
+  input_series:
+  - series: up{job="finfast-backend",instance="backend:8080"}
+    values: 1 1 stale _ _ _ _ _ _ _ _
+  alert_rule_test:
+  - eval_time: 10m
+    alertname: BackendUnavailable
+    exp_alerts:
+    - exp_labels:
+        job: finfast-backend
+        severity: critical
+      exp_annotations:
+        summary: FinFast backend scrape unavailable
+        description: Check backend startup, the observed profile, shared network and Prometheus target errors. This is not
+          a PostgreSQL health signal.
+  - eval_time: 10m
+    alertname: ElevatedHttp5xxRate
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HighHttpLatency
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HikariPoolNearExhaustion
+    exp_alerts: []
+- name: counter reset preserves elevated error detection
+  interval: 1m
+  input_series:
+  - series: up{job="finfast-backend",instance="backend:8080"}
+    values: 1+0x20
+  - series: http_server_requests_seconds_count{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",uri="/test/{id}",status="200"}
+    values: 0 5400 10800 16200 21600 27000 0 5400 10800 16200 21600
+  - series: http_server_requests_seconds_count{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",uri="/test/{id}",status="500"}
+    values: 0 600 1200 1800 2400 3000 0 600 1200 1800 2400
+  alert_rule_test:
+  - eval_time: 10m
+    alertname: BackendUnavailable
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: ElevatedHttp5xxRate
+    exp_alerts:
+    - exp_labels:
+        job: finfast-backend
+        instance: backend:8080
+        application: finfast-backend
+        environment: test
+        severity: warning
+      exp_annotations:
+        summary: Sustained FinFast HTTP 5xx ratio above 5%
+        description: At least 1 request/s over 5m with elevated server errors. Inspect Loki errors and matching Tempo traces;
+          technical failure is not a final financial rejection.
+  - eval_time: 10m
+    alertname: HighHttpLatency
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HikariPoolNearExhaustion
+    exp_alerts: []
+- name: counter reset alone does not create server errors
+  interval: 1m
+  input_series:
+  - series: up{job="finfast-backend",instance="backend:8080"}
+    values: 1+0x20
+  - series: http_server_requests_seconds_count{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",uri="/test/{id}",status="200"}
+    values: 0 5400 10800 16200 21600 27000 0 5400 10800 16200 21600
+  - series: http_server_requests_seconds_count{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",uri="/test/{id}",status="500"}
+    values: 0+0x10
+  alert_rule_test:
+  - eval_time: 10m
+    alertname: BackendUnavailable
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: ElevatedHttp5xxRate
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HighHttpLatency
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HikariPoolNearExhaustion
+    exp_alerts: []

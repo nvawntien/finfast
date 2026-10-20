@@ -18,6 +18,9 @@ import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
+import java.util.List;
+import java.util.stream.Stream;
+
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
@@ -82,12 +85,26 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             return false;
         }
         try {
-            return contentNegotiation.resolveMediaTypes(servletRequest).stream()
-                    .anyMatch(type -> type.getQualityValue() > 0
-                            && (type.isCompatibleWith(MediaType.APPLICATION_JSON) || type.isCompatibleWith(JSON_SUFFIX)));
+            List<MediaType> accepted = contentNegotiation.resolveMediaTypes(servletRequest);
+            // Check JSON and explicitly requested vendor JSON representations. An
+            // explicit q=0 must take precedence over a less-specific positive wildcard.
+            return Stream.concat(Stream.of(MediaType.APPLICATION_JSON), accepted.stream()
+                            .filter(type -> type.isConcrete() && type.isCompatibleWith(JSON_SUFFIX)))
+                    .anyMatch(candidate -> acceptsRepresentation(accepted, candidate));
         } catch (HttpMediaTypeNotAcceptableException exception) {
             return false;
         }
+    }
+
+    private static boolean acceptsRepresentation(List<MediaType> accepted, MediaType candidate) {
+        MediaType mostSpecific = null;
+        for (MediaType range : accepted) {
+            if (range.includes(candidate) && (mostSpecific == null
+                    || range.removeQualityValue().isMoreSpecific(mostSpecific.removeQualityValue()))) {
+                mostSpecific = range;
+            }
+        }
+        return mostSpecific != null && mostSpecific.getQualityValue() > 0;
     }
 
     private static ErrorResponse responseFor(HttpStatusCode status) {

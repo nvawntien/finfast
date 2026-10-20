@@ -270,6 +270,22 @@ class HttpTracingIntegrationTests {
     }
 
     @Test
+    void containerErrorDispatchKeepsOneRequestIdentifierAndOneServerSpan() throws Exception {
+        var response = send("/test-only/tracing-send-error");
+        assertThat(response.statusCode()).isEqualTo(500);
+        String requestId = response.headers().firstValue("X-Request-ID").orElseThrow();
+        assertThat(UUID.fromString(requestId).version()).isEqualTo(4);
+        await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+            assertThat(provider.forceFlush().join(2, TimeUnit.SECONDS).isSuccess()).isTrue();
+            assertThat(exporter.getFinishedSpanItems()).hasSize(1);
+        });
+        var span = exporter.getFinishedSpanItems().getFirst();
+        assertThat(span.getKind()).isEqualTo(SpanKind.SERVER);
+        assertThat(span.getAttributes().get(AttributeKey.stringKey("status"))).isEqualTo("500");
+        assertThat(snapshot(send("/test-only/tracing/after-error")).requestId()).isNotEqualTo(requestId);
+    }
+
+    @Test
     void tracingAndHealthWorkWithNoRemoteExporterAndResourceMetadataMatchesLogging() throws Exception {
         assertThat(environment.getProperty("management.tracing.export.otlp.enabled", Boolean.class)).isFalse();
         assertThat(environment.getProperty("management.otlp.metrics.export.enabled", Boolean.class)).isFalse();
