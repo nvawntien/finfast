@@ -92,6 +92,13 @@
             <artifactId>testcontainers-postgresql</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <!-- Boot manages JUnit Jupiter 6; use its matching ArchUnit engine. -->
+            <artifactId>archunit-junit6</artifactId>
+            <version>1.5.1</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

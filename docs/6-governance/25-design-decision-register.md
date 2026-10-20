@@ -51,9 +51,18 @@ This agreement does not ratify particular API names, lock algorithms, schema fie
 | ARC-03 | [16 §6](../03-design/16-domain-model-and-data-design.md#6-locking-and-isolation-discipline-arc-03), TD-002 | Approve lock comparator and isolation premises; real PostgreSQL races, timeout/retry budgets |
 | ARC-04 | [16 §7](../03-design/16-domain-model-and-data-design.md#7-idempotency-and-recovery-arc-04), TD-003 | Canonicalization/API review; execute [22 PostgreSQL PoC](../05-verification/22-test-strategy-and-acceptance.md#postgresql-idempotency-proof-of-concept-arc-04) |
 | ARC-05 | [16 §8](../03-design/16-domain-model-and-data-design.md#8-history-ordering-and-global-sequence-risk-arc-05), TD-004/014 | Late-commit pagination proof and EV-003/diagnostic contention measurements |
-| ARC-06 | [15 §3.2/3.4](../03-design/15-system-architecture.md#34-enforcing-the-boundaries-arc-06), TD-016 | Tool compatibility, negative-rule fixtures and real module integration tests |
+| ARC-06 | [15 §3.2/3.4](../03-design/15-system-architecture.md#34-enforcing-the-boundaries-arc-06), TD-016 | ArchUnit mechanism and negative fixtures implemented; candidate policy approval and real business-module integration remain pending |
 
-**Deferred until experiments/implementation:** PostgreSQL major/durability configuration, bounded retry/deadline values, framework/test dependency versions, cursor details and counter capacity. Technical proposals remain PROPOSED until explicitly reviewed; documenting them or passing documentation CI does not approve them. Standalone ADR-001..003 do not yet exist; current rationale lives in 15/16 and statuses here. No application/concurrency/financial benchmark evidence is created by this refinement.
+**Step 4E.2 implementation evidence:** ArchUnit 1.5.1
+(`archunit-junit6`, TEST scope) matches the checked-in Boot-managed Jupiter 6.0.3.
+Production scans and segregated positive/negative fixtures implement the candidate
+module package/API isolation, dependency, cycle and basic layer rules; see the
+[module guide](../03-design/module-contracts-and-boundaries.md#automated-evidence-and-limits).
+This does not approve TD-015/016 or §3.2's allowlist, establish method-level posting
+permissions or mark ARC-01/02/06 acceptance complete. Business modules, proxied
+transaction/authorization integration and posting-caller rules remain future work.
+
+**Remaining decisions:** deployment-specific PostgreSQL durability, bounded retry/deadline values, cursor details and counter capacity. Checked-in build/configuration and foundation guides record implemented framework/test/database pins; those are not blanket approval of the remaining proposals. Technical proposals remain PROPOSED until explicitly reviewed; documentation or architecture checks alone do not approve them. Standalone ADR-001..003 do not yet exist; current rationale lives in 15/16 and statuses here. Structural fixtures are not financial application/concurrency/benchmark evidence.
 
 ## External evidence tasks (status inherited from approved baseline)
 

@@ -136,6 +136,52 @@ class GlobalExceptionHandlerTests {
                 Arguments.of(get("/test-only/safe-status"), 404, "NOT_FOUND"));
     }
 
+    @ParameterizedTest
+    @MethodSource("expectedFailures")
+    void expectedFailuresUseCatalogMessagesWithoutFinancialOutcomeOrErrorLogging(
+            ErrorCode.Category category, int expectedStatus) throws Exception {
+        mvc.perform(get("/test-only/expected").param("category", category.name()))
+                .andExpect(status().is(expectedStatus))
+                .andExpect(content().json("""
+                        {"code":"FIXTURE_EXPECTED","message":"A safe expected failure."}
+                        """, JsonCompareMode.STRICT));
+        assertThat(events.list).isEmpty();
+    }
+
+    private static Stream<Arguments> expectedFailures() {
+        return Stream.of(Arguments.of(ErrorCode.Category.INVALID_REQUEST, 400),
+                Arguments.of(ErrorCode.Category.NOT_FOUND, 404),
+                Arguments.of(ErrorCode.Category.CONFLICT, 409),
+                Arguments.of(ErrorCode.Category.FORBIDDEN, 403),
+                Arguments.of(ErrorCode.Category.UNPROCESSABLE, 422));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"application/xml", "application/json;q=0, */*;q=1"})
+    void expectedFailureRespectsRejectedJsonRepresentations(String accept) throws Exception {
+        mvc.perform(get("/test-only/expected").param("category", "CONFLICT").header("Accept", accept))
+                .andExpect(status().isConflict()).andExpect(content().string(""));
+        assertThat(events.list).isEmpty();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"application/vnd.finfast+json", "*/*"})
+    void expectedFailureSupportsVendorJsonAndWildcards(String accept) throws Exception {
+        mvc.perform(get("/test-only/expected").param("category", "NOT_FOUND").header("Accept", accept))
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value("FIXTURE_EXPECTED"))
+                .andExpect(jsonPath("$.outcome").doesNotExist());
+        assertThat(events.list).isEmpty();
+    }
+
+    @Test
+    void frameworkPayloadLimitRetains413AndSafeBody() throws Exception {
+        var response = handler().handleException(new ErrorResponseException(HttpStatus.CONTENT_TOO_LARGE),
+                new ServletWebRequest(new MockHttpServletRequest(), new MockHttpServletResponse()));
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONTENT_TOO_LARGE);
+        assertThat(response.getBody()).isEqualTo(new ErrorResponse("PAYLOAD_TOO_LARGE", "The request is too large."));
+        assertThat(events.list).isEmpty();
+    }
+
     @Test
     void unacceptableRepresentationRetains406WithoutFailingToSerializeAnotherBody() throws Exception {
         mvc.perform(get("/test-only/json").accept(MediaType.APPLICATION_XML))
@@ -224,7 +270,17 @@ class GlobalExceptionHandlerTests {
         response.setCommitted(true);
         var request = new ServletWebRequest(new MockHttpServletRequest(), response);
         assertThat(handler().handleUnexpectedFailure(new IllegalStateException("private"), request)).isNull();
+        assertThat(handler().handleApplicationFailure(expected(ErrorCode.Category.CONFLICT), request)).isNull();
         assertThat(events.list).isEmpty();
+    }
+
+    private static ApplicationException expected(ErrorCode.Category category) {
+        ErrorCode code = new ErrorCode() {
+            public String code() { return "FIXTURE_EXPECTED"; }
+            public String publicMessage() { return "A safe expected failure."; }
+            public Category category() { return category; }
+        };
+        return new ApplicationException(code, new IllegalArgumentException("private-test-canary /internal/path"));
     }
 
     private static GlobalExceptionHandler handler() {
@@ -234,6 +290,11 @@ class GlobalExceptionHandlerTests {
     // Compiled only into test classes. No diagnostic endpoints are shipped in the executable JAR.
     @RestController
     static class FixtureController {
+
+        @GetMapping("/test-only/expected")
+        void expectedFailure(@RequestParam ErrorCode.Category category) {
+            throw expected(category);
+        }
 
         @GetMapping("/test-only/unexpected")
         void unexpected() {

@@ -5,7 +5,9 @@ monolith, with DDD-inspired business modules and pragmatic Hexagonal Architectur
 The Database Foundation includes PostgreSQL/Flyway and eight banking tables with no
 automatic seed data. Observability Steps 4D.1–4D.5 provide safe logging, centralized
 HTTP errors, real HTTP tracing, optional log/trace storage, metrics, dashboards and
-local alerts. Identity/Customer APIs, authentication, transfers, Ledger posting,
+local alerts. Shared error/VND contracts and ArchUnit architecture checks are
+implemented against an explicitly proposed dependency baseline.
+Identity/Customer APIs, authentication, transfers, Ledger posting,
 Admin operations, controlled GENESIS bootstrap and the frontend are not implemented.
 
 See the [documentation index](docs/README.md) and
@@ -29,6 +31,7 @@ direction and the proposals awaiting review.
 | Flyway | 12.4.0, managed by Spring Boot |
 | PostgreSQL JDBC driver | 42.7.13, managed by Spring Boot |
 | Testcontainers | 2.0.5, managed by Spring Boot; test scope only |
+| ArchUnit | 1.5.1 (`archunit-junit6`), test scope; matches managed Jupiter 6.0.3 |
 
 Both Docker base images are pinned to verified manifest digests in
 [`backend/Dockerfile`](backend/Dockerfile). The PostgreSQL image is also pinned to
@@ -210,7 +213,11 @@ With Java 21 and a running Testcontainers-compatible Docker runtime, from
 ```
 
 Tests cover context/health, PostgreSQL schema and Flyway V1/V2, rollback/concurrency,
-logging, real HTTP tracing and metrics. Database tests use isolated PostgreSQL 16.15
+logging, real HTTP tracing/metrics, shared error/VND contracts and architecture
+rules. Architecture checks run automatically, with test-only valid/invalid fixtures;
+they do not prove financial correctness or validate nonexistent business modules.
+Run just those checks with `./mvnw -Dtest=ProductionArchitectureTests,RuleVerificationTests test`.
+Database tests use isolated PostgreSQL 16.15
 Testcontainers with Boot-supplied datasource/Flyway connections, never the developer's
 persistent database. No local Grafana credentials or telemetry stack is required.
 
@@ -298,6 +305,7 @@ retention, log/trace queries, networking, resource use and repeatable end-to-end
 | Path | Purpose |
 |---|---|
 | `backend/` | One Spring Boot application, common infrastructure, Flyway migrations and isolated tests |
+| `backend/src/test/java/com/finfast/architecture/` | Production architecture scans, candidate rules and fixture verification |
 | `compose.yaml`, `compose.docs.yaml` | Backend/PostgreSQL and separate Swagger UI stacks |
 | `compose.observed.yaml`, `compose.observability.yaml` | Opt-in backend overlay and six telemetry services |
 | `observability/` | Stack runbook, component configs, Grafana provisioning and verification helpers |
@@ -310,6 +318,13 @@ Start at the [documentation index](docs/README.md). The
 and deployment gates. Implemented schema decisions are explained in the
 [migration README](backend/src/main/resources/db/migration/README.md); other design
 proposals retain their existing approval status.
+
+Before starting a business module, read [AGENTS.md](AGENTS.md), the approved use
+cases/rules through the docs index, the [module collaboration guide](docs/03-design/module-contracts-and-boundaries.md)
+and [shared error/VND guide](docs/03-design/shared-error-money-contracts.md).
+Review public APIs and new dependency edges with the owning contributor; do not
+access another module's repositories/entities. No empty business-module scaffolding
+or banking implementation is provided by these foundation steps.
 
 ## Security and deployment limits
 
