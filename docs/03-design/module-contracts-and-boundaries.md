@@ -1,7 +1,7 @@
 # Module contracts and boundaries
 
-Step 4E.2 implements architecture checks and this collaboration guide on the
-working branch. No business module/API below is implemented. The agreed direction
+Architecture checks and this collaboration guide are implemented. No business
+module/API below is implemented. The agreed direction
 is one Java/Spring Boot modular monolith, pragmatic Hexagonal Architecture,
 constructor injection and one PostgreSQL database/transaction manager.
 
@@ -16,7 +16,8 @@ that direction; [TD-015/016](../6-governance/25-design-decision-register.md) rem
 
 Only the following nine business modules are cycle nodes. An outgoing edge permits
 dependencies on the provider's `api` package, never its `internal` implementation.
-Each module may access its own internals. An empty cell means no outgoing business
+Internal implementations may access their own module's types; public `api`
+contracts must not depend on their own internals. An empty cell means no outgoing business
 dependency, not permission to add one. The table matches architecture 15 §3.2.
 
 | Module | Owns | Candidate outgoing providers |
@@ -40,7 +41,14 @@ There is no blanket cross-module internal-access exception for Bootstrap.
 
 ## Public API and private implementation
 
-Create packages only when behavior needs them; this is a convention, not scaffolding:
+Every business-module class must be under `<module>.api` or `<module>.internal`,
+including their subpackages. Classes at the module root or in `misc`, `service`,
+`persistence`, `apihelper` or `internalized` directly below it are rejected.
+`apihelper` is not `api`; checks match complete package segments.
+Root `FinfastApplication` and `common` are not business modules and are excluded
+from this package rule. No empty module is required.
+
+Create only the subpackages needed by actual behavior:
 
 ```text
 <module>/api/                              # Reviewed public contracts/value DTOs
@@ -56,6 +64,15 @@ APIs. Do not export internal entities, repositories, mutable aggregate graphs,
 `Connection` objects or persistence DTOs. Do not move all DTOs into `common` or add
 generic repositories/base services. Public Java visibility or the word `internal`
 alone does not protect a boundary. Review signatures as well as dependencies.
+
+Public `api` classes must not depend on their own module's `internal` types,
+including implementation calls, fields and signatures. Implement reviewed public
+contracts inside `internal`; internal application code may depend on its own public
+DTOs/contracts and domain types. Pure shared error/money contracts remain allowed.
+For example, `accounts.api.AccountQueries` returning an `accounts.api.dto.AccountView`
+is a valid candidate; returning `accounts.internal.domain.Account` is forbidden.
+These names are illustrative, not implemented banking APIs. Other modules still
+need both a candidate dependency edge and a reviewed provider `api` contract.
 
 Illustrative imports only: these business APIs do not yet exist.
 
@@ -147,9 +164,10 @@ Java 21 and the existing Maven Wrapper remain unchanged. No Spring Modulith is a
 
 `ProductionArchitectureTests` imports compiled `com.finfast` production code with
 `DoNotIncludeTests`, verifies the source location, and checks recognized packages.
-The seven rules cover candidate edges plus provider API access, business cycles,
-domain isolation, application isolation, controller JDBC/persistence isolation,
-clean business code and the common-to-business dependency prohibition.
+The nine rules cover module package structure, public-API isolation from its own
+internals, candidate edges plus provider API access, business cycles, domain and
+application isolation, controller JDBC/persistence isolation, clean business code
+and the common-to-business dependency prohibition.
 
 There are no production business modules yet, so business-only rules deliberately
 allow empty selections. This is not proof about future business implementations.
@@ -160,6 +178,12 @@ controller-to-use-case calls and application `@Transactional` usage. Negative
 evidence covers foreign repositories/entities, non-API access, a reversed edge,
 a two-module cycle, HTTP/Servlet/JDBC/Spring/adapter leakage, direct controller
 persistence, domain/application observability and shared-to-business coupling.
+Package fixtures also reject module-root classes and lookalike package prefixes.
+API-leak fixtures exercise fields, return/parameter types, constructor parameters,
+superclasses, implemented interfaces and `List<InternalType>` return/parameter
+signatures. Positive fixtures verify API DTOs, internal-to-API/domain dependencies
+and permitted shared contracts. This is evidence for those tested generic forms,
+not complete enforcement of every generic signature or dynamically resolved type.
 Assertions check the intended origin, target and rule violation; negative fixtures
 do not enter production scans or production JARs.
 

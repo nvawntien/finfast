@@ -14,8 +14,9 @@ New contributor reading path: [root README](../README.md) → [AGENTS.md](../AGE
 → approved use cases/rules below → architecture and the
 [module collaboration guide](03-design/module-contracts-and-boundaries.md) →
 [shared contracts](03-design/shared-error-money-contracts.md) → the relevant API/backlog items.
-Steps 4E.1/4E.2 exist in the current working branch; they are not yet merged into
-`main`. Candidate dependency/posting policies remain proposals pending review.
+Shared error/VND contracts and architecture checks are implemented. Candidate
+dependency/posting policies remain proposals pending review; banking business
+modules and their functional APIs are not implemented.
 
 ## Navigation: requirements to engineering documents
 

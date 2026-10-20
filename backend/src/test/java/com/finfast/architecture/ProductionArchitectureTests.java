@@ -19,6 +19,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ProductionArchitectureTests {
 
     @ArchTest
+    static final ArchRule module_package_structure = ModuleArchitectureRules.modulePackageStructure(ROOT);
+
+    @ArchTest
+    static final ArchRule public_api_isolation = ModuleArchitectureRules.publicApisDoNotDependOnOwnInternals(ROOT);
+
+    @ArchTest
     static final ArchRule module_contracts = ModuleArchitectureRules.moduleDependencies(ROOT);
 
     @ArchTest

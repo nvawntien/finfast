@@ -35,6 +35,40 @@ final class ModuleArchitectureRules {
     private ModuleArchitectureRules() {
     }
 
+    static ArchRule modulePackageStructure(String root) {
+        return classes().that(businessClasses(root)).should(new ArchCondition<>(
+                "reside in their module's api or internal packages") {
+            @Override
+            public void check(JavaClass type, ConditionEvents events) {
+                String moduleRoot = root + "." + moduleOf(type, root);
+                if (!inPackage(type, moduleRoot + ".api") && !inPackage(type, moduleRoot + ".internal")) {
+                    events.add(SimpleConditionEvent.violated(type, type.getName()
+                            + ": business module classes must reside in " + moduleRoot + ".api.. or "
+                            + moduleRoot + ".internal.."));
+                }
+            }
+        }).allowEmptyShould(true);
+    }
+
+    static ArchRule publicApisDoNotDependOnOwnInternals(String root) {
+        return classes().that(predicate("business public api classes", type -> moduleOf(type, root) != null
+                        && inPackage(type, root + "." + moduleOf(type, root) + ".api")))
+                .should(new ArchCondition<>("not depend on their own module's internal implementation types") {
+                    @Override
+                    public void check(JavaClass origin, ConditionEvents events) {
+                        String module = moduleOf(origin, root);
+                        for (Dependency dependency : origin.getDirectDependenciesFromSelf()) {
+                            JavaClass target = dependency.getTargetClass();
+                            if (module.equals(moduleOf(target, root))
+                                    && inPackage(target, root + "." + module + ".internal")) {
+                                events.add(SimpleConditionEvent.violated(dependency, dependency.getDescription()
+                                        + ": public api must not depend on its own module's internal implementation types"));
+                            }
+                        }
+                    }
+                }).allowEmptyShould(true);
+    }
+
     static ArchRule moduleDependencies(String root) {
         return classes().that(businessClasses(root)).should(new ArchCondition<>(
                 "use only candidate-allowed module directions through the provider api") {

@@ -5,9 +5,8 @@ monolith, with DDD-inspired business modules and pragmatic Hexagonal Architectur
 The Database Foundation includes PostgreSQL/Flyway and eight banking tables with no
 automatic seed data. Observability Steps 4D.1–4D.5 provide safe logging, centralized
 HTTP errors, real HTTP tracing, optional log/trace storage, metrics, dashboards and
-local alerts. This working branch also contains shared error/VND contracts and
-ArchUnit boundary checks against an explicitly proposed dependency baseline;
-Steps 4E.1/4E.2 are not yet merged into `main`.
+local alerts. Shared error/VND contracts and ArchUnit architecture checks are
+implemented against an explicitly proposed dependency baseline.
 Identity/Customer APIs, authentication, transfers, Ledger posting,
 Admin operations, controlled GENESIS bootstrap and the frontend are not implemented.
 

@@ -1,6 +1,6 @@
 # 15 — System Context, Containers, Modules and Security Boundaries
 
-> **AGREED architecture direction:** Java/Spring Boot, PostgreSQL, one deployable Modular Monolith, DDD-inspired domain modules, pragmatic Hexagonal Architecture, constructor-based Spring DI, in-process module calls, REST/OpenAPI/Swagger UI, protected server-managed sessions and PostgreSQL ACID transactions. This incorporates the Tech Lead's confirmed direction and preserves A-013 / DEC-006. Concrete business interfaces, dependency allowlist and transaction/locking mechanisms remain **PROPOSED** pending review. Backend/database/observability and branch-local shared contracts/architecture checks exist; the business modules and deployment design below are not implemented. See the [root README](../../README.md) for current status.
+> **AGREED architecture direction:** Java/Spring Boot, PostgreSQL, one deployable Modular Monolith, DDD-inspired domain modules, pragmatic Hexagonal Architecture, constructor-based Spring DI, in-process module calls, REST/OpenAPI/Swagger UI, protected server-managed sessions and PostgreSQL ACID transactions. This incorporates the Tech Lead's confirmed direction and preserves A-013 / DEC-006. Concrete business interfaces, dependency allowlist and transaction/locking mechanisms remain **PROPOSED** pending review. Backend/database/observability, shared contracts and architecture checks exist; the business modules and deployment design below are not implemented. See the [root README](../../README.md) for current status.
 
 The Modular Monolith sets deployment and logical module boundaries. DDD gives each module ownership of its domain concepts and invariants. Pragmatic Hexagonal Architecture keeps business logic separate from HTTP and persistence adapters without requiring an interface for every class. One six-person team can work within these boundaries while financial operations still share one database transaction. No mandatory microservices, Kafka, Kubernetes, Redis, event sourcing, distributed transactions or separate module databases are introduced. Provider and infrastructure sizing await EV-001/002.
 
@@ -169,16 +169,19 @@ Use in-process calls between modules, not HTTP/gRPC, separate databases or distr
 
 ### 3.4 Enforcing the boundaries (ARC-06)
 
-**Implemented on the Step 4E.2 working branch:** TEST-scope ArchUnit 1.5.1 with
+**Implemented tooling:** TEST-scope ArchUnit 1.5.1 with
 `archunit-junit6`, matching Boot 4.1.1's managed Jupiter 6.0.3. These checks execute
 through ordinary Maven tests; the §3.2 allowlist remains a **candidate**, not an
 approved policy. Spring Modulith is not installed or required by this baseline.
 
 - Only the nine named business modules are cycle nodes. `common`, the root launch
-  class and libraries are excluded. Own-module internal access is permitted;
+  class and libraries are excluded. Business classes must reside under their
+  module's `api` or `internal` packages. Internal code may use its own module's
+  types; public API code must not depend on its own module's internal types;
   cross-module dependencies require both a candidate edge and provider `api` access.
 - [ProductionArchitectureTests](../../backend/src/test/java/com/finfast/architecture/ProductionArchitectureTests.java)
-  scans compiled production code with test classes excluded. Rules cover cycles,
+  scans compiled production code with test classes excluded. Rules cover package
+  structure, public API isolation, cycles,
   domain/application isolation, controller JDBC/persistence access, clean business
   code and prohibition of shared-to-business dependencies. See the
   [implemented policy](../../backend/src/test/java/com/finfast/architecture/ModuleArchitectureRules.java).
