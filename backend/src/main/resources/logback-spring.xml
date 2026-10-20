@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <conversionRule conversionWord="severity" class="com.finfast.common.logging.SeverityColorConverter"/>
+    <conversionRule conversionWord="module" class="com.finfast.common.logging.ModuleLabelConverter"/>
+    <conversionRule conversionWord="trace" class="com.finfast.common.logging.TraceLabelConverter"/>
+    <conversionRule conversionWord="safeEx" class="com.finfast.common.logging.SafeThrowablePrinter"/>
+
+    <springProfile name="!prod &amp; !observability">
+        <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+    </springProfile>
+    <springProfile name="prod | observability">
+        <include resource="org/springframework/boot/logging/logback/structured-console-appender.xml"/>
+    </springProfile>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>

@@ -1,0 +1,27 @@
+server:
+  http_listen_port: 3200
+usage_report:
+  reporting_enabled: false
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        http:
+          endpoint: 0.0.0.0:4318
+ingester:
+  max_block_duration: 5m
+compactor:
+  compaction:
+    block_retention: 72h
+storage:
+  trace:
+    backend: local
+    wal:
+      path: /var/tempo/wal
+    local:
+      path: /var/tempo/blocks
+querier:
+  max_concurrent_queries: 4
+query_frontend:
+  search:
+    concurrent_jobs: 20

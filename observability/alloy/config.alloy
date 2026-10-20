@@ -1,0 +1,72 @@
+// The Docker socket is privileged access, even when its bind mount is read-only.
+discovery.docker "finfast" {
+  host = "unix:///var/run/docker.sock"
+  refresh_interval = "5s"
+  filter {
+    name = "label"
+    values = [
+      "com.docker.compose.project=" + sys.env("FINFAST_APP_PROJECT"),
+      "com.docker.compose.service=backend",
+      "com.finfast.telemetry=ecs",
+    ]
+  }
+}
+
+loki.source.docker "finfast" {
+  host = "unix:///var/run/docker.sock"
+  targets = discovery.docker.finfast.targets
+  labels = {}
+  forward_to = [loki.process.finfast.receiver]
+}
+
+loki.process "finfast" {
+  stage.json {
+    expressions = {
+      service_name = "service.name",
+      environment = "service.environment",
+      level = "log.level",
+      module = "module",
+      timestamp = "\"@timestamp\"",
+    }
+    drop_malformed = true
+  }
+  stage.labels {
+    values = { service_name = "", environment = "", level = "", module = "" }
+  }
+  stage.label_keep {
+    values = ["service_name", "environment", "level", "module"]
+  }
+  stage.timestamp {
+    source = "timestamp"
+    format = "RFC3339Nano"
+    action_on_failure = "skip"
+  }
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
+otelcol.receiver.otlp "finfast" {
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+  output {
+    traces = [otelcol.processor.batch.finfast.input]
+  }
+}
+
+otelcol.processor.batch "finfast" {
+  output {
+    traces = [otelcol.exporter.otlphttp.tempo.input]
+  }
+}
+
+otelcol.exporter.otlphttp "tempo" {
+  client {
+    endpoint = "http://tempo:4318"
+  }
+}

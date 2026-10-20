@@ -6,6 +6,7 @@ services:
     ports:
       - "127.0.0.1:8080:8080"
     environment:
+      FINFAST_CONSOLE_ANSI: ${FINFAST_CONSOLE_ANSI:-always}
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:?Copy .env.example to .env and set POSTGRES_DB}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}

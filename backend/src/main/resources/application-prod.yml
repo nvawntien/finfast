@@ -1,0 +1,20 @@
+logging:
+  structured:
+    format:
+      console: ecs
+    ecs:
+      service:
+        environment: ${APP_ENV:production}
+
+spring:
+  output:
+    ansi:
+      enabled: never
+
+management:
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:0.1}
+  opentelemetry:
+    resource-attributes:
+      "[deployment.environment.name]": ${APP_ENV:production}

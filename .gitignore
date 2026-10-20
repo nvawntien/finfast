@@ -36,3 +36,6 @@ logs/
 *~
 .DS_Store
 Thumbs.db
+
+# Python observability verification helpers.
+__pycache__/

@@ -1,0 +1,38 @@
+apiVersion: 1
+datasources:
+  - name: FinFast Prometheus
+    uid: finfast-prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    editable: false
+    jsonData:
+      httpMethod: POST
+      timeInterval: 15s
+  - name: FinFast Loki
+    uid: finfast-loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    isDefault: true
+    editable: false
+    jsonData:
+      derivedFields:
+        - name: TraceID
+          matcherRegex: '"trace\.id"\s*:\s*"([0-9a-f]{32})"'
+          datasourceUid: finfast-tempo
+          url: '$${__value.raw}'
+          urlDisplayLabel: View trace in Tempo
+  - name: FinFast Tempo
+    uid: finfast-tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:3200
+    editable: false
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: finfast-loki
+        spanStartTimeShift: '-5m'
+        spanEndTimeShift: '5m'
+        customQuery: true
+        query: '{service_name="finfast-backend"} |= "$${__trace.traceId}"'

@@ -1,0 +1,25 @@
+# Optional overlay: docker compose --env-file .env --env-file .env.observability
+# -f compose.yaml -f compose.observed.yaml up --build -d
+services:
+  backend:
+    environment:
+      SPRING_PROFILES_ACTIVE: observability
+      FINFAST_CONSOLE_ANSI: never
+      OTLP_TRACES_ENABLED: "true"
+      OTLP_TRACES_ENDPOINT: http://alloy:4318/v1/traces
+      TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLING_PROBABILITY:-1.0}
+      APP_ENV: ${APP_ENV:-local}
+      DEPLOYMENT_VERSION: ${DEPLOYMENT_VERSION:-dev}
+    labels:
+      com.finfast.telemetry: ecs
+    networks: [default, telemetry]
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  telemetry:
+    external: true
+    name: ${FINFAST_OBSERVABILITY_NETWORK:-finfast_observability}

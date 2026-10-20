@@ -1,0 +1,455 @@
+rule_files:
+- rules/finfast.yaml
+evaluation_interval: 15s
+tests:
+- name: healthy backend
+  interval: 1m
+  input_series:
+  - &id002
+    series: up{job="finfast-backend",instance="backend:8080"}
+    values: 1+0x20
+  alert_rule_test:
+  - eval_time: 10m
+    alertname: BackendUnavailable
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: ElevatedHttp5xxRate
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HighHttpLatency
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HikariPoolNearExhaustion
+    exp_alerts: []
+  promql_expr_test:
+  - expr: job_instance:http_requests:rate5m
+    eval_time: 10m
+    exp_samples: []
+  - expr: job_instance:http_latency_seconds:p95_5m
+    eval_time: 10m
+    exp_samples: []
+  - expr: job_instance_pool:hikari_utilization:ratio
+    eval_time: 10m
+    exp_samples: []
+- name: sustained unavailable target
+  interval: 1m
+  input_series:
+  - series: up{job="finfast-backend",instance="backend:8080"}
+    values: 0+0x20
+  alert_rule_test:
+  - eval_time: 10m
+    alertname: BackendUnavailable
+    exp_alerts:
+    - exp_labels:
+        job: finfast-backend
+        instance: backend:8080
+        severity: critical
+      exp_annotations: &id001
+        summary: FinFast backend scrape unavailable
+        description: Check backend startup, the observed profile, shared network and Prometheus target errors. This is not
+          a PostgreSQL health signal.
+  - eval_time: 10m
+    alertname: ElevatedHttp5xxRate
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HighHttpLatency
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HikariPoolNearExhaustion
+    exp_alerts: []
+- name: missing target definition
+  interval: 1m
+  input_series: []
+  alert_rule_test:
+  - eval_time: 10m
+    alertname: BackendUnavailable
+    exp_alerts:
+    - exp_labels:
+        job: finfast-backend
+        severity: critical
+      exp_annotations: *id001
+  - eval_time: 10m
+    alertname: ElevatedHttp5xxRate
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HighHttpLatency
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HikariPoolNearExhaustion
+    exp_alerts: []
+- name: brief scrape failure
+  interval: 1m
+  input_series:
+  - series: up{job="finfast-backend",instance="backend:8080"}
+    values: 1 0 1+0x18
+  alert_rule_test:
+  - eval_time: 10m
+    alertname: BackendUnavailable
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: ElevatedHttp5xxRate
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HighHttpLatency
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HikariPoolNearExhaustion
+    exp_alerts: []
+- name: one server error with near-zero traffic
+  interval: 1m
+  input_series:
+  - *id002
+  - series: http_server_requests_seconds_count{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",uri="/test/{id}",status="200"}
+    values: 0+1x20
+  - series: http_server_requests_seconds_count{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",uri="/test/{id}",status="500"}
+    values: 0 1+0x19
+  alert_rule_test:
+  - eval_time: 10m
+    alertname: BackendUnavailable
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: ElevatedHttp5xxRate
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HighHttpLatency
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HikariPoolNearExhaustion
+    exp_alerts: []
+- name: sustained 10 percent errors with sufficient traffic
+  interval: 1m
+  input_series:
+  - *id002
+  - series: http_server_requests_seconds_count{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",uri="/test/{id}",status="200"}
+    values: 0+5400x20
+  - series: http_server_requests_seconds_count{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",uri="/test/{id}",status="500"}
+    values: 0+600x20
+  alert_rule_test:
+  - eval_time: 10m
+    alertname: BackendUnavailable
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: ElevatedHttp5xxRate
+    exp_alerts:
+    - exp_labels:
+        job: finfast-backend
+        instance: backend:8080
+        application: finfast-backend
+        environment: test
+        severity: warning
+      exp_annotations:
+        summary: Sustained FinFast HTTP 5xx ratio above 5%
+        description: At least 1 request/s over 5m with elevated server errors. Inspect Loki errors and matching Tempo traces;
+          technical failure is not a final financial rejection.
+  - eval_time: 10m
+    alertname: HighHttpLatency
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HikariPoolNearExhaustion
+    exp_alerts: []
+- name: normal latency
+  interval: 1m
+  input_series:
+  - *id002
+  - series: http_server_requests_seconds_count{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",uri="/test/{id}",status="200"}
+    values: 0+6000x20
+  - series: http_server_requests_seconds_bucket{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",uri="/test/{id}",status="200",le="0.1"}
+    values: 0+6000x20
+  - series: http_server_requests_seconds_bucket{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",uri="/test/{id}",status="200",le="1.0"}
+    values: 0+6000x20
+  - series: http_server_requests_seconds_bucket{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",uri="/test/{id}",status="200",le="+Inf"}
+    values: 0+6000x20
+  alert_rule_test:
+  - eval_time: 10m
+    alertname: BackendUnavailable
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: ElevatedHttp5xxRate
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HighHttpLatency
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HikariPoolNearExhaustion
+    exp_alerts: []
+- name: sustained high latency with traffic
+  interval: 1m
+  input_series:
+  - *id002
+  - series: http_server_requests_seconds_count{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",uri="/test/{id}",status="200"}
+    values: 0+6000x20
+  - series: http_server_requests_seconds_bucket{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",uri="/test/{id}",status="200",le="0.1"}
+    values: 0+0x20
+  - series: http_server_requests_seconds_bucket{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",uri="/test/{id}",status="200",le="1.0"}
+    values: 0+6000x20
+  - series: http_server_requests_seconds_bucket{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",uri="/test/{id}",status="200",le="+Inf"}
+    values: 0+6000x20
+  alert_rule_test:
+  - eval_time: 10m
+    alertname: BackendUnavailable
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: ElevatedHttp5xxRate
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HighHttpLatency
+    exp_alerts:
+    - exp_labels:
+        job: finfast-backend
+        instance: backend:8080
+        application: finfast-backend
+        environment: test
+        severity: warning
+      exp_annotations:
+        summary: Sustained FinFast p95 latency above 500ms
+        description: At least 1 request/s over 5m with high latency. Inspect HTTP routes, JVM pressure and connection acquisition
+          before changing thresholds.
+  - eval_time: 10m
+    alertname: HikariPoolNearExhaustion
+    exp_alerts: []
+- name: slow request with near-zero traffic
+  interval: 1m
+  input_series:
+  - *id002
+  - series: http_server_requests_seconds_count{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",uri="/test/{id}",status="200"}
+    values: 0+1x20
+  - series: http_server_requests_seconds_bucket{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",uri="/test/{id}",status="200",le="0.1"}
+    values: 0+0x20
+  - series: http_server_requests_seconds_bucket{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",uri="/test/{id}",status="200",le="1.0"}
+    values: 0+1x20
+  - series: http_server_requests_seconds_bucket{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",uri="/test/{id}",status="200",le="+Inf"}
+    values: 0+1x20
+  alert_rule_test:
+  - eval_time: 10m
+    alertname: BackendUnavailable
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: ElevatedHttp5xxRate
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HighHttpLatency
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HikariPoolNearExhaustion
+    exp_alerts: []
+- name: pool at ninety percent
+  interval: 1m
+  input_series:
+  - *id002
+  - series: hikaricp_connections_active{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",pool="main"}
+    values: 9+0x20
+  - series: hikaricp_connections_max{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",pool="main"}
+    values: 10+0x20
+  alert_rule_test:
+  - eval_time: 10m
+    alertname: BackendUnavailable
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: ElevatedHttp5xxRate
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HighHttpLatency
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HikariPoolNearExhaustion
+    exp_alerts:
+    - exp_labels:
+        job: finfast-backend
+        instance: backend:8080
+        application: finfast-backend
+        environment: test
+        pool: main
+        severity: warning
+      exp_annotations:
+        summary: FinFast Hikari pool at least 90% occupied
+        description: Inspect active, pending and maximum pool connections plus acquisition timeouts. Missing/zero maximum
+          pools are excluded; occupancy does not prove PostgreSQL availability.
+- name: pool zero maximum excluded
+  interval: 1m
+  input_series:
+  - *id002
+  - series: hikaricp_connections_active{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",pool="main"}
+    values: 9+0x20
+  - series: hikaricp_connections_max{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",pool="main"}
+    values: 0+0x20
+  alert_rule_test:
+  - eval_time: 10m
+    alertname: BackendUnavailable
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: ElevatedHttp5xxRate
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HighHttpLatency
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HikariPoolNearExhaustion
+    exp_alerts: []
+- name: pool missing maximum excluded
+  interval: 1m
+  input_series:
+  - *id002
+  - series: hikaricp_connections_active{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",pool="main"}
+    values: 9+0x20
+  alert_rule_test:
+  - eval_time: 10m
+    alertname: BackendUnavailable
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: ElevatedHttp5xxRate
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HighHttpLatency
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HikariPoolNearExhaustion
+    exp_alerts: []
+- name: brief high error ratio does not bypass for duration
+  interval: 1m
+  input_series:
+  - series: up{job="finfast-backend",instance="backend:8080"}
+    values: 1+0x20
+  - series: http_server_requests_seconds_count{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",uri="/test/{id}",status="200"}
+    values: 0+5400x20
+  - series: http_server_requests_seconds_count{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",uri="/test/{id}",status="500"}
+    values: 0+600x20
+  alert_rule_test:
+  - eval_time: 2m
+    alertname: BackendUnavailable
+    exp_alerts: []
+  - eval_time: 2m
+    alertname: ElevatedHttp5xxRate
+    exp_alerts: []
+  - eval_time: 2m
+    alertname: HighHttpLatency
+    exp_alerts: []
+  - eval_time: 2m
+    alertname: HikariPoolNearExhaustion
+    exp_alerts: []
+- name: brief high latency does not bypass for duration
+  interval: 1m
+  input_series:
+  - series: up{job="finfast-backend",instance="backend:8080"}
+    values: 1+0x20
+  - series: http_server_requests_seconds_count{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",uri="/test/{id}",status="200"}
+    values: 0+6000x20
+  - series: http_server_requests_seconds_bucket{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",uri="/test/{id}",status="200",le="0.1"}
+    values: 0+0x20
+  - series: http_server_requests_seconds_bucket{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",uri="/test/{id}",status="200",le="1.0"}
+    values: 0+6000x20
+  - series: http_server_requests_seconds_bucket{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",uri="/test/{id}",status="200",le="+Inf"}
+    values: 0+6000x20
+  alert_rule_test:
+  - eval_time: 2m
+    alertname: BackendUnavailable
+    exp_alerts: []
+  - eval_time: 2m
+    alertname: ElevatedHttp5xxRate
+    exp_alerts: []
+  - eval_time: 2m
+    alertname: HighHttpLatency
+    exp_alerts: []
+  - eval_time: 2m
+    alertname: HikariPoolNearExhaustion
+    exp_alerts: []
+- name: high-volume 422 responses are not server errors
+  interval: 1m
+  input_series:
+  - series: up{job="finfast-backend",instance="backend:8080"}
+    values: 1+0x20
+  - series: http_server_requests_seconds_count{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",uri="/test/{id}",status="200"}
+    values: 0+5400x20
+  - series: http_server_requests_seconds_count{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",uri="/test/{id}",status="422"}
+    values: 0+600x20
+  alert_rule_test:
+  - eval_time: 10m
+    alertname: BackendUnavailable
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: ElevatedHttp5xxRate
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HighHttpLatency
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HikariPoolNearExhaustion
+    exp_alerts: []
+- name: previously healthy target disappears with stale marker
+  interval: 1m
+  input_series:
+  - series: up{job="finfast-backend",instance="backend:8080"}
+    values: 1 1 stale _ _ _ _ _ _ _ _
+  alert_rule_test:
+  - eval_time: 10m
+    alertname: BackendUnavailable
+    exp_alerts:
+    - exp_labels:
+        job: finfast-backend
+        severity: critical
+      exp_annotations:
+        summary: FinFast backend scrape unavailable
+        description: Check backend startup, the observed profile, shared network and Prometheus target errors. This is not
+          a PostgreSQL health signal.
+  - eval_time: 10m
+    alertname: ElevatedHttp5xxRate
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HighHttpLatency
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HikariPoolNearExhaustion
+    exp_alerts: []
+- name: counter reset preserves elevated error detection
+  interval: 1m
+  input_series:
+  - series: up{job="finfast-backend",instance="backend:8080"}
+    values: 1+0x20
+  - series: http_server_requests_seconds_count{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",uri="/test/{id}",status="200"}
+    values: 0 5400 10800 16200 21600 27000 0 5400 10800 16200 21600
+  - series: http_server_requests_seconds_count{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",uri="/test/{id}",status="500"}
+    values: 0 600 1200 1800 2400 3000 0 600 1200 1800 2400
+  alert_rule_test:
+  - eval_time: 10m
+    alertname: BackendUnavailable
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: ElevatedHttp5xxRate
+    exp_alerts:
+    - exp_labels:
+        job: finfast-backend
+        instance: backend:8080
+        application: finfast-backend
+        environment: test
+        severity: warning
+      exp_annotations:
+        summary: Sustained FinFast HTTP 5xx ratio above 5%
+        description: At least 1 request/s over 5m with elevated server errors. Inspect Loki errors and matching Tempo traces;
+          technical failure is not a final financial rejection.
+  - eval_time: 10m
+    alertname: HighHttpLatency
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HikariPoolNearExhaustion
+    exp_alerts: []
+- name: counter reset alone does not create server errors
+  interval: 1m
+  input_series:
+  - series: up{job="finfast-backend",instance="backend:8080"}
+    values: 1+0x20
+  - series: http_server_requests_seconds_count{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",uri="/test/{id}",status="200"}
+    values: 0 5400 10800 16200 21600 27000 0 5400 10800 16200 21600
+  - series: http_server_requests_seconds_count{job="finfast-backend",instance="backend:8080",application="finfast-backend",environment="test",uri="/test/{id}",status="500"}
+    values: 0+0x10
+  alert_rule_test:
+  - eval_time: 10m
+    alertname: BackendUnavailable
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: ElevatedHttp5xxRate
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HighHttpLatency
+    exp_alerts: []
+  - eval_time: 10m
+    alertname: HikariPoolNearExhaustion
+    exp_alerts: []
