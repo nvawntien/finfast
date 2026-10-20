@@ -10,6 +10,13 @@
 4. Review [API contracts](03-design/17-api-contracts.md) with frontend/backend contributors using Swagger UI below. Freeze reviewed contracts before parallel implementation.
 5. Track implementation in the [traceability matrix](02-requirements/11-requirements-traceability.md) and collect real runtime evidence through the [test strategy](05-verification/22-test-strategy-and-acceptance.md) and [release checklist](05-verification/23-uat-and-release-checklist.md).
 
+New contributor reading path: [root README](../README.md) → [AGENTS.md](../AGENTS.md)
+→ approved use cases/rules below → architecture and the
+[module collaboration guide](03-design/module-contracts-and-boundaries.md) →
+[shared contracts](03-design/shared-error-money-contracts.md) → the relevant API/backlog items.
+Steps 4E.1/4E.2 exist in the current working branch; they are not yet merged into
+`main`. Candidate dependency/posting policies remain proposals pending review.
+
 ## Navigation: requirements to engineering documents
 
 | Topic | Existing documents |
@@ -21,6 +28,8 @@
 | Data, atomicity, locking, idempotency and history ordering | [16 domain/data design](03-design/16-domain-model-and-data-design.md) |
 | External API contract | [17 API workflow/contracts](03-design/17-api-contracts.md), [OpenAPI source](03-design/contracts/openapi-v1.yaml) |
 | Implemented logging, HTTP errors and tracing | [Logging/error/tracing standard](03-design/logging-and-error-handling.md) |
+| Implemented shared errors and integer VND | [Shared error/money guide](03-design/shared-error-money-contracts.md) |
+| Implemented boundary checks and proposed module contracts | [Module collaboration and architecture tests](03-design/module-contracts-and-boundaries.md) |
 | Optional six-service observability stack and local credentials | [Observability setup and verification](../observability/README.md) |
 | Prometheus metrics, dashboard and Alertmanager | [Metrics and alerting](../observability/metrics-and-alerts.md) |
 | Observability review and deployment limitations | [Architecture review](../observability/architecture-review.md) |

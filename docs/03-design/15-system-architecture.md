@@ -1,6 +1,6 @@
 # 15 — System Context, Containers, Modules and Security Boundaries
 
-> **AGREED architecture direction:** Java/Spring Boot, PostgreSQL, one deployable Modular Monolith, DDD-inspired domain modules, pragmatic Hexagonal Architecture, constructor-based Spring DI, in-process module calls, REST/OpenAPI/Swagger UI, protected server-managed sessions and PostgreSQL ACID transactions. This incorporates the Tech Lead's confirmed direction and preserves A-013 / DEC-006. The concrete interfaces, dependency allowlist, transaction/locking mechanisms and enforcement tools below remain **PROPOSED** pending review. No application implementation or deployment is claimed.
+> **AGREED architecture direction:** Java/Spring Boot, PostgreSQL, one deployable Modular Monolith, DDD-inspired domain modules, pragmatic Hexagonal Architecture, constructor-based Spring DI, in-process module calls, REST/OpenAPI/Swagger UI, protected server-managed sessions and PostgreSQL ACID transactions. This incorporates the Tech Lead's confirmed direction and preserves A-013 / DEC-006. Concrete business interfaces, dependency allowlist and transaction/locking mechanisms remain **PROPOSED** pending review. Backend/database/observability and branch-local shared contracts/architecture checks exist; the business modules and deployment design below are not implemented. See the [root README](../../README.md) for current status.
 
 The Modular Monolith sets deployment and logical module boundaries. DDD gives each module ownership of its domain concepts and invariants. Pragmatic Hexagonal Architecture keeps business logic separate from HTTP and persistence adapters without requiring an interface for every class. One six-person team can work within these boundaries while financial operations still share one database transaction. No mandatory microservices, Kafka, Kubernetes, Redis, event sourcing, distributed transactions or separate module databases are introduced. Provider and infrastructure sizing await EV-001/002.
 
@@ -110,7 +110,9 @@ Identity registration orchestrates Customer provisioning and the zero-balance Ac
 
 ### 3.3 Java project and module structure (DOC-02)
 
-One Spring Boot application, organized by domain first:
+One Spring Boot application, organized by domain first. The nine business packages
+below are planned, not present scaffolding. Existing shared contracts and technical
+infrastructure are under `com.finfast.common`:
 
 ```text
 src/main/java/com/finfast/
@@ -167,12 +169,29 @@ Use in-process calls between modules, not HTTP/gRPC, separate databases or distr
 
 ### 3.4 Enforcing the boundaries (ARC-06)
 
-**Planned, not installed or executed:** after selecting compatible Java/Spring Boot versions, evaluate Spring Modulith and ArchUnit as test dependencies. A package named `internal` is only a naming convention: public Java types remain accessible unless checks reject the dependency.
+**Implemented on the Step 4E.2 working branch:** TEST-scope ArchUnit 1.5.1 with
+`archunit-junit6`, matching Boot 4.1.1's managed Jupiter 6.0.3. These checks execute
+through ordinary Maven tests; the §3.2 allowlist remains a **candidate**, not an
+approved policy. Spring Modulith is not installed or required by this baseline.
 
-- Model each direct `com.finfast` subpackage as a module. In Spring Modulith, expose nested `api` packages as named interfaces; do not assume a nested `api` package is public by default. Configure explicit allowed dependencies to match §3.2 and avoid opening whole modules. See the official [module and named-interface conventions](https://docs.spring.io/spring-modulith/reference/fundamentals.html).
-- Run `ApplicationModules.of(FinfastApplication.class).verify()` in CI to reject cycles, internal access and undeclared dependencies. This is a proposed future test, not a file created by this task. See [module verification](https://docs.spring.io/spring-modulith/reference/verification.html).
-- Add ArchUnit rules for forbidden cross-module `internal`/repository/entity access; application/domain layer direction; controllers calling only application entry points; and caller/method restrictions on `FinancialPosting`, `PostingAccounts` and `GenesisPosting`. Module-level allowlists alone cannot restrict particular posting methods. See the [ArchUnit rule APIs](https://www.archunit.org/userguide/html/000_Index.html).
-- Prove the rules reject deliberate cycle, repository import and unauthorized posting-call fixtures, then remove/segregate those negative fixtures. Verify both production dependency edges and module integration tests. Real PostgreSQL transaction tests in [22](../05-verification/22-test-strategy-and-acceptance.md) remain necessary: architecture checks do not prove atomicity or authorization.
+- Only the nine named business modules are cycle nodes. `common`, the root launch
+  class and libraries are excluded. Own-module internal access is permitted;
+  cross-module dependencies require both a candidate edge and provider `api` access.
+- [ProductionArchitectureTests](../../backend/src/test/java/com/finfast/architecture/ProductionArchitectureTests.java)
+  scans compiled production code with test classes excluded. Rules cover cycles,
+  domain/application isolation, controller JDBC/persistence access, clean business
+  code and prohibition of shared-to-business dependencies. See the
+  [implemented policy](../../backend/src/test/java/com/finfast/architecture/ModuleArchitectureRules.java).
+- [RuleVerificationTests](../../backend/src/test/java/com/finfast/architecture/RuleVerificationTests.java)
+  explicitly imports segregated test fixtures. Valid own/API/shared usage passes;
+  foreign internals, reversed edges, cycles and layer/observability leaks are
+  deliberately rejected. Business-only production selections are currently empty;
+  fixture proof does not establish real business-module integration or acceptance.
+- Caller/method restrictions on future `FinancialPosting`, `PostingAccounts` and
+  `GenesisPosting` remain deferred until real contracts exist. No placeholder API
+  is installed. Import checks cannot prove authorization, atomicity or SQL ownership.
+  Follow the [module collaboration guide](module-contracts-and-boundaries.md) and
+  real PostgreSQL/transaction gates in [22](../05-verification/22-test-strategy-and-acceptance.md).
 
 ## 4. Security design direction (must be reviewed before implementation)
 

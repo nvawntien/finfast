@@ -33,6 +33,18 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         this.contentNegotiation = contentNegotiation;
     }
 
+    @ExceptionHandler(ApplicationException.class)
+    ResponseEntity<Object> handleApplicationFailure(ApplicationException exception, WebRequest request) {
+        HttpStatus status = switch (exception.category()) {
+            case INVALID_REQUEST -> HttpStatus.BAD_REQUEST;
+            case NOT_FOUND -> HttpStatus.NOT_FOUND;
+            case CONFLICT -> HttpStatus.CONFLICT;
+            case FORBIDDEN -> HttpStatus.FORBIDDEN;
+            case UNPROCESSABLE -> HttpStatus.UNPROCESSABLE_CONTENT;
+        };
+        return handleExceptionInternal(exception, null, new HttpHeaders(), status, request);
+    }
+
     @ExceptionHandler({DataAccessResourceFailureException.class, QueryTimeoutException.class,
             CannotCreateTransactionException.class})
     ResponseEntity<Object> handleInfrastructureFailure(Exception exception, WebRequest request) {
@@ -56,7 +68,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             // causing another converter exception while trying to serialize an error body.
             return new ResponseEntity<>(null, headers, status);
         }
-        ErrorResponse response = responseFor(status);
+        ErrorResponse response = exception instanceof ApplicationException expected
+                ? new ErrorResponse(expected.code(), expected.publicMessage()) : responseFor(status);
         if (status.is5xxServerError()) {
             LOG.atError()
                     .addKeyValue("event.action", "http.request.failed")
