@@ -4,6 +4,7 @@ services:
   backend:
     environment:
       SPRING_PROFILES_ACTIVE: observability
+      FINFAST_CONSOLE_ANSI: never
       OTLP_TRACES_ENABLED: "true"
       OTLP_TRACES_ENDPOINT: http://alloy:4318/v1/traces
       TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLING_PROBABILITY:-1.0}

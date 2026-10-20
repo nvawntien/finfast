@@ -66,6 +66,13 @@ ordinary configuration. For complete shutdown use `make down`,
 Changing Grafana environment credentials after its persistent database is initialized
 does not reset an existing account; change that account through Grafana administration.
 
+`make logs` follows the backend without Compose's display prefix. Ordinary Docker
+mode enables pretty ANSI output; the observed overlay explicitly disables it and
+prod/observability profiles keep JSON uncolored. Colors require a capable viewing
+terminal and do not change older stored records. See the
+[console contract](../docs/03-design/logging-and-error-handling.md#formats-and-configuration)
+for the local-only preference.
+
 ## Topology and versions
 
 | Component | Responsibility | Pinned release | Local persistent storage |

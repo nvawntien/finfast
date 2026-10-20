@@ -41,7 +41,7 @@ design; application telemetry does not automatically create or replace them.
 | `SPRING_PROFILES_ACTIVE=observability` | ECS stdout and Prometheus metrics opt-in; preserves local sampling/datasource defaults |
 | `DEPLOYMENT_VERSION` | Release/build identifier supplied by deployment metadata; explicit fallback `dev` |
 | `APP_ENV` | Environment metadata; default `local` for pretty mode, `production` for `prod` |
-| `SPRING_OUTPUT_ANSI_ENABLED=always` / `never` | Explicit local ANSI preference |
+| `FINFAST_CONSOLE_ANSI` | Native default `detect`; normal Docker default `always`, local override `never` |
 | `LOGGING_LEVEL_ROOT` | Default INFO; change deliberately, without enabling sensitive framework diagnostics |
 
 Supply `DEPLOYMENT_VERSION` and `APP_ENV` to the container/deployed process, not to
@@ -53,6 +53,22 @@ The local pattern is UTC time, level, `[module]`, `service/version@environment`,
 logger, trace context or `untraced`, request ID or `none`, and message. Forcing ANSI off keeps the same
 readable fields. The application name remains `finfast-backend`; modules are labels
 inside this one deployable, not separate services.
+
+Normal Compose sets `FINFAST_CONSOLE_ANSI=always` because container stdout is not a
+TTY. This feeds the base `spring.output.ansi.enabled` property; profile-specific
+`never` still wins in prod/observability, even if the local preference is inherited.
+The observed overlay also sets the preference to `never`. A direct environment
+override of `SPRING_OUTPUT_ANSI_ENABLED` has higher precedence than profile files;
+do not force it to `always` for structured deployments. Set the FinFast preference
+in local `.env` and rerun `make up` to change container configuration.
+
+INFO is green, WARN yellow, ERROR red, DEBUG cyan and TRACE faint; module labels are
+cyan and other text uses the terminal foreground. Boot's converter defaults DEBUG
+and TRACE to green, so `SeverityColorConverter` specializes only those two levels
+and delegates the others and ANSI enable/disable behavior to Boot. Native terminal
+detection remains the default. `make logs` uses Compose's native `--no-log-prefix`;
+Ctrl+C stops following. Color rendering depends on the viewer, and old stored logs
+are not recolored. Neither appender ownership nor stored ECS fields change.
 
 Production has one JSON event per stdout line, with embedded stack newlines escaped.
 There is no second file sink or pretty sink to ingest twice. View JSON interactively

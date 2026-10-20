@@ -38,8 +38,8 @@ down: ## Stop the application stack and preserve database volumes.
 restart: ## Restart the backend service.
 	cd "$(ROOT_DIR)" && $(DOCKER_COMPOSE) -f compose.yaml restart backend
 
-logs: ## Follow backend logs (Ctrl+C to stop following).
-	cd "$(ROOT_DIR)" && $(DOCKER_COMPOSE) -f compose.yaml logs -f backend
+logs: ## Follow backend logs without Compose prefixes (Ctrl+C to stop following).
+	cd "$(ROOT_DIR)" && $(DOCKER_COMPOSE) -f compose.yaml logs --no-log-prefix --follow backend
 
 ps: ## Show application container status.
 	cd "$(ROOT_DIR)" && $(DOCKER_COMPOSE) -f compose.yaml ps

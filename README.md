@@ -68,6 +68,12 @@ must never be reused for a public deployment.** `make health` may need a retry w
 the application starts. Expected response: `{"status":"UP"}`. Ctrl+C stops log
 following without stopping services.
 
+`make logs` follows backend stdout without Compose's container prefix. Normal Docker
+mode enables INFO green, WARN yellow, ERROR red and cyan module labels. Rendering
+depends on the viewing terminal. Set `FINFAST_CONSOLE_ANSI=never` in `.env` and rerun
+`make up` to disable local colors; old stored records do not gain colors retroactively.
+Observed/prod profiles keep ECS JSON ANSI-free.
+
 Without Make, copy `.env.example` once without overwriting an existing `.env`, then
 run `docker compose up --build -d`. The equivalent health check is
 `curl --fail http://localhost:8080/actuator/health`.

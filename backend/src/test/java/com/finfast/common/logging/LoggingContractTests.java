@@ -203,6 +203,7 @@ class LoggingContractTests {
             PatternLayout layout = new PatternLayout();
             layout.setContext(context);
             layout.getInstanceConverterMap().put("clr", ColorConverter::new);
+            layout.getInstanceConverterMap().put("severity", SeverityColorConverter::new);
             layout.getInstanceConverterMap().put("module", ModuleLabelConverter::new);
             layout.getInstanceConverterMap().put("trace", TraceLabelConverter::new);
             layout.getInstanceConverterMap().put("safeEx", SafeThrowablePrinter::new);

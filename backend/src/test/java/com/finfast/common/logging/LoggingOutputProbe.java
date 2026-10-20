@@ -4,6 +4,7 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
+import org.springframework.boot.ansi.AnsiOutput;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.TestConfiguration;
 
@@ -19,7 +20,11 @@ public final class LoggingOutputProbe {
     public static void main(String[] args) {
         SpringApplication application = new SpringApplication(ProbeApplication.class);
         application.setWebApplicationType(WebApplicationType.NONE);
-        try (var ignored = application.run(args)) {
+        try (var context = application.run(args)) {
+            String expectedAnsi = context.getEnvironment().getProperty("finfast.test.expected-ansi");
+            if (expectedAnsi != null && !AnsiOutput.getEnabled().name().equalsIgnoreCase(expectedAnsi)) {
+                throw new IllegalStateException("Unexpected ANSI configuration in logging fixture");
+            }
             var logger = LoggerFactory.getLogger(LoggingOutputProbe.class);
             logger.info("Logging probe without context");
             MDC.put("traceId", TRACE);
@@ -36,6 +41,9 @@ public final class LoggingOutputProbe {
                 MDC.clear();
             }
             logger.info("Logging probe after context cleanup");
+            logger.warn("Logging probe warning");
+            logger.debug("Logging probe debug");
+            logger.trace("Logging probe trace");
         }
     }
 
