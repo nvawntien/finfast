@@ -4,12 +4,15 @@ ROOT_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 DOCKER_COMPOSE ?= docker compose
 MAVEN ?= ./mvnw
 HEALTH_URL ?= http://localhost:8080/actuator/health
+OBSERVABILITY_ENV ?= .env.observability
+OBSERVABILITY_PROJECT ?= finfast-observability
+OBSERVABILITY_COMPOSE = $(DOCKER_COMPOSE) --env-file "$(OBSERVABILITY_ENV)" -p "$(OBSERVABILITY_PROJECT)" -f compose.observability.yaml
 
-.PHONY: help setup up start stop down restart logs ps test build health docs-up docs-down
+.PHONY: help setup up start stop down restart logs ps test build health docs-up docs-down observability-setup observability-up observability-down observability-health observed-up
 
 help: ## Show available commands.
 	@printf 'Usage: make <target>\n\n'
-	@awk 'BEGIN {FS = ":.*## "} /^[a-z-]+:.*## / {printf "  %-12s %s\n", $$1, $$2}' "$(ROOT_DIR)/Makefile"
+	@awk 'BEGIN {FS = ":.*## "} /^[a-z-]+:.*## / {printf "  %-22s %s\n", $$1, $$2}' "$(ROOT_DIR)/Makefile"
 	@printf '\nNative test/build require Java 21 and Docker for Testcontainers; Maven is provided by the Wrapper.\n'
 
 setup: ## Create .env from .env.example without overwriting an existing file.
@@ -55,3 +58,25 @@ docs-up: ## Start the separate Swagger UI stack.
 
 docs-down: ## Stop the Swagger UI stack.
 	cd "$(ROOT_DIR)" && $(DOCKER_COMPOSE) -f compose.docs.yaml down
+
+observability-setup: ## Create local Grafana settings; choose credentials before startup.
+	@cd "$(ROOT_DIR)" && \
+	if [ -e "$(OBSERVABILITY_ENV)" ] || [ -L "$(OBSERVABILITY_ENV)" ]; then \
+		printf '%s\n' 'Observability environment already exists; left unchanged.'; \
+	else \
+		cp -n .env.observability.example "$(OBSERVABILITY_ENV)" && \
+		printf '%s\n' 'Created observability settings. Set GRAFANA_ADMIN_USER and GRAFANA_ADMIN_PASSWORD.'; \
+	fi
+
+observability-up: ## Start optional telemetry; Grafana defaults to http://localhost:3300.
+	cd "$(ROOT_DIR)" && $(OBSERVABILITY_COMPOSE) up -d --wait --wait-timeout 150
+
+observability-down: ## Stop telemetry; preserve containers, shared network and all volumes.
+	cd "$(ROOT_DIR)" && $(OBSERVABILITY_COMPOSE) stop
+
+observability-health: ## Check Grafana, Loki, Tempo and Alloy readiness over private Docker DNS.
+	cd "$(ROOT_DIR)" && $(OBSERVABILITY_COMPOSE) exec -T grafana sh -ec \
+		'for endpoint in http://grafana:3000/api/health http://loki:3100/ready http://tempo:3200/ready http://alloy:12345/-/ready; do curl -fsS --max-time 5 "$$endpoint"; printf "\n"; done'
+
+observed-up: observability-up ## Start the backend with ECS stdout and optional OTLP export to Alloy.
+	cd "$(ROOT_DIR)" && $(DOCKER_COMPOSE) --env-file .env --env-file "$(OBSERVABILITY_ENV)" -f compose.yaml -f compose.observed.yaml up --build -d backend

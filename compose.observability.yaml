@@ -1,0 +1,94 @@
+name: finfast-observability
+
+services:
+  loki:
+    image: grafana/loki:3.7.8@sha256:1107dd5274e0ada47e42472b7a7e71f3b2a2fe878878108f3e2f9e51528f0193
+    command: ["-config.file=/etc/loki/loki.yaml"]
+    volumes:
+      - ./observability/loki/loki.yaml:/etc/loki/loki.yaml:ro
+      - loki_data:/loki
+    environment:
+      GOMAXPROCS: "2"
+    networks: [telemetry]
+
+  tempo:
+    image: grafana/tempo:2.10.8@sha256:f0561deb1c68ec44d6e6e7e4487f30106c4e5e768642077695b37958b105812a
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    volumes:
+      - ./observability/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo_data:/var/tempo
+    environment:
+      GOMAXPROCS: "2"
+    networks: [telemetry]
+
+  alloy:
+    image: grafana/alloy:v1.20.1@sha256:2aa2099af76c0098d4af7a4d6e48f86cb66dc1a000222ad927a1c67c6542d13f
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - --disable-reporting
+      - /etc/alloy/config.alloy
+    environment:
+      FINFAST_APP_PROJECT: ${FINFAST_APP_PROJECT:-finfast}
+      GOMAXPROCS: "2"
+    # Local development only: :ro does NOT restrict Docker API operations.
+    volumes:
+      - ${DOCKER_SOCKET_PATH:-/var/run/docker.sock}:/var/run/docker.sock:ro
+      - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - alloy_data:/var/lib/alloy/data
+    depends_on:
+      loki:
+        condition: service_started
+      tempo:
+        condition: service_started
+    networks: [telemetry]
+
+  grafana:
+    image: grafana/grafana:13.2.4@sha256:dbbc38ea21103cefb50396340cd88afec779c7e070b0a7bf5a75b4ce46651d3f
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-3300}:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:?Set GRAFANA_ADMIN_USER in .env.observability}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env.observability}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+      GF_SERVER_ROOT_URL: http://localhost:${GRAFANA_PORT:-3300}
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      loki:
+        condition: service_started
+      tempo:
+        condition: service_started
+      alloy:
+        condition: service_started
+    # Loki/Tempo images have no HTTP client. Probe all four readiness endpoints
+    # from Grafana's verified curl binary; --wait waits for the entire stack.
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          curl -fsS http://grafana:3000/api/health >/dev/null &&
+          curl -fsS http://loki:3100/ready >/dev/null &&
+          curl -fsS http://tempo:3200/ready >/dev/null &&
+          curl -fsS http://alloy:12345/-/ready >/dev/null
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 15s
+    networks: [telemetry]
+
+networks:
+  telemetry:
+    name: ${FINFAST_OBSERVABILITY_NETWORK:-finfast_observability}
+
+volumes:
+  loki_data:
+  tempo_data:
+  alloy_data:
+  grafana_data:

@@ -1,0 +1,23 @@
+# Disposable test-only HTTP application; this project never defines a database.
+name: finfast-observability-verify
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: observability/tests/Dockerfile
+    ports:
+      - "127.0.0.1:${OBSERVABILITY_VERIFY_PORT:-18080}:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: observability
+      OTLP_TRACES_ENABLED: "true"
+      OTLP_TRACES_ENDPOINT: http://alloy:4318/v1/traces
+      TRACING_SAMPLING_PROBABILITY: "1.0"
+      APP_ENV: verification
+      DEPLOYMENT_VERSION: step4d3-verification
+    labels:
+      com.finfast.telemetry: ecs
+    networks: [telemetry]
+networks:
+  telemetry:
+    external: true
+    name: ${FINFAST_OBSERVABILITY_NETWORK:-finfast_observability_verify}

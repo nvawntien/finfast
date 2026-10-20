@@ -1,0 +1,9 @@
+# Logging only: keep the local datasource, sampling and other application defaults.
+logging:
+  structured:
+    format:
+      console: ecs
+spring:
+  output:
+    ansi:
+      enabled: never

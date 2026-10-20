@@ -5,10 +5,10 @@
     <conversionRule conversionWord="trace" class="com.finfast.common.logging.TraceLabelConverter"/>
     <conversionRule conversionWord="safeEx" class="com.finfast.common.logging.SafeThrowablePrinter"/>
 
-    <springProfile name="!prod">
+    <springProfile name="!prod &amp; !observability">
         <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
     </springProfile>
-    <springProfile name="prod">
+    <springProfile name="prod | observability">
         <include resource="org/springframework/boot/logging/logback/structured-console-appender.xml"/>
     </springProfile>
 

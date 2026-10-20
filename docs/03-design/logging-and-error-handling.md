@@ -27,6 +27,7 @@ registers the module/trace/safe-exception converters and selects one stdout appe
 |---|---|
 | Default profile | Pretty console, UTC timestamps, colored levels/module labels when ANSI is supported |
 | `SPRING_PROFILES_ACTIVE=prod` | ECS JSON stdout; ANSI disabled; banner disabled in both modes |
+| `SPRING_PROFILES_ACTIVE=observability` | Logging-only ECS opt-in for the local collector; preserves local sampling/application defaults |
 | `DEPLOYMENT_VERSION` | Release/build identifier supplied by deployment metadata; explicit fallback `dev` |
 | `APP_ENV` | Environment metadata; default `local` for pretty mode, `production` for `prod` |
 | `SPRING_OUTPUT_ANSI_ENABLED=always` / `never` | Explicit local ANSI preference |
@@ -304,10 +305,13 @@ properties. `HttpTracingOutputTests` runs full HTTP child JVMs in local/prod mod
 strictly parses ECS and verifies opt-in OTLP against a loopback responder returning
 503, including absence of the exception canary in actual protobuf request payloads.
 
-Step 4D.3 Alloy, Loki, Tempo, Grafana, storage, dashboards and alerts are not installed
-or operational; no external ingestion is claimed. No financial module, audit publisher,
-migration or observability Compose service is implemented here. Logs/spans never replace
-durable Ledger Entries, final Request Outcomes or mandatory Admin Audit Events.
+Step 4D.3 adds an optional local Alloy → Loki/Tempo → Grafana stack; see the
+[setup and end-to-end verification guide](../../observability/README.md). Grafana is
+localhost:3300, leaving host port 3000 reserved for the frontend. The observed overlay
+uses a shared Docker network and exports to Alloy; normal backend startup stays
+collector-independent. No dashboards, alerting, metrics scraping, financial module,
+audit publisher or migration is added. Logs/spans never replace durable Ledger Entries,
+final Request Outcomes or mandatory Admin Audit Events.
 
 References: [Boot 4.1 logging](https://docs.spring.io/spring-boot/reference/features/logging.html),
 [Boot MDC correlation conventions](https://docs.spring.io/spring-boot/reference/actuator/tracing.html#actuator.micrometer-tracing.logging),

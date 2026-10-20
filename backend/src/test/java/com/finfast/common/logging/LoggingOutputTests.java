@@ -23,7 +23,7 @@ class LoggingOutputTests {
     Path temporary;
 
     @ParameterizedTest
-    @ValueSource(strings = {"local", "prod"})
+    @ValueSource(strings = {"local", "prod", "observability"})
     void actualSpringLogbackConfigurationSafelyEncodesEachEventOnce(String mode) throws Exception {
         Path stdout = temporary.resolve(mode + ".log");
         Path stderr = temporary.resolve(mode + ".stderr");
@@ -57,7 +57,7 @@ class LoggingOutputTests {
         assertThat(output.lines().filter(line -> line.contains("Logging probe failed"))).hasSize(1);
         assertThat(output.lines().filter(line -> line.contains("Logging probe without context"))).hasSize(1);
         assertThat(output.lines().filter(line -> line.contains("Logging probe after context cleanup"))).hasSize(1);
-        if (mode.equals("prod")) {
+        if (!mode.equals("local")) {
             // Parse EVERY stdout record, including startup; duplicate keys fail the parser.
             var records = output.lines().map(JSON::readTree).toList();
             assertThat(records).allSatisfy(json -> {

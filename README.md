@@ -2,10 +2,9 @@
 
 FinFast is a banking simulation project designed as one deployable modular
 monolith, with DDD-inspired business modules and pragmatic Hexagonal Architecture.
-This Step 3 foundation provides a Spring Boot backend connected to a local
-PostgreSQL database, automatic Flyway initialization and an Actuator health check.
-Authentication, business modules, banking tables and a frontend are future steps;
-none are implemented here.
+The foundation includes PostgreSQL/Flyway, eight empty banking tables, an Actuator
+health check, safe logging and HTTP tracing. Authentication, business operations and
+the frontend are not implemented. The optional Grafana stack is described below.
 
 See the [documentation index](docs/README.md) and
 [system architecture](docs/03-design/15-system-architecture.md) for the agreed
@@ -193,15 +192,12 @@ Adjust the port, username and database if you changed `.env`.
 Flyway runs automatically at backend startup and is the source of truth for
 schema changes. Migrations live in
 [`backend/src/main/resources/db/migration/`](backend/src/main/resources/db/migration/README.md).
-Step 3 intentionally has no versioned SQL migrations: successful initialization
-creates only Flyway's `flyway_schema_history` table, with zero applied migrations.
-Its `No migrations found` warning is expected until Step 4 adds the first SQL
-migration.
-No banking/session tables, sample banking data, Treasury or GENESIS are created.
+V1 creates the eight banking tables and V2 protects immutable financial facts.
+Flyway validates and applies these migrations; they create no banking seed data,
+Treasury, GENESIS or sessions. See the migration README for exact database and
+application-level guarantees.
 
-In Step 4, add the first reviewed schema migration as
-`V1__<description>.sql` in that directory and commit it to Git with its tests.
-Use unique increasing versions for subsequent migrations and coordinate them
+Use unique increasing versions for future migrations and coordinate them
 across branches before merging. Restarting the backend applies pending migrations
 and validates applied migration checksums. Do not modify an already applied
 migration during normal development; add a new one instead.
@@ -223,15 +219,16 @@ With Java 21 and a running Testcontainers-compatible Docker runtime, from
 The two Step 2 tests still check the application context and health response
 through MockMvc with database auto-configuration excluded only for those tests.
 The PostgreSQL smoke test starts a separate pinned PostgreSQL 16.15 container,
-checks `SELECT 1`, verifies Flyway initialization and confirms no business tables
-exist. Spring Boot service connections supply both datasource and Flyway
+checks `SELECT 1`, validates V1/V2 and confirms the banking tables start empty.
+Schema, rollback, concurrency, logging and real HTTP tracing tests extend this smoke
+test. Spring Boot service connections supply both datasource and Flyway
 connection details from this test container, so it does not use the persistent
 Compose database or a manually installed PostgreSQL server. The test database
 and container are disposable and managed by Testcontainers.
 
 The full test suite requires a compatible Docker runtime; a missing runtime is a
 test failure. Image builds explicitly exclude tests tagged `integration` because
-a Docker build stage has no Docker daemon. They still run the Step 2 tests. To
+a Docker build stage has no Docker daemon. They run database-independent tests. To
 run just that limited group locally:
 
 ```bash
@@ -244,3 +241,44 @@ native datasource environment variables configured above, start it using
 
 Documentation preview and its existing validation workflow remain separate; see
 [`docs/README.md`](docs/README.md) for `compose.docs.yaml` usage.
+
+## Optional Grafana observability
+
+Grafana opens at **http://localhost:3300**. Host port **3000 stays reserved for the
+frontend**; Grafana's container port remains 3000. Normal `make up` keeps pretty
+console logs and needs no telemetry services.
+
+```bash
+make setup
+make observability-setup
+# Edit .env.observability: choose GRAFANA_ADMIN_USER and GRAFANA_ADMIN_PASSWORD.
+make observability-up
+make observed-up
+make observability-health
+```
+
+Login with those local credentials. The ignored environment file is never overwritten
+by setup. To override Grafana's host port, set `GRAFANA_PORT` in that file, or run
+`GRAFANA_PORT=3330 make observability-up` and browse http://localhost:3330.
+
+The backend uses a logging-only `observability` profile and exports traces to Alloy
+over a shared Docker network. PostgreSQL stays on the application network. Loki and
+Tempo datasources are provisioned automatically; use Grafana Explore to query
+`{service_name="finfast-backend"}` and click **View trace in Tempo** on an expanded
+log containing a Trace ID. This uses real tracing, not generated access-log events;
+successful requests need not emit an application log.
+
+Return to ordinary backend mode and stop telemetry safely:
+
+```bash
+make up
+make observability-down
+```
+
+`observability-down` stops telemetry containers while preserving their volumes and
+shared network. It never stops PostgreSQL. Do not use volume-deleting commands for
+routine shutdown. **Alloy has privileged Docker socket access even though the socket
+mount is read-only; this configuration is for trusted local development.**
+
+See [observability setup and verification](observability/README.md) for security,
+retention, log/trace queries, networking, resource use and repeatable end-to-end checks.

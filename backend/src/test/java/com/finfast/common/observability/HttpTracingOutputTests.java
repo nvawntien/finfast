@@ -26,7 +26,7 @@ class HttpTracingOutputTests {
     Path temporary;
 
     @ParameterizedTest
-    @ValueSource(strings = {"local", "prod", "collector-failure"})
+    @ValueSource(strings = {"local", "prod", "observability", "collector-failure"})
     void actualHttpSpansReachConfiguredConsoleAndRequestsSurviveExporterFailure(String mode) throws Exception {
         AtomicInteger exports = new AtomicInteger();
         var payloads = new ConcurrentLinkedQueue<String>();
@@ -43,7 +43,7 @@ class HttpTracingOutputTests {
         Path stdout = temporary.resolve(mode + ".log");
         Path stderr = temporary.resolve(mode + ".stderr");
         try {
-            String profile = mode.equals("local") ? "local" : "prod";
+            String profile = mode.equals("collector-failure") ? "prod" : mode;
             var builder = new ProcessBuilder(List.of(
                     Path.of(System.getProperty("java.home"), "bin", "java").toString(), "-cp",
                     System.getProperty("java.class.path"), HttpTracingOutputProbe.class.getName(),
@@ -82,7 +82,7 @@ class HttpTracingOutputTests {
             assertThat(output).contains("HTTP tracing probe complete; health UP");
             assertThat(payloads).allSatisfy(payload -> assertThat(payload).doesNotContain(HttpTracingFixtures.CANARY));
             assertThat(output.lines().filter(line -> line.contains("HTTP request failed"))).hasSize(1);
-            if (profile.equals("prod")) {
+            if (!profile.equals("local")) {
                 var records = output.lines().map(JSON::readTree).toList();
                 var event = records.stream().filter(json -> json.get("message").asString().equals(HttpTracingFixtures.MESSAGE))
                         .findFirst().orElseThrow();

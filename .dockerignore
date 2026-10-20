@@ -1,0 +1,13 @@
+# Root build context is used only by the separate observability test image.
+.git
+.env*
+.idea
+.vscode
+.codex
+.agents
+**/target
+**/logs
+**/*.log
+**/*.tmp
+**/*.pem
+**/*.key
