@@ -13,6 +13,40 @@ server:
   port: ${SERVER_PORT:8080}
 
 management:
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
+    propagation:
+      consume: [w3c]
+      produce: [w3c]
+    baggage:
+      enabled: false
+    export:
+      otlp:
+        enabled: ${OTLP_TRACES_ENABLED:false}
+  opentelemetry:
+    resource-attributes:
+      "[service.name]": finfast-backend
+      "[service.version]": ${DEPLOYMENT_VERSION:dev}
+      "[deployment.environment.name]": ${APP_ENV:local}
+    tracing:
+      sampler: parent-based-trace-id-ratio
+      export:
+        timeout: 3s
+        otlp:
+          endpoint: ${OTLP_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
+          transport: http
+          connect-timeout: 1s
+          timeout: 2s
+  # The tracing starter also brings an OTLP meter registry; remote metrics/logs are out of scope.
+  otlp:
+    metrics:
+      export:
+        enabled: false
+  logging:
+    export:
+      otlp:
+        enabled: false
   endpoint:
     health:
       probes:
@@ -22,7 +56,7 @@ logging:
   level:
     root: INFO
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss.SSS'Z',UTC} %clr(%-5level) %clr([%module]){cyan} finfast-backend/${DEPLOYMENT_VERSION:dev}@${APP_ENV:local} %logger{40} trace=%trace - %msg%n%safeEx"
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS'Z',UTC} %clr(%-5level) %clr([%module]){cyan} finfast-backend/${DEPLOYMENT_VERSION:dev}@${APP_ENV:local} %logger{40} trace=%trace request=%X{request.id:-none} - %msg%n%safeEx"
   structured:
     ecs:
       service:

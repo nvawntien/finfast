@@ -1,4 +1,4 @@
-# Logging and HTTP error handling — Step 4D.1
+# Logging, HTTP errors and tracing — Steps 4D.1–4D.2
 
 Implemented technical foundation for Java 21 / Spring Boot 4.1.1. The generic HTTP
 codes below are technical decisions for this step, not approval of new banking
@@ -38,7 +38,7 @@ Both formatters read deployment metadata directly rather than relying on a JAR's
 No log collector or external service is required for startup.
 
 The local pattern is UTC time, level, `[module]`, `service/version@environment`,
-logger, trace context or `untraced`, and message. Forcing ANSI off keeps the same
+logger, trace context or `untraced`, request ID or `none`, and message. Forcing ANSI off keeps the same
 readable fields. The application name remains `finfast-backend`; modules are labels
 inside this one deployable, not separate services.
 
@@ -86,12 +86,11 @@ is `untraced` and neither ID is exported. Nonblank IDs are preserved in full, wi
 trimming, normalization or synthetic replacements. `request.id` remains an independent,
 optional trusted MDC key. Fluent event keys are `event.action`, `event.outcome`, `error.code`.
 
-No tracing instrumentation, request-ID generator, correlation filter or inbound-header
-trust is implemented. Startup/background events without trusted context are `untraced`
-and omit IDs. `context_present` only reports supplied trusted MDC context, not proof of
-an active/exported span verified by this formatter. Step 4D.2 must connect real
-instrumentation through Micrometer's MDC convention and handle scope cleanup; application code
-must not fabricate context or copy arbitrary client headers into it.
+Boot-managed Micrometer/OpenTelemetry instrumentation now supplies real HTTP context
+through Micrometer's MDC convention. Startup/background events outside a span remain
+`untraced` and omit trace/span IDs. `context_present` means correlation context exists;
+the formatter itself does not verify a span or guarantee that a backend stores it.
+Application code must not fabricate context or copy arbitrary client headers into MDC.
 
 Logger names use the emitting infrastructure class's full package. Exact
 `com.finfast.<module>.` boundaries map identity, customer, accounts, transfers, ledger,
@@ -103,6 +102,107 @@ Currently emitted failure identity: `event.action=http.request.failed`,
 `event.outcome=failure`, with an HTTP technical `error.code`. No synthetic banking
 events are emitted. Future approved adapter events should use stable identifiers
 such as `transfer.completed`; human messages are not event identifiers.
+
+## HTTP tracing and request correlation
+
+One Boot-managed OpenTelemetry SDK bridges Micrometer Observation to tracing.
+Spring's `ServerHttpObservationFilter` owns each HTTP server span and its lifecycle;
+there is no custom server span, Java agent or method-wide AOP. Instrumentation creates
+spans, not automatic application log lines. Normal successful/health requests need not
+emit an application event. Domain/application code remains independent of these APIs.
+
+| Identifier | Purpose / ownership |
+|---|---|
+| Trace ID | 32 hexadecimal characters identifying a distributed trace; supplied by OTel or a valid remote W3C parent |
+| Span ID | 16 hexadecimal characters identifying the actual server span; remote parent span ID is not reused |
+| Request ID | Independent, unpredictable server-generated UUID v4 per inbound request; response header `X-Request-ID` and MDC/JSON `request.id` |
+
+Consume and produce only W3C `traceparent` / `tracestate`. Valid parents continue the
+trace; invalid/absent parents create a new root. Propagation is correlation, not
+authentication or authorization. Incoming `X-Request-ID` is ignored and never logged;
+arbitrary trace headers are never copied into MDC. Baggage propagation is disabled.
+No trace/span IDs are added to production response bodies or headers.
+
+`RequestCorrelationFilter` runs at `HIGHEST_PRECEDENCE`, before Boot's observation
+filter (`HIGHEST_PRECEDENCE + 1`). It stores its generated ID in a private request
+attribute and binds MDC for REQUEST, ERROR and ASYNC dispatches. Redispatch reuses the
+same ID, including nested errors. Each dispatch's `finally` restores an enclosing MDC
+scope or removes the ID, leaving pooled threads clean. It emits no request log.
+
+This supports servlet redispatch, not arbitrary executor/`@Async` propagation.
+There is no automatic request-MDC propagation to worker tasks. Before introducing
+asynchronous use cases, review task decorators/context propagation and lifecycle
+semantics explicitly; do not assume thread locals travel with work.
+
+Future outbound HTTP integrations must use Boot's injected `RestClient.Builder`,
+`RestTemplateBuilder`, or (if introduced) `WebClient.Builder` to retain framework
+instrumentation and propagation. Review client attributes for privacy before use;
+manual client construction can lose tracing. No artificial service calls are added.
+
+## Sampling, resources and optional OTLP export
+
+Exact properties are in `application.yml` / `application-prod.yml`, using the Boot
+4.1.1 starter and dependency management. `service.name=finfast-backend`,
+`service.version=${DEPLOYMENT_VERSION:dev}` and
+`deployment.environment.name=${APP_ENV:local}` identify OTel resources. The prod
+environment fallback is `production`, matching ECS. Deployment supplies the version;
+neither the logging nor tracing subsystem invents a production release number.
+
+| Environment variable | Default / behavior |
+|---|---|
+| `DEPLOYMENT_VERSION` | `dev`; shared release metadata for logs and spans |
+| `APP_ENV` | `local`, or `production` in prod; shared environment metadata |
+| `TRACING_SAMPLING_PROBABILITY` | Local `1.0`, prod `0.1`; configurable 0–1 |
+| `OTLP_TRACES_ENABLED` | `false`; opt in to remote trace export |
+| `OTLP_TRACES_ENDPOINT` | `http://localhost:4318/v1/traces`; full OTLP/HTTP endpoint |
+
+The sampler is `parent-based-trace-id-ratio`: valid parents retain their sampling
+decision; the configured probability applies to new roots. A valid trace/span ID may
+exist on an unsampled request. Correlated logs therefore need not have a stored trace.
+Sampling changes telemetry volume and never determines financial outcomes.
+
+Enable export in the backend process's environment, for example:
+
+```bash
+OTLP_TRACES_ENABLED=true \
+OTLP_TRACES_ENDPOINT=http://localhost:4318/v1/traces \
+./mvnw spring-boot:run
+```
+
+Run this command from `backend/` with the native datasource environment described in
+the root README. Docker Compose does not automatically forward arbitrary `.env` keys:
+these settings must reach the backend container environment when export is later wired
+into infrastructure. Inside a container, `localhost` refers to that container; use the
+future collector's reachable network hostname. No collector is created here.
+
+The opt-in property is `management.tracing.export.otlp.enabled`, separate from the SDK.
+`management.opentelemetry.tracing.export.otlp.transport=http` uses connect timeout 1s
+and total request timeout 2s. Boot's standard `BatchSpanProcessor` exports asynchronously
+with a bounded queue; its exporter wait is 3s. There is no application retry loop.
+Collector failures may lose telemetry but do not alter request/commit results or
+Actuator health. Export disabled means no OTLP trace connection attempts, with real
+in-process context still available. OTLP metrics and log export are explicitly disabled
+because the starter also brings a meter registry; application logs remain stdout only.
+
+## Trace privacy
+
+The default HTTP convention includes the raw path in `http.url`. FinFast replaces
+only high-cardinality HTTP tags with an empty set, keeping framework method/status,
+exception type and normalized route templates. Paths containing Account Numbers and
+queries are not exported. No headers, bodies, customer IDs, SQL or custom baggage are
+added as tags. Do not use correlation IDs as metric dimensions or Loki stream labels.
+
+Micrometer's OTel bridge can capture raw exception messages, stack events and status
+descriptions. `safeTraceDiagnostics` uses its supported export filter to remove events
+and status descriptions before any configured exporter receives the span, preserving
+status code, IDs, parent, resource and safe tags. The SDK may temporarily hold original
+exception data internally; this is an export boundary, not global in-memory masking.
+Safe types/frames/causes remain available through the existing terminal log boundary.
+All span events are omitted in this phase; future event allowlisting needs review.
+Never deliberately put secrets into span names, attributes or resource configuration.
+Handled MVC errors retain their HTTP status/outcome tags; an HTTP 500 does not by
+itself guarantee an OTel `ERROR` status in this instrumentation. The export filter
+preserves the status supplied by the SDK rather than inventing financial outcomes.
 
 ## Severity and error taxonomy
 
@@ -192,10 +292,25 @@ original cause preservation, 400/404/405/406/415 behavior, 503 handling, require
 negotiation of error bodies, committed and unusable async responses. Existing health
 and isolated PostgreSQL tests remain applicable.
 
-Step 4D.2 tracing, exporters, Alloy, Loki, Tempo, Grafana, storage, dashboards and alerts
-are not installed or operational. No financial module, audit publisher, migration or
-observability Compose service is implemented here.
+`HttpTracingIntegrationTests` uses `@SpringBootTest(RANDOM_PORT)` and Boot 4.1.1's
+`@AutoConfigureTracing` from `spring-boot-micrometer-tracing-test`, with an SDK in-memory
+exporter and remote OTLP explicitly disabled. It compares Micrometer, OTel and MDC
+context over real HTTP, checks completed server spans, W3C parents/sampling, privacy,
+request overlap, async completion, safe errors and collector-independent health.
+Sliced tests with `@AutoConfigureTracing` alone provide a no-op tracer and are not
+evidence for this behavior. `RequestCorrelationFilterTests` checks cleanup, nested
+errors and redispatch. `TracingConfigurationTests` binds the real YAML to Boot's
+properties. `HttpTracingOutputTests` runs full HTTP child JVMs in local/prod modes,
+strictly parses ECS and verifies opt-in OTLP against a loopback responder returning
+503, including absence of the exception canary in actual protobuf request payloads.
+
+Step 4D.3 Alloy, Loki, Tempo, Grafana, storage, dashboards and alerts are not installed
+or operational; no external ingestion is claimed. No financial module, audit publisher,
+migration or observability Compose service is implemented here. Logs/spans never replace
+durable Ledger Entries, final Request Outcomes or mandatory Admin Audit Events.
 
 References: [Boot 4.1 logging](https://docs.spring.io/spring-boot/reference/features/logging.html),
 [Boot MDC correlation conventions](https://docs.spring.io/spring-boot/reference/actuator/tracing.html#actuator.micrometer-tracing.logging),
+[Boot observability](https://docs.spring.io/spring-boot/reference/actuator/observability.html),
+[Boot tracing tests](https://docs.spring.io/spring-boot/reference/testing/spring-boot-applications.html#testing.spring-boot-applications.tracing),
 [Spring MVC exception facilities](https://docs.spring.io/spring-framework/reference/web/webmvc/mvc-ann-rest-exceptions.html).

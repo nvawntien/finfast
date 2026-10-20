@@ -32,7 +32,9 @@ class LoggingOutputTests {
                 System.getProperty("java.class.path"), LoggingOutputProbe.class.getName(),
                 "--spring.autoconfigure.exclude=org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration,"
                         + "org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration",
-                "--spring.output.ansi.enabled=never", "--spring.profiles.active=" + mode));
+                "--spring.output.ansi.enabled=never", "--spring.profiles.active=" + mode,
+                "--management.tracing.export.otlp.enabled=false", "--management.otlp.metrics.export.enabled=false",
+                "--management.logging.export.otlp.enabled=false"));
         var builder = new ProcessBuilder(command).redirectOutput(stdout.toFile()).redirectError(stderr.toFile());
         builder.environment().remove("DEBUG");
         builder.environment().remove("TRACE");
@@ -82,9 +84,9 @@ class LoggingOutputTests {
             });
         } else {
             assertThat(output).contains("ERROR [platform]", "finfast-backend/hardening-probe@validation",
-                    "trace=" + LoggingOutputProbe.TRACE + " - Logging probe failed",
-                    "trace=untraced - Logging probe without context",
-                    "trace=untraced - Logging probe after context cleanup");
+                    "trace=" + LoggingOutputProbe.TRACE + " request=none - Logging probe failed",
+                    "trace=untraced request=none - Logging probe without context",
+                    "trace=untraced request=none - Logging probe after context cleanup");
             assertThat(output).doesNotContain("\u001B[");
             assertThat(output.lines().filter(line -> line.equals("java.lang.IllegalStateException"))).hasSize(1);
         }

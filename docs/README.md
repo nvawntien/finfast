@@ -20,7 +20,7 @@
 | Architecture and module boundaries | [15 system architecture](03-design/15-system-architecture.md) |
 | Data, atomicity, locking, idempotency and history ordering | [16 domain/data design](03-design/16-domain-model-and-data-design.md) |
 | External API contract | [17 API workflow/contracts](03-design/17-api-contracts.md), [OpenAPI source](03-design/contracts/openapi-v1.yaml) |
-| Implemented logging and HTTP error foundation | [Logging/error standard](03-design/logging-and-error-handling.md) |
+| Implemented logging, HTTP errors and tracing | [Logging/error/tracing standard](03-design/logging-and-error-handling.md) |
 | Quality and performance | [PRD §9](02-requirements/09-product-requirements.md), [22 verification](05-verification/22-test-strategy-and-acceptance.md) |
 | Release and decision gates | [23 UAT/release checklist](05-verification/23-uat-and-release-checklist.md), [25 technical decisions](6-governance/25-design-decision-register.md) |
 
