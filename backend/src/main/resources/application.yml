@@ -13,6 +13,10 @@ server:
   port: ${SERVER_PORT:8080}
 
 management:
+  prometheus:
+    metrics:
+      export:
+        enabled: false
   tracing:
     sampling:
       probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
@@ -38,7 +42,7 @@ management:
           transport: http
           connect-timeout: 1s
           timeout: 2s
-  # The tracing starter also brings an OTLP meter registry; remote metrics/logs are out of scope.
+  # Metrics use optional Prometheus pull, never a second OTLP metrics pipeline.
   otlp:
     metrics:
       export:

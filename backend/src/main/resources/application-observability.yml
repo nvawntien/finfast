@@ -1,4 +1,4 @@
-# Logging only: keep the local datasource, sampling and other application defaults.
+# Optional local telemetry: keep datasource and tracing sampling defaults.
 logging:
   structured:
     format:
@@ -7,3 +7,22 @@ spring:
   output:
     ansi:
       enabled: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: [health, prometheus]
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      environment: ${APP_ENV:local}
+    distribution:
+      # Explicit cumulative buckets: 11 finite boundaries plus +Inf per route/tag set.
+      # Prometheus computes aggregate percentiles; no client-side quantiles.
+      slo:
+        http.server.requests: 5ms,10ms,25ms,50ms,100ms,250ms,500ms,1s,2s,5s,10s

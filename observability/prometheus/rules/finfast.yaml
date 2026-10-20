@@ -1,0 +1,54 @@
+groups:
+  - name: finfast-recording
+    rules:
+      - record: job_instance:http_requests:rate5m
+        expr: sum by (job, instance, application, environment) (rate(http_server_requests_seconds_count{job="finfast-backend",uri!~"/actuator.*"}[5m]))
+      - record: job_instance:http_5xx:rate5m
+        expr: |
+          sum by (job, instance, application, environment) (rate(http_server_requests_seconds_count{job="finfast-backend",uri!~"/actuator.*",status=~"5.."}[5m]))
+          or on (job, instance, application, environment) (0 * job_instance:http_requests:rate5m)
+      - record: job_instance:http_5xx:ratio5m
+        expr: job_instance:http_5xx:rate5m / job_instance:http_requests:rate5m
+      - record: job_instance:http_latency_seconds:mean5m
+        expr: sum by (job, instance, application, environment) (rate(http_server_requests_seconds_sum{job="finfast-backend",uri!~"/actuator.*"}[5m])) / job_instance:http_requests:rate5m
+      - record: job_instance:http_latency_seconds:p95_5m
+        expr: histogram_quantile(0.95, sum by (job, instance, application, environment, le) (rate(http_server_requests_seconds_bucket{job="finfast-backend",uri!~"/actuator.*"}[5m])))
+      - record: job_instance:http_latency_seconds:p99_5m
+        expr: histogram_quantile(0.99, sum by (job, instance, application, environment, le) (rate(http_server_requests_seconds_bucket{job="finfast-backend",uri!~"/actuator.*"}[5m])))
+      - record: job_instance_pool:hikari_utilization:ratio
+        expr: (hikaricp_connections_active{job="finfast-backend"} / hikaricp_connections_max{job="finfast-backend"}) and (hikaricp_connections_max{job="finfast-backend"} > 0)
+
+  - name: finfast-alerts
+    rules:
+      - alert: BackendUnavailable
+        expr: up{job="finfast-backend"} == 0 or absent(up{job="finfast-backend"})
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: FinFast backend scrape unavailable
+          description: Check backend startup, the observed profile, shared network and Prometheus target errors. This is not a PostgreSQL health signal.
+      - alert: ElevatedHttp5xxRate
+        expr: (job_instance:http_5xx:ratio5m > 0.05) and (job_instance:http_requests:rate5m >= 1)
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: Sustained FinFast HTTP 5xx ratio above 5%
+          description: At least 1 request/s over 5m with elevated server errors. Inspect Loki errors and matching Tempo traces; technical failure is not a final financial rejection.
+      - alert: HighHttpLatency
+        expr: (job_instance:http_latency_seconds:p95_5m > 0.5) and (job_instance:http_requests:rate5m >= 1)
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Sustained FinFast p95 latency above 500ms
+          description: At least 1 request/s over 5m with high latency. Inspect HTTP routes, JVM pressure and connection acquisition before changing thresholds.
+      - alert: HikariPoolNearExhaustion
+        expr: job_instance_pool:hikari_utilization:ratio >= 0.9
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: FinFast Hikari pool at least 90% occupied
+          description: Inspect active, pending and maximum pool connections plus acquisition timeouts. Missing/zero maximum pools are excluded; occupancy does not prove PostgreSQL availability.

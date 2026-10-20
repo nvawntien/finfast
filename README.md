@@ -261,12 +261,18 @@ Login with those local credentials. The ignored environment file is never overwr
 by setup. To override Grafana's host port, set `GRAFANA_PORT` in that file, or run
 `GRAFANA_PORT=3330 make observability-up` and browse http://localhost:3330.
 
-The backend uses a logging-only `observability` profile and exports traces to Alloy
+The backend uses the optional `observability` profile, exposes Prometheus metrics and exports traces to Alloy
 over a shared Docker network. PostgreSQL stays on the application network. Loki and
 Tempo datasources are provisioned automatically; use Grafana Explore to query
 `{service_name="finfast-backend"}` and click **View trace in Tempo** on an expanded
 log containing a Trace ID. This uses real tracing, not generated access-log events;
 successful requests need not emit an application log.
+
+Prometheus and Alertmanager join the optional stack without host ports. Open
+[FinFast — Backend Overview](http://localhost:3300/d/finfast-backend-overview) for
+HTTP/JVM/Hikari metrics. [Metrics and alerts](observability/metrics-and-alerts.md)
+documents histogram estimates, alert thresholds and the local receiver with no
+external notification delivery. Scrape availability does not prove database health.
 
 Return to ordinary backend mode and stop telemetry safely:
 

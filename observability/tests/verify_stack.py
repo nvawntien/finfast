@@ -165,7 +165,10 @@ def main():
                 parameters = urllib.parse.urlencode({"q": '{span.status = "500"}', "limit": 100,
                                                      "start": start // 1_000_000_000, "end": int(time.time())})
                 search = grafana("/api/datasources/proxy/uid/finfast-tempo/api/search?" + parameters)
-                assert any(v["traceID"] == trace_id for v in search.get("traces", []))
+                # Tempo 2.x search can omit leading zeroes; compare the same 128-bit
+                # identifier without changing the full-width ECS/trace-by-ID contract.
+                assert any(re.fullmatch("[0-9a-f]{1,32}", v["traceID"])
+                           and v["traceID"].zfill(32) == trace_id for v in search.get("traces", []))
                 return search
             wait_for(searchable, "HTTP 500 TraceQL search index")
         item = {"trace_id": trace_id, "span_id": event["span.id"], "request_id": request_id,

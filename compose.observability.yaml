@@ -1,6 +1,34 @@
 name: finfast-observability
 
 services:
+  prometheus:
+    image: prom/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e
+    command:
+      - --config.file=/etc/prometheus/prometheus.yaml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=72h
+      - --storage.tsdb.retention.size=1GB
+    volumes:
+      - ./observability/prometheus:/etc/prometheus:ro
+      - prometheus_data:/prometheus
+    environment:
+      GOMAXPROCS: "2"
+    networks: [telemetry]
+
+  alertmanager:
+    image: prom/alertmanager:v0.34.1@sha256:e9733bafb1bdef9b00e25a21f8f99dc26a22224bf16641ad754d1649f4c3357a
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yaml
+      - --storage.path=/alertmanager
+      - --data.retention=72h
+      - --cluster.listen-address=
+    volumes:
+      - ./observability/alertmanager/alertmanager.yaml:/etc/alertmanager/alertmanager.yaml:ro
+      - alertmanager_data:/alertmanager
+    environment:
+      GOMAXPROCS: "2"
+    networks: [telemetry]
+
   loki:
     image: grafana/loki:3.7.8@sha256:1107dd5274e0ada47e42472b7a7e71f3b2a2fe878878108f3e2f9e51528f0193
     command: ["-config.file=/etc/loki/loki.yaml"]
@@ -59,6 +87,7 @@ services:
       GF_SERVER_ROOT_URL: http://localhost:${GRAFANA_PORT:-3300}
     volumes:
       - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/etc/grafana/dashboards:ro
       - grafana_data:/var/lib/grafana
     depends_on:
       loki:
@@ -67,7 +96,11 @@ services:
         condition: service_started
       alloy:
         condition: service_started
-    # Loki/Tempo images have no HTTP client. Probe all four readiness endpoints
+      prometheus:
+        condition: service_started
+      alertmanager:
+        condition: service_started
+    # Loki/Tempo images have no HTTP client. Probe all six readiness endpoints
     # from Grafana's verified curl binary; --wait waits for the entire stack.
     healthcheck:
       test:
@@ -76,7 +109,9 @@ services:
           curl -fsS http://grafana:3000/api/health >/dev/null &&
           curl -fsS http://loki:3100/ready >/dev/null &&
           curl -fsS http://tempo:3200/ready >/dev/null &&
-          curl -fsS http://alloy:12345/-/ready >/dev/null
+          curl -fsS http://alloy:12345/-/ready >/dev/null &&
+          curl -fsS http://prometheus:9090/-/ready >/dev/null &&
+          curl -fsS http://alertmanager:9093/-/ready >/dev/null
       interval: 5s
       timeout: 5s
       retries: 24
@@ -88,6 +123,8 @@ networks:
     name: ${FINFAST_OBSERVABILITY_NETWORK:-finfast_observability}
 
 volumes:
+  prometheus_data:
+  alertmanager_data:
   loki_data:
   tempo_data:
   alloy_data:

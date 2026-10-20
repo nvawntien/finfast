@@ -1,0 +1,11 @@
+# Test-only overlay, used with compose.yaml and compose.observed.yaml in an
+# isolated Compose project. Reuses the real PostgreSQL pool and Flyway migrations.
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: observability/tests/Dockerfile
+    entrypoint: [java, -cp, "/app/classes:/app/test-classes:/app/dependencies/*", com.finfast.common.observability.ObservabilityStackProbe]
+    environment:
+      APP_ENV: verification
+      DEPLOYMENT_VERSION: step4d3-verification

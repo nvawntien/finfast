@@ -27,7 +27,7 @@ registers the module/trace/safe-exception converters and selects one stdout appe
 |---|---|
 | Default profile | Pretty console, UTC timestamps, colored levels/module labels when ANSI is supported |
 | `SPRING_PROFILES_ACTIVE=prod` | ECS JSON stdout; ANSI disabled; banner disabled in both modes |
-| `SPRING_PROFILES_ACTIVE=observability` | Logging-only ECS opt-in for the local collector; preserves local sampling/application defaults |
+| `SPRING_PROFILES_ACTIVE=observability` | ECS stdout and Prometheus metrics opt-in; preserves local sampling/datasource defaults |
 | `DEPLOYMENT_VERSION` | Release/build identifier supplied by deployment metadata; explicit fallback `dev` |
 | `APP_ENV` | Environment metadata; default `local` for pretty mode, `production` for `prod` |
 | `SPRING_OUTPUT_ANSI_ENABLED=always` / `never` | Explicit local ANSI preference |
@@ -309,8 +309,12 @@ Step 4D.3 adds an optional local Alloy → Loki/Tempo → Grafana stack; see the
 [setup and end-to-end verification guide](../../observability/README.md). Grafana is
 localhost:3300, leaving host port 3000 reserved for the frontend. The observed overlay
 uses a shared Docker network and exports to Alloy; normal backend startup stays
-collector-independent. No dashboards, alerting, metrics scraping, financial module,
-audit publisher or migration is added. Logs/spans never replace durable Ledger Entries,
+collector-independent. Step 4D.4 adds optional Prometheus scraping, recording/alerting
+rules, Alertmanager and a Grafana backend dashboard; see the
+[metrics and alerting guide](../../observability/metrics-and-alerts.md). Only the
+observability profile exposes the metrics endpoint; business code remains free of
+meter/logging/tracing calls. No financial module, audit publisher or migration is
+added. Logs/spans/metrics never replace durable Ledger Entries,
 final Request Outcomes or mandatory Admin Audit Events.
 
 References: [Boot 4.1 logging](https://docs.spring.io/spring-boot/reference/features/logging.html),

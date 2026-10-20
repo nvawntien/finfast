@@ -74,9 +74,9 @@ observability-up: ## Start optional telemetry; Grafana defaults to http://localh
 observability-down: ## Stop telemetry; preserve containers, shared network and all volumes.
 	cd "$(ROOT_DIR)" && $(OBSERVABILITY_COMPOSE) stop
 
-observability-health: ## Check Grafana, Loki, Tempo and Alloy readiness over private Docker DNS.
+observability-health: ## Check all six telemetry services over private Docker DNS.
 	cd "$(ROOT_DIR)" && $(OBSERVABILITY_COMPOSE) exec -T grafana sh -ec \
-		'for endpoint in http://grafana:3000/api/health http://loki:3100/ready http://tempo:3200/ready http://alloy:12345/-/ready; do curl -fsS --max-time 5 "$$endpoint"; printf "\n"; done'
+		'for endpoint in http://grafana:3000/api/health http://loki:3100/ready http://tempo:3200/ready http://alloy:12345/-/ready http://prometheus:9090/-/ready http://alertmanager:9093/-/ready; do curl -fsS --max-time 5 "$$endpoint"; printf "\n"; done'
 
-observed-up: observability-up ## Start the backend with ECS stdout and optional OTLP export to Alloy.
+observed-up: observability-up ## Start the backend with ECS stdout, Prometheus metrics and OTLP traces.
 	cd "$(ROOT_DIR)" && $(DOCKER_COMPOSE) --env-file .env --env-file "$(OBSERVABILITY_ENV)" -f compose.yaml -f compose.observed.yaml up --build -d backend

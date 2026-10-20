@@ -33,4 +33,9 @@ class FinfastApplicationTests {
                 .andExpect(status().isOk())
                 .andExpect(content().json("{\"status\":\"UP\"}", JsonCompareMode.STRICT));
     }
+
+    @Test
+    void prometheusEndpointIsNotExposedInOrdinaryMode(@Autowired MockMvc mvc) throws Exception {
+        mvc.perform(get("/actuator/prometheus")).andExpect(status().isNotFound());
+    }
 }

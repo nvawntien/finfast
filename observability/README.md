@@ -1,4 +1,8 @@
-# Optional local observability — Step 4D.3
+# Optional local observability — Steps 4D.3–4D.4
+
+The stack now includes Prometheus, Alertmanager and a provisioned backend dashboard.
+See [metrics, dashboards and alert validation](metrics-and-alerts.md) for the metrics
+contract, operational thresholds and database-monitoring limitations.
 
 Grafana browser URL: **http://localhost:3300**. Host port 3000 is reserved for the
 frontend; Grafana uses port 3000 internally. Override the host mapping with
@@ -17,7 +21,7 @@ make observability-health
 
 `.env.observability` is ignored; its example contains no admin credentials.
 `observed-up` also invokes the idempotent `observability-up`. The latter waits for
-Grafana's healthcheck, which probes all four services using Grafana's verified curl
+Grafana's healthcheck, which probes all six services using Grafana's verified curl
 binary. Loki and Tempo images have no shell/HTTP client; they are not given fake
 shell healthchecks. Their `/ready` endpoints and Alloy's `/-/ready` are checked over
 Docker DNS. Grafana checks its `/api/health`. No fixed startup sleep is required.
@@ -41,6 +45,8 @@ does not reset an existing account; change that account through Grafana administ
 | Alloy | 1.20.1 | Docker tail positions in `alloy_data` |
 | Loki | 3.7.8 | Filesystem/TSDB v13 in `loki_data` |
 | Tempo | 2.10.8 | Local blocks/WAL in `tempo_data` |
+| Prometheus | 3.15.0 | TSDB in `prometheus_data`, 72h/1GB retention |
+| Alertmanager | 0.34.1 | Routing/deduplication state in `alertmanager_data`, 72h retention |
 
 Verified image digests are pinned in [Compose](../compose.observability.yaml).
 Tempo 2.10 supports this single-binary filesystem setup without Kafka or object storage.
@@ -51,7 +57,7 @@ The observability project creates `finfast_observability`. Only the opt-in
 [backend overlay](../compose.observed.yaml) joins it, alongside the application's
 normal network. PostgreSQL does not join it. Alloy receives backend OTLP/HTTP at
 `http://alloy:4318/v1/traces` and forwards once to `http://tempo:4318`. No re-sampling
-or second SDK/export path is added. Loki/Tempo/Alloy ports are not published to the host.
+or second SDK/export path is added. Loki/Tempo/Alloy/Prometheus/Alertmanager ports are not published to the host.
 Only Grafana is published, on loopback. Internal unauthenticated APIs are local Docker
 development infrastructure, not a production security boundary.
 
@@ -86,6 +92,9 @@ matches the literal dotted JSON key `"trace.id"` and preserves all 32 hex charac
 It uses an internal datasource link, not a hardcoded browser port. Tempo also has a
 custom logs link back to Loki. Sampling and 72-hour retention can leave a log with no
 stored trace. Startup logs are correctly untraced; a Trace ID does not itself emit a log.
+Tempo 2.x search responses can omit leading zeroes in hexadecimal IDs. The verifier
+normalizes only that search representation; ECS and stored trace-by-ID assertions
+still require and compare the original full 128-bit identifier.
 
 ### HTTP 5xx semantics
 
