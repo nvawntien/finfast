@@ -84,7 +84,7 @@ The list above covers **AC-001 through AC-038 exactly once as primary grouped ow
 
 **Planned execution; no new canonical AC IDs.** Reuse existing T-* groups and AC/CONS mappings above. Review the [15 API allowlist](../03-design/15-system-architecture.md#32-allowed-module-dependencies-arc-06) and [16 transaction design](../03-design/16-domain-model-and-data-design.md#5-transaction-boundaries-and-outcomes-arc-02) before writing the application.
 
-- Architecture checks are implemented: ArchUnit scans production classes and applies the same candidate module package/API isolation, dependency, cycle and layer rules to segregated positive/negative fixtures. See the [module guide](../03-design/module-contracts-and-boundaries.md#automated-evidence-and-limits). No business modules exist yet; real dependency integration and caller/method restrictions for posting, Account mutation and GENESIS remain deferred. Naming a package `internal` is not sufficient evidence, and structural checks do not pass financial ACs.
+- Architecture checks scan the present approved BK-003 public contracts and apply TD-016 module package/API isolation, dependency, cycle, layer and restricted-capability rules to segregated positive/negative fixtures. See the [module guide](../03-design/module-contracts-and-boundaries.md#automated-evidence-and-limits). Provider implementations, runtime authorization/transaction guards and real dependency integration remain deferred. Naming a package `internal` is not sufficient evidence, and structural checks do not pass financial ACs.
 - Module integration: Identity registration through Customer/Accounts creates all three records or none; Ledger through Accounts posts both sides or none; Transfers joins Ledger/Idempotency; Administration joins Ledger/Idempotency/audit or Accounts/status/audit. History remains read-only and authorized. Bootstrap tests are separately controlled, never exposed as runtime fault endpoints.
 - Spring proxy/commit: invoke the real application bean through the proxy and the HTTP boundary. Inject failure during method body, JPA flush, required audit/outcome persistence and actual commit. Check checked/unchecked exception rollback policy and ensure the client never receives COMPLETED before confirmed commit (AC-010/011/019/033).
 - Final rejection: validate insufficient funds before writes, commit rejection normally, add funds using a different authorized intent, then replay the first key and confirm its original rejection. Failure to persist that rejection must remain a technical/non-final result (AC-015/033).
@@ -146,6 +146,58 @@ reviewer: TODO
 
 An AC is not considered passed until execution-specific evidence exists. The 38 ACs and 19 CONS lenses must be indexed in the trace matrix and release report.
 
+## BK-003 contract verification and limits
+
+The [canonical inventory and compatibility matrix](../03-design/module-contracts-and-boundaries.md)
+records actual source signatures, Tiến's explicit 2026-10-22 approval of the Java
+baseline/TD-015/TD-016, merge activation and unresolved mechanisms. Shared baseline
+activation on merge into `develop` remains pending. Evidence categories must remain
+separate; approval does not supply a provider or pass a financial AC:
+
+| Level | BK-003 evidence | What it does not establish |
+|---|---|---|
+| API compilation/value checks | Pure interfaces/records compile on Java 21; tests check key/scope identity, exact note semantics, immutable page copies, page limits, positive completion and final/non-final types | A provider Bean, authentication, persistence or successful posting |
+| ArchUnit | Existing graph/isolation/layer/cycle rules retained; capability fixtures reject wrong consumers, foreign provider implementations and ordinary Ledger Treasury initialization, including method references | Runtime authorization, reflective access, actual mandatory transaction propagation or SQL ownership |
+| Mocked consumers | Supported using test-scoped mocks/fakes of the real APIs; no mocked banking workflow is presented as BK-003 evidence | PostgreSQL locks, durable results, audit atomicity or AC acceptance |
+| PostgreSQL regression | Full Maven `verify` passed with isolated PostgreSQL 16.15/Testcontainers, Flyway V1/V2 and existing schema/rollback/concurrency tests | Unimplemented Ledger/Transfers/Idempotency/GENESIS service behavior |
+| Financial integration | NOT IMPLEMENTED / NOT RUN for the new providers; financial plans above remain required | No AC/CONS/EV-003 gate is closed by contract or structural tests |
+
+Re-executed locally for the final approval review on **2026-10-22**, against the
+BK-003 worktree on base `a4eb9ff`, Temurin
+21.0.12.1+1 and Docker Engine 29.7.2:
+
+```sh
+cd backend
+./mvnw --batch-mode --no-transfer-progress -Dtest=ProductionArchitectureTests,RuleVerificationTests,CapabilityVerificationTests,ModuleContractValueTests test
+./mvnw --batch-mode --no-transfer-progress verify
+```
+
+Focused checks: **73 passed** (12 production architecture, 47 boundary fixtures,
+9 capability fixtures and 5 contract-value checks). Full `verify`: **482 passed**
+(68 architecture, 5 contract-value, 235 existing PostgreSQL/container and 174 other
+unit/context/HTTP checks), zero failures/errors/skips; executable JAR packaged.
+No test tag is excluded. The JAR checker confirmed executable packaging and no
+test-class/test-library leakage. Public declarations of all **48 API types**
+(including nested types) matched the pre-review `javap -public` baseline after
+normalizing method order; all 17 Java API source bodies/declarations were preserved.
+
+Final documentation checks used isolated Python 3.12.12 with the pinned
+requirements: OpenAPI validation and `scripts/check_docs.py` passed (24 Markdown
+files, 251 local links, 88 OpenAPI references; no duplicate YAML keys).
+`docker compose -f compose.docs.yaml config --quiet`, actionlint 1.7.7 and
+`git diff --check` passed. The consistency audit confirmed only TD-015/016 status
+cells changed, with TD-001..014 retained; no external API, build, SQL migration,
+CI or runtime configuration was modified.
+The existing CI job names `backend-tests`, `backend-package`, `docs-validation`
+are unchanged; new BK-003 changes have no remote GitHub execution evidence yet.
+
+Before provider integration, review outer REQUIRED/concrete collaborator guards,
+then test actual Spring proxies with full rollback, commit-acknowledgement loss,
+rejection persistence, required audit failure, same-key recovery, concurrent
+initialization and account/status races. Business-invalid values must reject before
+writes; technical exceptions must not become final business rejections. Mocks or
+direct unproxied class calls cannot substitute for this evidence.
+
 ## Documentation tooling checks (DOC-01/03)
 
 The `docs-validation` job in the [CI workflow](../../.github/workflows/ci.yml)
@@ -175,7 +227,7 @@ parallel with backend tests. No required job is filtered by changed files.
 | Automation in source | Implemented as one `CI` workflow with stable job/check names `backend-tests`, `backend-package`, `docs-validation`; read-only token; no deployment |
 | Local backend verification, 2026-10-21 | Temurin 21.0.12.1+1, Docker Engine 29.7.2, Testcontainers 2.0.5 and PostgreSQL 16.15: 466 tests, zero failures/errors/skips (235 PostgreSQL/container tests, 57 ArchUnit tests, 174 other unit/context/HTTP tests); Flyway V1/V2 applied to disposable databases. Subsequent `-DskipTests package` and executable JAR/isolation checks passed. |
 | Local documentation / workflow validation, 2026-10-21 | Pinned dependencies installed in isolated Python 3.12.12; OpenAPI validation and README/docs link/anchor/reference checks passed (24 Markdown files, 223 local links, 88 refs, no duplicate YAML keys). Documentation Compose config, actionlint 1.7.7 and `git diff --check` passed. These are local checks, not a GitHub run. |
-| New GitHub workflow run | NOT RUN: local checks do not prove GitHub triggers, runner behavior, cache operation or emitted check names |
+| GitHub baseline run | [develop run 39601859299](https://github.com/nvawntien/finfast/actions/runs/39601859299) at `a4eb9ff`: backend-tests, backend-package and docs-validation all completed successfully. BK-003 changes have NOT RUN remotely. |
 | Required-check enforcement | Not verified or changed by this task; configure both branch rulesets only after successful remote checks exist |
 | Banking acceptance / performance / CD | Not established by CI foundation; canonical AC/CONS and EV-003 evidence gates remain unchanged |
 

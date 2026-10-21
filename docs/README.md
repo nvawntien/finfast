@@ -1,12 +1,12 @@
 # FinFast V1 — PRD-to-Engineering Handoff Pack
 
-> **Artifact status:** Approved **discovery baseline (01–08)**, **draft PRD 09**, agreed architecture direction, and explicitly marked engineering **proposals**. Refined 2026-10-18. Architecture details still require review; this is not a completed banking application, signed implementation plan, successful banking test run or cloud deployment. No new actors/banking policies/features are approved by generating these files.
+> **Artifact status:** Approved **discovery baseline (01–08)**, **draft PRD 09**, agreed architecture direction, and explicitly marked engineering **proposals**. Tiến explicitly approved current BK-003 Java signatures, TD-015 ownership/transaction responsibilities and TD-016 boundaries on **2026-10-22**; shared integration baseline activates on merge into `develop` (pending). Other mechanisms retain their individual statuses. This is not a completed banking application, successful banking acceptance run or cloud deployment. No new actors/banking policies/features are approved by generating these files.
 
 ## How to use
 
 1. Read [Discovery scope](01-discovery/01-product-vision-and-scope.md), [PRD handoff](01-discovery/08-prd-handoff.md) and [draft PRD](02-requirements/09-product-requirements.md) before changing scope. Canonical UC/BR/AC/CONS/A/OQ/DEC/BP/EV identifiers remain in their source documents.
 2. Begin review with the [decision register](6-governance/25-design-decision-register.md). Separate the Tech Lead's agreed architecture direction from proposed mechanisms, and verify EV-001/002 before deployment decisions.
-3. Use the [backlog](02-requirements/10-product-backlog.md) for planning; assign people/dates only through team planning. Review module APIs, atomicity, locking, idempotency and pagination before implementation.
+3. Use the [backlog](02-requirements/10-product-backlog.md) for planning; assign people/dates only through team planning. Follow approved Java APIs/ownership; review unresolved locking, idempotency and pagination mechanisms separately.
 4. Review [API contracts](03-design/17-api-contracts.md) with frontend/backend contributors using Swagger UI below. Freeze reviewed contracts before parallel implementation.
 5. Track implementation in the [traceability matrix](02-requirements/11-requirements-traceability.md) and collect real runtime evidence through the [test strategy](05-verification/22-test-strategy-and-acceptance.md) and [release checklist](05-verification/23-uat-and-release-checklist.md).
 
@@ -14,9 +14,12 @@ New contributor reading path: [root README](../README.md) → [AGENTS.md](../AGE
 → approved use cases/rules below → architecture and the
 [module collaboration guide](03-design/module-contracts-and-boundaries.md) →
 [shared contracts](03-design/shared-error-money-contracts.md) → the relevant API/backlog items.
-Shared error/VND contracts and architecture checks are implemented. Candidate
-dependency/posting policies remain proposals pending review; banking business
-modules and their functional APIs are not implemented.
+Shared error/VND contracts, architecture checks and BK-003 compile-time module
+interfaces/immutable DTOs are implemented. The canonical module guide lists exact
+source signatures, owners, compatibility and [change control](03-design/module-contracts-and-boundaries.md#how-to-start-a-business-module).
+The current Java contracts and dependency/posting ownership policies are APPROVED;
+provider implementations, runtime
+banking workflows and functional HTTP APIs are not implemented.
 
 ## Navigation: requirements to engineering documents
 
@@ -30,7 +33,7 @@ modules and their functional APIs are not implemented.
 | External API contract | [17 API workflow/contracts](03-design/17-api-contracts.md), [OpenAPI source](03-design/contracts/openapi-v1.yaml) |
 | Implemented logging, HTTP errors and tracing | [Logging/error/tracing standard](03-design/logging-and-error-handling.md) |
 | Implemented shared errors and integer VND | [Shared error/money guide](03-design/shared-error-money-contracts.md) |
-| Implemented boundary checks and proposed module contracts | [Module collaboration and architecture tests](03-design/module-contracts-and-boundaries.md) |
+| Approved Java contracts, implemented boundary checks and change control | [Canonical module collaboration guide](03-design/module-contracts-and-boundaries.md) |
 | Optional six-service observability stack and local credentials | [Observability setup and verification](../observability/README.md) |
 | Prometheus metrics, dashboard and Alertmanager | [Metrics and alerting](../observability/metrics-and-alerts.md) |
 | Observability review and deployment limitations | [Architecture review](../observability/architecture-review.md) |
@@ -68,7 +71,7 @@ finfast/
     └── 6-governance/                 # 25 decision register
 ```
 
-**Planned, not present:** standalone 13 quality-attributes, 18 P1 event contracts, 19–21 ADRs (ADR-001..003), 24 cloud deployment runbook, and a machine-readable coverage report. Current quality/benchmark requirements are in PRD 09/22; boundary rationale is in 15; atomicity/idempotency/history proposals are in 16; statuses are in 25; coverage is in 11. No missing file is a completed deliverable. P1 event contracts remain optional. The backend/database and observability foundations now exist; see the [root README](../README.md) for implemented behavior. Banking business modules remain unimplemented.
+**Planned, not present:** standalone 13 quality-attributes, 18 P1 event contracts, 19–21 ADRs (ADR-001..003), 24 cloud deployment runbook, and a machine-readable coverage report. Current quality/benchmark requirements are in PRD 09/22; boundary rationale is in 15; atomicity/idempotency/history proposals are in 16; statuses are in 25; coverage is in 11. No missing file is a completed deliverable. P1 event contracts remain optional. Backend/database/observability foundations and BK-003 compile-time contracts exist; see the [root README](../README.md). Banking provider implementations remain unimplemented.
 
 The [migration README](../backend/src/main/resources/db/migration/README.md) records
 the concrete schema approvals from Step 4B.1. Historical proposal labels in design
@@ -142,7 +145,7 @@ The OpenAPI YAML remains the design-stage source of truth. Future Springdoc inte
 
 1. **Product:** project owner reviews PRD 09 (currently *draft*, not approved) and any proposed elaborations; baseline 01–08 records its own approved decisions.
 2. **External feasibility:** EV-001 rubric and EV-002 cloud feasibility verified; if course requirements conflict, obtain explicit project owner disposition before final topology.
-3. **Architecture:** Tech Lead reviews TD-001..016; standalone ADR-001..003 remain planned; API/OpenAPI contracts reviewed together by frontend/backend and test owners.
+3. **Architecture:** TD-015/016 and current BK-003 Java signatures are explicitly approved by Tiến; follow the canonical baseline on merge and obtain prior Tech Lead approval for new capabilities/edges or breaking amendments. TD-001..014 retain their separate proposal/selection/evidence statuses. Standalone ADR-001..003 remain planned; external REST/OpenAPI review is separate from Java contract approval.
 4. **Delivery:** execution evidence for all FR-001..013, UX-001..005, NFR-001..006, 38 canonical ACs and 19 CONS risk views collected; verify financial invariants under retries/failures.
 5. **Performance/release:** EV-003 measured on recorded environment, deviations documented; project owner decides acceptance.
 

@@ -1,11 +1,11 @@
 # 10 — FinFast V1 Delivery Backlog
 
-> Status: **PROPOSED engineering decomposition**, not assigned or approved. Derived from [PRD 09](09-product-requirements.md), canonical [use cases 04](../01-discovery/04-use-cases.md), and [business rules 06](../01-discovery/06-business-rules.md). All P0 requirements remain mandatory regardless of delivery order. P1 is explicitly excluded from V1 completion.
+> Status: **PROPOSED engineering decomposition**, not a fully assigned or approved delivery plan. Scoped BK-003 task/module assignments are recorded below. Derived from [PRD 09](09-product-requirements.md), canonical [use cases 04](../01-discovery/04-use-cases.md), and [business rules 06](../01-discovery/06-business-rules.md). All P0 requirements remain mandatory regardless of delivery order. P1 is explicitly excluded from V1 completion.
 
 ## Planning conventions
 
 - **Epic** = customer/business outcome; **story** = independently verifiable thin slice; **task** = engineering work (implementation, design, verification). Issue IDs `BK-*` are new *planning IDs*, not substitutes for `FR-*`, `UC-*`, `BR-*`, or `AC-*`.
-- Priority P0 means V1 release-blocking. Suggested size S/M/L describes relative implementation effort, **not hours**. The architecture is sized for a six-person team; individual owners, sprint dates and velocity are unassigned.
+- Priority P0 means V1 release-blocking. Suggested size S/M/L describes relative implementation effort, **not hours**. The architecture is sized for a six-person team; sprint dates/velocity and other story assignments are not asserted here. The BK-003 request explicitly assigns BK-003/010/013 to Tiến and module responsibilities in the [canonical module guide](../03-design/module-contracts-and-boundaries.md#ownership-and-approved-dependencies).
 - A story is Done only with code, documentation/contract updates, relevant tests, review, CI success, deployable artifact, and evidence linked to its AC IDs; no financial feature is Done with unit tests alone.
 - Backlog sequencing follows PRD section 11 slices; vertical delivery and technical spikes can run in parallel. A slice is not a requirement to merge unfinished work.
 
@@ -15,7 +15,7 @@
 |---|---|---|---|---|---|
 | BK-001 | E0 — Verify course rubric and deployment requirements (EV-001) | P0 | S | NFR-005, EV-001 | None; gate for topology |
 | BK-002 | E0 — Verify cloud/storage/TLS feasibility and budget (EV-002) | P0 | M | NFR-005, EV-002 | BK-001 |
-| BK-003 | E0 — Review architecture decisions: boundaries, consistency/idempotency, pagination | P0 | M | NFR-001/002/003/006; FR-005/006/007 | BK-001 evidence before final approval |
+| BK-003 | E0 — Review architecture decisions: boundaries, consistency/idempotency, pagination | P0 | M | NFR-001/002/003/006; FR-005/006/007 | Java baseline/TD-015/016 approved; merge pending; BK-001 still gates deployment/topology |
 | BK-004 | E0 — Repository baseline: CI, Docker, migrations, config, health checks | P0 | M | NFR-005/006 | BK-002 |
 | BK-005 | E1 Identity — Customer registration with unique normalized email and atomic account provisioning | P0 | L | FR-001; UC-AUTH-01; AC-001/027/035/037 | BK-003/004 |
 | BK-006 | E1 Identity — Protected Admin bootstrap (not self-registration) | P0 | M | FR-001/002; AC-024/027/030 | BK-004 |
@@ -43,6 +43,21 @@
 | BK-P1-03 | Extended load/autoscaling, once externally justified and specified | P1* | L | PRD §4.2; EV-001 gate; separate acceptance | Verify course obligations |
 
 `*` A verified course mandate can create a separately required milestone; it **must** be reconciled with scope by the owner, not silently claimed optional or imposed on the initial Core.
+
+## BK-003 implementation and approval status
+
+On 2026-10-22 Tiến explicitly **APPROVED** the current Java interfaces/DTOs,
+TD-015 ownership/transaction responsibilities and TD-016 nine-module/18-edge
+boundary policy. Contracts and structural checks are IMPLEMENTED in this feature
+branch; the mandatory shared V1 baseline activates when the PR merges into
+`develop` (**pending**). Individual owner endorsements are not inferred.
+Follow the [canonical change-control process](../03-design/module-contracts-and-boundaries.md#compatibility-audit-and-review-matrix)
+for mismatches; additional capabilities/edges or breaking changes need Tiến's
+prior approval. Other technical proposals retain their own review gates.
+
+Provider implementations, financial integration/fault/concurrency evidence and
+remote CI for BK-003 remain separate delivery work. **BK-010, BK-011, BK-012 and
+BK-013 are not complete** because interfaces compile or ArchUnit passes.
 
 ## Example issue template
 
@@ -82,9 +97,9 @@ These refinements do not add business capabilities, renumber acceptance criteria
 
 | Existing items | Required technical work before/alongside implementation | Source |
 |---|---|---|
-| BK-003/004 | Review agreed modular/hexagonal structure and proposed API allowlist. Backend build, PostgreSQL/Flyway and documentation Swagger UI/CI exist; shared contracts and ArchUnit candidate checks/negative fixtures are implemented. Business-module integration, posting caller rules and deployment CI remain future work; policy approval is still pending. | [15 §3](../03-design/15-system-architecture.md#3-module-ownership-and-the-controlled-posting-path), [module guide](../03-design/module-contracts-and-boundaries.md), [README workflow](../README.md#browse-the-api-locally-doc-01) |
+| BK-003/004 | Backend build, PostgreSQL/Flyway, Swagger UI/CI, shared contracts and ArchUnit checks exist. BK-003 Java APIs/DTOs, ownership/boundary policy and capability checks are explicitly approved; merge into `develop` pending. Real providers, financial integration and deployment automation remain future work. Contract compilation does not mark implementation stories Done. | [15 §3](../03-design/15-system-architecture.md#3-module-ownership-and-the-controlled-posting-path), [module guide](../03-design/module-contracts-and-boundaries.md), [README workflow](../README.md#browse-the-api-locally-doc-01) |
 | BK-010/012/013 | Implement one Ledger-owned posting path with Accounts-owned state; outer use-case transaction includes both balances, facts, final outcome and required allocation audit. | [16 §5](../03-design/16-domain-model-and-data-design.md#5-transaction-boundaries-and-outcomes-arc-02), TD-015 |
 | BK-011/022 | Run small real-PostgreSQL idempotency PoC before adopting advisory coordination; test canonicalization, concurrency, missing outcome and crash recovery. | [22 PoC](../05-verification/22-test-strategy-and-acceptance.md#postgresql-idempotency-proof-of-concept-arc-04), TD-003 |
 | BK-012/013/017/022 | Verify shared lock order for transfers, Treasury allocations and freeze; audit failure rollback, opposite-direction transfers and bounded same-key technical retries. | [16 §6](../03-design/16-domain-model-and-data-design.md#6-locking-and-isolation-discipline-arc-03), TD-002 |
 | BK-014/021/023 | Validate late-commit pagination and benchmark the global counter separately from Account/Treasury contention; preserve PRD reference workload. | [16 §8](../03-design/16-domain-model-and-data-design.md#8-history-ordering-and-global-sequence-risk-arc-05), TD-004/014 |
-| BK-021/022 | Maintain candidate module-boundary fixture checks; add real business-module integration and proxied transaction/fault tests as modules are implemented. Record canonical AC/CONS runtime evidence separately from structural checks. | [22 strategy](../05-verification/22-test-strategy-and-acceptance.md), TD-016 |
+| BK-021/022 | Maintain approved module-boundary/capability fixture checks; add real business-module integration and proxied transaction/fault tests as modules are implemented. Record canonical AC/CONS runtime evidence separately from structural checks. | [22 strategy](../05-verification/22-test-strategy-and-acceptance.md), TD-016 |

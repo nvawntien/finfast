@@ -1,6 +1,6 @@
 # 12 — Functional Specifications (behavioral contracts)
 
-> Status: **DERIVED specification for engineering review**. The source of approved business meaning remains [04 use cases](../01-discovery/04-use-cases.md), [06 rules](../01-discovery/06-business-rules.md), and [09 PRD](09-product-requirements.md). Endpoint paths, DTO fields, numeric range, and internal mechanisms in companion designs are *proposals*, not new approved banking rules.
+> Status: **DERIVED specification for engineering review**. The source of approved business meaning remains [04 use cases](../01-discovery/04-use-cases.md), [06 rules](../01-discovery/06-business-rules.md), and [09 PRD](09-product-requirements.md). External endpoint/HTTP DTO proposals and unresolved technical mechanisms retain their separate statuses; they are not new banking rules. The current internal Java signatures/DTOs and TD-015/016 ownership/boundaries are explicitly approved by Tiến for BK-003, effective as the shared baseline on merge into `develop` (pending); see the [canonical Java contracts](../03-design/module-contracts-and-boundaries.md). This approval does not implement the behaviors below.
 
 ## Universal conventions
 
