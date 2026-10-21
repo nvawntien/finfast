@@ -61,7 +61,7 @@ def main():
     errors = []
     documents = {
         path.resolve(): PARSER.parse(path.read_text(encoding="utf-8"))
-        for path in sorted((ROOT / "docs").rglob("*.md"))
+        for path in [ROOT / "README.md", *sorted((ROOT / "docs").rglob("*.md"))]
     }
     anchors = {path: heading_ids(tokens) for path, tokens in documents.items()}
     links = 0
