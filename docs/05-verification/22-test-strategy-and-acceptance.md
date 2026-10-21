@@ -148,4 +148,41 @@ An AC is not considered passed until execution-specific evidence exists. The 38 
 
 ## Documentation tooling checks (DOC-01/03)
 
-The [documentation CI workflow](../../.github/workflows/docs.yml) validates the design OpenAPI file, all local `$ref` pointers, duplicate YAML keys, local Markdown paths/heading anchors and Compose configuration using pinned tools. Use the [README commands](../README.md#validate-documentation-locally-and-in-ci) locally. Swagger browser rendering and Mermaid rendering can be checked separately during review; these are documentation checks, not financial acceptance tests. No AC/CONS is marked PASS by a successful documentation workflow.
+The `docs-validation` job in the [CI workflow](../../.github/workflows/ci.yml)
+validates the design OpenAPI file, all local `$ref` pointers, duplicate YAML keys,
+root README/docs Markdown paths/heading anchors and Compose configuration using
+the existing pinned tools. It runs on every PR into `develop`/`main`, pushes to
+those branches and manual dispatch, including Java-only changes. Use the
+[README commands](../README.md#validate-documentation-locally-and-in-ci) locally.
+Swagger browser rendering and Mermaid rendering can be checked separately during
+review; these are documentation checks, not financial acceptance tests. No AC/CONS
+is marked PASS by a successful documentation job.
+
+## CI foundation implementation and evidence
+
+The [CI guide](../../README.md#continuous-integration) documents reproduction,
+failure diagnosis, security and the future frontend job. `backend-tests` runs the
+full Maven suite, including test-only ArchUnit rules/fixtures, Spring contexts and
+real PostgreSQL/Flyway tests. Testcontainers needs Docker to create disposable
+databases; it does not use a developer's persistent Compose database or H2.
+`backend-package` depends on tests and fails its prerequisite gate unless they
+succeeded, then packages with `-DskipTests` (test compilation enabled) and checks
+the executable JAR for test-code/dependency leakage. `docs-validation` runs in
+parallel with backend tests. No required job is filtered by changed files.
+
+| Evidence category | Current status |
+|---|---|
+| Automation in source | Implemented as one `CI` workflow with stable job/check names `backend-tests`, `backend-package`, `docs-validation`; read-only token; no deployment |
+| Local backend verification, 2026-10-21 | Temurin 21.0.12.1+1, Docker Engine 29.7.2, Testcontainers 2.0.5 and PostgreSQL 16.15: 466 tests, zero failures/errors/skips (235 PostgreSQL/container tests, 57 ArchUnit tests, 174 other unit/context/HTTP tests); Flyway V1/V2 applied to disposable databases. Subsequent `-DskipTests package` and executable JAR/isolation checks passed. |
+| Local documentation / workflow validation, 2026-10-21 | Pinned dependencies installed in isolated Python 3.12.12; OpenAPI validation and README/docs link/anchor/reference checks passed (24 Markdown files, 223 local links, 88 refs, no duplicate YAML keys). Documentation Compose config, actionlint 1.7.7 and `git diff --check` passed. These are local checks, not a GitHub run. |
+| New GitHub workflow run | NOT RUN: local checks do not prove GitHub triggers, runner behavior, cache operation or emitted check names |
+| Required-check enforcement | Not verified or changed by this task; configure both branch rulesets only after successful remote checks exist |
+| Banking acceptance / performance / CD | Not established by CI foundation; canonical AC/CONS and EV-003 evidence gates remain unchanged |
+
+The intended required check names equal explicit job names, not the workflow name
+`CI`. Confirm successful checks on the latest PR revision in GitHub before a
+maintainer selects them under **Settings → Rules → Rulesets** for both `develop`
+and `main`. Replace any retired `validate` requirement only after the new check is
+available. PR approvals remain a separate requirement. Frontend dependency
+installation from a lockfile, lint, type checks, unit tests and production build
+will become a fourth check only after the real stack and successful runs exist.
