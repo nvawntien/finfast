@@ -22,6 +22,7 @@ Verify implementation against source/configuration: historical implementation no
 | Requirements | [PRD](docs/02-requirements/09-product-requirements.md) |
 | Task planning | [Backlog](docs/02-requirements/10-product-backlog.md) |
 | Architecture and module boundaries | [Architecture](docs/03-design/15-system-architecture.md) |
+| Canonical Java APIs, owners and collaboration | [Module contracts](docs/03-design/module-contracts-and-boundaries.md) |
 | Domain, database, locking and transactions | [Domain/data design](docs/03-design/16-domain-model-and-data-design.md) |
 | API behavior | [API design](docs/03-design/17-api-contracts.md) |
 | OpenAPI contract | [OpenAPI YAML](docs/03-design/contracts/openapi-v1.yaml) |
@@ -41,6 +42,20 @@ Verify implementation against source/configuration: historical implementation no
 - Derive module names and ownership from reviewed architecture; create packages only when behavior needs them.
 - Avoid unnecessary interfaces and abstractions; verify existing dependencies before introducing tools.
 - Do not add microservices, gateways, brokers or extra services without explicit authorization.
+
+## Module API collaboration (BK-003)
+
+- Start at [module contracts](docs/03-design/module-contracts-and-boundaries.md) for exact source signatures, provider/consumer ownership, compatibility and change control.
+- Compile-time interfaces/immutable values live under `backend/src/main/java/com/finfast/<provider>/api/`; implementation belongs only to that provider's `internal` tree. No provider Beans or banking workflows are supplied by BK-003.
+- Tiến explicitly APPROVED the current BK-003 signatures, TD-015 posting ownership/transaction responsibilities and TD-016 nine-module/18-edge boundary policy on 2026-10-22; they become the mandatory shared V1 baseline when BK-003 merges into `develop`. No additional owner endorsement is inferred or required to record this decision. Approval is distinct from implementation and verification.
+- Module owners implement their approved interfaces and consume only a provider `api` with an approved edge and capability permission. Never import foreign `internal`, entities or repositories, introduce cycles/common-to-business dependencies, or weaken ArchUnit to bypass ownership.
+- Reuse existing interfaces/DTOs; no competing contracts, silent renames or unapproved breaking changes. Additional public capabilities/dependency directions require prior Tech Lead approval. Consult affected owners and preserve compatibility where practical; Tiến has final cross-module architectural authority. Unpushed teammate work remains unknown.
+- Use constructor injection and test-scoped mocks/fakes while providers are absent. Do not create speculative/no-op production implementations to satisfy injection; compilation does not establish startup or integration readiness.
+- Transfers uses `FinancialPosting`; Administration uses `AllocationPosting`; Bootstrap uses `GenesisPosting`. Only Ledger uses `PostingAccounts`; its Treasury initializer is restricted to the Ledger GenesisPosting implementation. Review helper delegation explicitly.
+- Transfers owns the transfer outer transaction; Administration owns allocation/status orchestration and required audit. Ledger owns controlled paired posting/facts/reconciliation; Accounts owns balance/status invariants; Idempotency owns scope/canonical intent/outcomes. All required effects join the outer transaction; no isolated debit/credit commit. Pending values never confirm a commit.
+- Pure APIs have no transaction annotations or provider Beans. Concrete guards/annotation placement, locking, retry, canonical encoder, cursor and bootstrap mechanisms retain their separate proposal/evidence status; TD-015/016 approval does not approve them.
+- On a contract mismatch, preserve existing work, compare exact packages/signatures and report the mismatch/options to Tiến. Stop only the affected integration until a Tech Lead decision, then adapt member-owned code without duplicate APIs and rerun tests. Continue independent work; a freeze permits reviewed corrections.
+- Synchronize public source, canonical inventory, governance, architecture/data notes and relevant tests in the same change. Do not alter REST/OpenAPI or migrations to accommodate an internal contract without separate reviewed authorization.
 
 ## Financial safety
 

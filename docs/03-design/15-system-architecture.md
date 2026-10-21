@@ -1,6 +1,6 @@
 # 15 — System Context, Containers, Modules and Security Boundaries
 
-> **AGREED architecture direction:** Java/Spring Boot, PostgreSQL, one deployable Modular Monolith, DDD-inspired domain modules, pragmatic Hexagonal Architecture, constructor-based Spring DI, in-process module calls, REST/OpenAPI/Swagger UI, protected server-managed sessions and PostgreSQL ACID transactions. This incorporates the Tech Lead's confirmed direction and preserves A-013 / DEC-006. Concrete business interfaces, dependency allowlist and transaction/locking mechanisms remain **PROPOSED** pending review. Backend/database/observability, shared contracts and architecture checks exist; the business modules and deployment design below are not implemented. See the [root README](../../README.md) for current status.
+> **AGREED architecture direction:** Java/Spring Boot, PostgreSQL, one deployable Modular Monolith, DDD-inspired domain modules, pragmatic Hexagonal Architecture, constructor-based Spring DI, in-process module calls, REST/OpenAPI/Swagger UI, protected server-managed sessions and PostgreSQL ACID transactions. This preserves A-013 / DEC-006. On 2026-10-22 Tiến explicitly **APPROVED** the current BK-003 Java signatures, TD-015 financial ownership/transaction responsibilities and TD-016 nine-module/18-edge dependency/capability policy; these become the mandatory shared baseline on merge into `develop` (pending). Concrete locking/retry/annotation/bootstrap/cursor mechanisms retain their separate proposal status. Backend/database/observability, shared contracts and architecture checks exist; business provider implementations and deployment design below are not implemented. See the [root README](../../README.md) for current status.
 
 The Modular Monolith sets deployment and logical module boundaries. DDD gives each module ownership of its domain concepts and invariants. Pragmatic Hexagonal Architecture keeps business logic separate from HTTP and persistence adapters without requiring an interface for every class. One six-person team can work within these boundaries while financial operations still share one database transaction. No mandatory microservices, Kafka, Kubernetes, Redis, event sourcing, distributed transactions or separate module databases are introduced. Provider and infrastructure sizing await EV-001/002.
 
@@ -43,15 +43,22 @@ flowchart TB
 
 ## 3. Module ownership and the controlled posting path
 
-The following API names are **proposed design vocabulary**, not existing Java classes. Accounts owns balances and statuses; Ledger coordinates paired balance movements with immutable Financial Transactions and Ledger Entries. Transfers and Administration own their complete application transactions, including final request outcomes and required audit. Ledger never independently commits a debit or credit.
+The [canonical module guide](module-contracts-and-boundaries.md) distinguishes the
+implemented BK-003 interfaces/DTOs from future provider behavior and records
+explicit owners from the task request. Tiến owns Ledger/Administration, Minh
+Transfers/Idempotency, Hưng Identity/Customer, Hải Accounts/History, Trung
+Bootstrap/Admin reads and Sĩ frontend. Tiến approved the signatures; individual
+owner endorsements are not inferred. Accounts owns balances/statuses; Ledger coordinates paired movements
+and immutable facts. Transfers/Administration own their complete application
+transactions, including final outcomes and required audit. No provider exists yet.
 
-| Module | Owns | Proposed public API / permitted consumers |
+| Module | Owns | Approved contract / permitted consumers; future provider responsibilities |
 |---|---|---|
 | `identity` | User credentials, role policy, server sessions; registration orchestration | Authentication/authorization context for protected use cases; protected Admin provisioning for Bootstrap |
 | `customer` | Customer profile and User linkage | Registration provisioning for Identity; limited customer metadata for Administration; calls Accounts to open one zero-balance Customer Account |
-| `accounts` | Account identity, type, status, materialized balance and balance/status invariants | `AccountQueries` for authorized readers; `AccountProvisioning` for Customer/Bootstrap; `AccountStatusCommands` for Administration; restricted `PostingAccounts` for Ledger only |
+| `accounts` | Account identity, type, status, materialized balance and balance/status invariants | `AccountQueries` for authorized readers; `AccountProvisioning` for Customer; separate `TreasuryProvisioning` for Bootstrap; `AccountStatusCommands` for Administration; restricted `PostingAccounts` for Ledger only |
 | `transfers` | Customer transfer intent validation and orchestration | Customer transfer application entry; calls Ledger's `FinancialPosting` and Idempotency's `RequestOutcomes` |
-| `ledger` | Financial Transactions, signed entries, immutable references, posting semantics, reconciliation and dataset posting order | `FinancialPosting` for Transfers/Administration; `LedgerQueries` for History/Administration; restricted `GenesisPosting` for Bootstrap only |
+| `ledger` | Financial Transactions, signed entries, immutable references, posting semantics, reconciliation and dataset posting order | `FinancialPosting` for Transfers, separate `AllocationPosting` for Administration, `GenesisPosting` for Bootstrap; current `LedgerQueries` exposes History projections only; Admin projections deferred |
 | `idempotency` | Durable full scoped identity, canonical intent, final result, coordination and recovery | `RequestOutcomes` for Transfers/Administration; authorized lookup accepts server-established initiator context, never an arbitrary user ID from the client |
 | `administration` | Treasury allocation, account status orchestration, required Admin Audit Events | Authorized Admin use cases; calls Ledger for funding and Accounts for status; owns audit persistence inside the same transaction |
 | `history` | Read-only history and receipt projections | Authorized reads through Accounts/Ledger APIs; no financial or account mutation |
@@ -62,19 +69,29 @@ The following API names are **proposed design vocabulary**, not existing Java cl
 ```mermaid
 flowchart TD
   TR[Transfers application transaction] --> POST[Ledger FinancialPosting API]
-  AD[Administration allocation transaction] --> POST
+  AD[Administration allocation transaction] --> ALLOC[Ledger AllocationPosting API]
   TR --> IDEM[Idempotency RequestOutcomes API]
   AD --> IDEM
   AD --> AUD[Administration internal audit writer]
   POST --> ACC[Accounts restricted PostingAccounts API]
   POST --> FACTS[Ledger internal Financial Transaction and Entry writer]
+  ALLOC --> ACC
+  ALLOC --> FACTS
   ACC --> STATE[Accounts internal persistence]
   BOOT[Restricted Bootstrap GENESIS transaction] --> GEN[Ledger GenesisPosting API]
   GEN --> ACC
   GEN --> FACTS
 ```
 
-`FinancialPosting` offers distinct internal-transfer and demo-allocation intents. The caller supplies an authorized, typed intent; Ledger validates transaction type and account roles, obtains both locked Accounts through `PostingAccounts`, and requests the paired checked movement there. Accounts rechecks ACTIVE status, sufficient funds and numeric bounds on the locked values before changing either balance. Ledger creates the reference and exactly two equal-and-opposite entries. It returns a pending posting result to its caller **inside the existing transaction**; only the outer commit makes it a committed Financial Transaction. The allocation caller then writes the required audit and the final outcome before that same commit. See [16 §5](16-domain-model-and-data-design.md#5-transaction-boundaries-and-outcomes-arc-02).
+BK-003 represents ordinary posting as separate `FinancialPosting` transfer and
+`AllocationPosting` allocation interfaces; this split and TD-015 ownership are
+approved. Their still-unimplemented provider behavior must validate typed
+authorized intent and Account roles, request protected paired changes through
+`PostingAccounts`, then create a reference and two equal-and-opposite entries.
+Accounts rechecks current ACTIVE status, ownership, funds and safe bounds before
+either change. `PostingResult.Pending` is inside the existing transaction, not
+commit evidence; the outer use case must join final outcome and required
+allocation audit before commit. See [16 §5](16-domain-model-and-data-design.md#5-transaction-boundaries-and-outcomes-arc-02).
 
 Transfers may invoke only the internal-transfer operation; Administration only demo allocation. Enforce these method-level restrictions as well as package access, and verify CUSTOMER-to-CUSTOMER versus TREASURY-to-CUSTOMER account types within the posting operation. Callers cannot supply an arbitrary debit/credit delta or bypass owner/role authorization. Neither controller nor Transfers/Administration may import Accounts/Ledger repositories, write balance columns, or create ledger facts directly.
 
@@ -82,7 +99,7 @@ Transfers may invoke only the internal-transfer operation; Administration only d
 
 ### 3.2 Allowed module dependencies (ARC-06)
 
-An arrow means an allowed Java dependency on the target's explicit public API, never its internals. This is an acyclic **proposed allowlist**; not every use case needs every arrow.
+An arrow means an allowed Java dependency on the target's explicit public API, never its internals. This is the **APPROVED TD-016 acyclic allowlist: nine modules, 18 edges**; not every use case needs every arrow. Additional public capabilities/directions require prior Tech Lead approval.
 
 ```mermaid
 flowchart LR
@@ -110,9 +127,11 @@ Identity registration orchestrates Customer provisioning and the zero-balance Ac
 
 ### 3.3 Java project and module structure (DOC-02)
 
-One Spring Boot application, organized by domain first. The nine business packages
-below are planned, not present scaffolding. Existing shared contracts and technical
-infrastructure are under `com.finfast.common`:
+One Spring Boot application, organized by domain first. BK-003 adds only `api`
+contracts for identity/customer/accounts/ledger/idempotency. Transfers,
+administration, history and bootstrap are future consumer modules with no empty
+production packages. The map below is the target set, not a claim of implemented
+providers. Shared contracts/technical infrastructure remain in `com.finfast.common`:
 
 ```text
 src/main/java/com/finfast/
@@ -171,14 +190,15 @@ Use in-process calls between modules, not HTTP/gRPC, separate databases or distr
 
 **Implemented tooling:** TEST-scope ArchUnit 1.5.1 with
 `archunit-junit6`, matching Boot 4.1.1's managed Jupiter 6.0.3. These checks execute
-through ordinary Maven tests; the §3.2 allowlist remains a **candidate**, not an
-approved policy. Spring Modulith is not installed or required by this baseline.
+through ordinary Maven tests; the §3.2 allowlist and current structural/capability
+enforcement are **APPROVED under TD-016**. Spring Modulith is not installed or
+required by this baseline.
 
 - Only the nine named business modules are cycle nodes. `common`, the root launch
   class and libraries are excluded. Business classes must reside under their
   module's `api` or `internal` packages. Internal code may use its own module's
   types; public API code must not depend on its own module's internal types;
-  cross-module dependencies require both a candidate edge and provider `api` access.
+  cross-module dependencies require both an approved edge and provider `api` access.
 - [ProductionArchitectureTests](../../backend/src/test/java/com/finfast/architecture/ProductionArchitectureTests.java)
   scans compiled production code with test classes excluded. Rules cover package
   structure, public API isolation, cycles,
@@ -188,11 +208,15 @@ approved policy. Spring Modulith is not installed or required by this baseline.
 - [RuleVerificationTests](../../backend/src/test/java/com/finfast/architecture/RuleVerificationTests.java)
   explicitly imports segregated test fixtures. Valid own/API/shared usage passes;
   foreign internals, reversed edges, cycles and layer/observability leaks are
-  deliberately rejected. Business-only production selections are currently empty;
-  fixture proof does not establish real business-module integration or acceptance.
-- Caller/method restrictions on future `FinancialPosting`, `PostingAccounts` and
-  `GenesisPosting` remain deferred until real contracts exist. No placeholder API
-  is installed. Import checks cannot prove authorization, atomicity or SQL ownership.
+  deliberately rejected. Production API selections now contain real contracts;
+  internal-layer selections can remain empty. Fixture proof does not establish
+  provider behavior, real module integration or financial acceptance.
+- BK-003 adds pure-API and restricted-capability checks, preserving the same 18
+  approved edges. Transfers cannot acquire allocation/GENESIS/Account mutation,
+  and Treasury initialization calls/method references require Ledger's
+  GenesisPosting implementation. Private helper delegation needs a concrete reviewed
+  amendment rather than a blanket exception. Import/call checks
+  cannot prove runtime authorization, transaction guards, atomicity or SQL ownership.
   Follow the [module collaboration guide](module-contracts-and-boundaries.md) and
   real PostgreSQL/transaction gates in [22](../05-verification/22-test-strategy-and-acceptance.md).
 
@@ -225,4 +249,4 @@ approved policy. Spring Modulith is not installed or required by this baseline.
 
 ## 7. Architectural trade-offs
 
-Why monolith initially? Strong financial transaction boundary, one small team, no independent scaling or ownership requirement across Accounts/Transfer/Ledger in V1. This is an **approved initial direction**, not a commitment against later decomposition. Concrete proposals are tracked in [25 TD-015/016](../6-governance/25-design-decision-register.md); standalone ADR-001 is planned and is not an existing deliverable. Optional notifications are a P1 extension and never block financial commit.
+Why monolith initially? Strong financial transaction boundary, one small team, no independent scaling or ownership requirement across Accounts/Transfer/Ledger in V1. This is an **approved initial direction**, not a commitment against later decomposition. Approved TD-015/016 ownership/boundaries and independent proposed mechanisms are tracked in the [decision register](../6-governance/25-design-decision-register.md). Standalone ADR-001 is planned and is not an existing deliverable. Optional notifications are a P1 extension and never block financial commit.

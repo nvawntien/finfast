@@ -1,6 +1,6 @@
 # 16 — Domain Model, ERD, PostgreSQL Data and Invariants
 
-> Status: **PROPOSED technical design**, not a database already deployed. Approved semantics: [glossary 02](../01-discovery/02-domain-glossary.md), [rules 06](../01-discovery/06-business-rules.md), [PRD 09 §6–§7](../02-requirements/09-product-requirements.md). Names/columns/SQL types are engineering proposals. No full General Ledger is implied.
+> Status: historical **PROPOSED technical mechanisms**, with scoped approvals. The [migration guide](../../backend/src/main/resources/db/migration/README.md) records Step 4B.1 schema approvals and implemented V1/V2. Tiến's 2026-10-22 [BK-003 approval](../6-governance/25-design-decision-register.md#bk-003-approval-record-and-remaining-authority) approves current Java signatures, TD-015 ownership/transaction responsibilities and TD-016 boundaries (shared baseline on merge into `develop`, pending). Neither approval ratifies the remaining posting/locking/idempotency/cursor algorithms or annotation placement here. Approved semantics: [glossary 02](../01-discovery/02-domain-glossary.md), [rules 06](../01-discovery/06-business-rules.md), [PRD 09 §6–§7](../02-requirements/09-product-requirements.md). No full General Ledger is implied.
 
 ## 1. Domain relationships
 
@@ -170,7 +170,7 @@ Note: Mermaid cardinalities describe conceptual relationships; specific optional
 
 ## 5. Transaction boundaries and outcomes (ARC-02)
 
-**PROPOSED realization of mandatory atomicity.** Ownership and API allowlists are defined once in [15 §3](15-system-architecture.md#3-module-ownership-and-the-controlled-posting-path). Every financial entry uses one PostgreSQL database and transaction manager. No cross-module network calls or asynchronous financial commits are involved.
+**APPROVED TD-015 ownership/atomicity responsibilities; concrete realization remains PROPOSED.** Ownership and API allowlists are defined in [15 §3](15-system-architecture.md#3-module-ownership-and-the-controlled-posting-path). Transfers owns the transfer outer transaction; Administration owns allocation and required audit; Ledger owns controlled paired posting/facts/reconciliation; Accounts owns balance/status invariants; Idempotency owns scoped intent/outcomes. Every financial entry uses one PostgreSQL database and transaction manager; all required effects commit together. No cross-module network calls, isolated debit/credit commits or asynchronous financial commits are allowed.
 
 | Application entry point (illustrative name) | Transaction contents | Commit boundary |
 |---|---|---|
@@ -181,6 +181,14 @@ Note: Mermaid cardinalities describe conceptual relationships; specific optional
 | Bootstrap `InitializeDataset` | Single Treasury, finite supply, special GENESIS entry/reference and dataset control | One protected initialization transaction; existing dataset is verified, never reseeded on restart |
 
 ### 5.1 Spring transaction contract
+
+BK-003 supplies approved pure source interfaces/DTOs only. Exact signatures, authorized
+consumers and value semantics live in the [canonical module guide](module-contracts-and-boundaries.md#transactions-and-posting-permissions).
+Transfers consumes `FinancialPosting`, Administration `AllocationPosting`,
+Bootstrap `GenesisPosting`; only Ledger consumes guarded `PostingAccounts`.
+No transaction annotation/proxy/manager or posting implementation is added.
+The realization below remains a review proposal for concrete implementations:
+compile-time Pending/Completion values do not prove that a transaction committed.
 
 Place `@Transactional` at the externally invoked application use-case entry, with **REQUIRED** propagation and the reviewed isolation/rollback policy. Collaborators join that transaction through the same transaction manager/data source. The restricted Ledger/Accounts mutation entry must require an existing transaction (for example `MANDATORY` as a guard); it must never silently commit a standalone debit. Domain objects need no transaction annotations. Do not use `REQUIRES_NEW` for ledger, balance, outcome or required Admin success audit: it would permit independently committed pieces. See [Spring propagation semantics](https://docs.spring.io/spring-framework/reference/data-access/transaction/declarative/tx-propagation.html).
 
@@ -259,7 +267,7 @@ Actual deadlock, timeout, freeze and opposite-direction schedules must run again
 
 ### 7.1 Durable identity and canonical intent
 
-The full identity is `(initiator_user_id, operation_type, idempotency_key)`, with a durable **NOT NULL + UNIQUE** constraint across all three fields. The server derives initiator and operation; the key is opaque and case-sensitive, with no silent trimming or automatic reuse. Final records survive for the entire dataset lifetime. Key length/input-size bounds remain API-hardening decisions to review; they must not truncate keys into collisions.
+The full identity is `(initiator_user_id, operation_type, idempotency_key)`, with a durable **NOT NULL + UNIQUE** constraint across all three fields. The server derives initiator and operation; the key is opaque and case-sensitive, with no silent trimming or automatic reuse. Final records survive for the entire dataset lifetime. The current schema/header and approved Java `Key` require 1–200 characters without truncation; broader input-size hardening remains separate review work.
 
 Proposed canonicalization version `v1`:
 
@@ -333,9 +341,9 @@ None is selected as a replacement. A SQL sequence alone, naive OFFSET paging or 
 
 ## 10. Design topics requiring review
 
-- TD-015/016: restricted Ledger posting ownership and API/method allowlists; transaction participation guards and protection against uncontrolled repository access.
+- TD-015/016 ownership, current signatures/allowlists and structural enforcement are approved; future amendments need Tiến's approval. Concrete transaction guards, runtime authorization and protection against uncontrolled SQL access still need implementation/testing.
 - TD-002/003: UUID lock comparator, READ COMMITTED premises, canonicalization version/field behavior, advisory-key mapping, retry budgets and proof-of-concept results.
 - TD-004/014: history snapshot/cursor contract and counter-contention evidence; no alternative selected without correctness evidence.
-- Audit before/after schema, stable rejected response snapshot, Account-number generator, immutable-table safeguards and indexes remain implementation details to review.
-- Failure-safe Treasury/dataset/GENESIS linkage may require deferred foreign keys or carefully ordered initialization within one transaction. Verify concurrent initialization and restart without reseeding.
-- Compatible Spring Boot/Spring transaction manager/JPA choices and PostgreSQL major version must be recorded before implementation. This document specifies no migrations or application classes.
+- Existing audit fields, immutable-table guards and indexes are recorded in the migration guide. Provider response mapping, Account-number generation and runtime audit/storage behavior still need review; TD-011 is not promoted by BK-003.
+- V1 uses immediate foreign keys and ordered initialization inserts (see migration guide). Providers must still prove atomic Treasury/dataset/GENESIS consistency, concurrent initialization and restart without reseeding; no new schema mechanism is approved here.
+- Java 21/Spring Boot 4.1.1/PostgreSQL 16 and Flyway V1/V2 are checked in; future persistence/transaction-manager integration still needs review. This document adds no migrations or business providers; existing implementation evidence is in the migration guide.

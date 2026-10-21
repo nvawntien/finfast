@@ -127,7 +127,7 @@ class RuleVerificationTests {
                 Arguments.of(TransfersUseCases.ForeignEntity.class, AccountDomainFixtures.Pure.class, "internals are private"),
                 Arguments.of(TransfersUseCases.NonApi.class, NonApiContract.class, "internals are private"),
                 Arguments.of(AccountsApiFixtures.ForbiddenReverseDependency.class, TransfersApiFixtures.Cycle.class,
-                        "candidate direction accounts -> transfers is forbidden"));
+                        "unapproved direction accounts -> transfers is forbidden"));
     }
 
     @Test
