@@ -104,8 +104,9 @@ Row constraints and append-only guards do not establish correct financial postin
   actor to have ADMIN role, or require an audited target to be a CUSTOMER Account.
 - Balance changes, posting facts, final outcomes and required success audit must
   commit atomically. SUCCESS must only be reported after commit confirmation.
-- Idempotency requires transaction-scoped advisory coordination, full canonical
-  intent comparison, immutable final results and dataset-lifetime retention; the
+- Idempotency requires full-scope coordination (the transaction-scoped advisory
+  strategy remains a TD-003 proposal), full canonical intent comparison,
+  immutable final results and dataset-lifetime retention; the
   UNIQUE constraint alone does not implement replay, retries or authorization.
 - The future posting path must increment the global counter transactionally under
   the dataset row lock and match it to `commit_seq`. No `nextval()` ordering shortcut

@@ -6,8 +6,13 @@ The Database Foundation includes PostgreSQL/Flyway and eight banking tables with
 automatic seed data. Observability Steps 4D.1–4D.5 provide safe logging, centralized
 HTTP errors, real HTTP tracing, optional log/trace storage, metrics, dashboards and
 local alerts. Shared error/VND contracts and ArchUnit architecture checks are
-implemented against an explicitly proposed dependency baseline.
-Identity/Customer APIs, authentication, transfers, Ledger posting,
+implemented against the approved BK-003 dependency baseline.
+BK-003 adds compile-time Identity/Customer/Accounts/Ledger/Idempotency APIs and
+immutable DTOs for parallel development. Tiến explicitly approved the current Java
+signatures, TD-015 posting ownership/transaction responsibilities and TD-016
+nine-module/18-edge boundary policy on 2026-10-22. They become the mandatory shared
+V1 baseline when BK-003 merges into `develop` (pending). Provider implementations,
+authentication, transfers, Ledger posting,
 Admin operations, controlled GENESIS bootstrap and the frontend are not implemented.
 
 See the [documentation index](docs/README.md) and
@@ -215,8 +220,9 @@ With Java 21 and a running Testcontainers-compatible Docker runtime, from
 Tests cover context/health, PostgreSQL schema and Flyway V1/V2, rollback/concurrency,
 logging, real HTTP tracing/metrics, shared error/VND contracts and architecture
 rules. Architecture checks run automatically, with test-only valid/invalid fixtures;
-they do not prove financial correctness or validate nonexistent business modules.
-Run just those checks with `./mvnw -Dtest=ProductionArchitectureTests,RuleVerificationTests test`.
+they validate the present API contracts without proving provider behavior or
+financial correctness.
+Run just those checks with `./mvnw -Dtest=ProductionArchitectureTests,RuleVerificationTests,CapabilityVerificationTests test`.
 Database tests use isolated PostgreSQL 16.15
 Testcontainers with Boot-supplied datasource/Flyway connections, never the developer's
 persistent database. No local Grafana credentials or telemetry stack is required.
@@ -235,6 +241,25 @@ native datasource environment variables configured above, start it using
 `java -jar target/finfast-backend.jar`. Press **Ctrl+C** to stop it.
 
 For documentation/OpenAPI checks, see [docs/README.md](docs/README.md#validate-documentation-locally-and-in-ci).
+
+## Parallel module development
+
+Use the [canonical Java module contracts](docs/03-design/module-contracts-and-boundaries.md)
+for exact source links/signatures, owners, permitted consumers, transaction
+obligations, compatibility audit and contract change control. APIs live in
+`com.finfast.<provider>.api`; their presence enables compilation and test mocks,
+not runtime Beans or implemented banking features. Use the approved contracts;
+do not duplicate them, import another module's internals or silently rename/break
+public APIs. For a mismatch, preserve work, compare exact signatures and report to
+Tiến for an integration decision before adapting member-owned code and tests.
+Additional capabilities/edges or breaking changes require prior Tech Lead approval;
+Java, tests, canonical documentation and decisions change together. Concrete locking,
+retry, cursor and bootstrap mechanisms retain their separate proposal status.
+After BK-003 merges, each teammate updates their own feature branch from `develop`
+using the agreed team workflow, adapts their implementation and runs Java 21
+`./mvnw --batch-mode --no-transfer-progress verify` with Docker before review.
+Frozen-owner reads, full-scope recovery, atomic audit and commit-confirmed success
+remain mandatory; static/mocked tests cannot prove these financial guarantees.
 
 ## Continuous integration
 
@@ -325,9 +350,10 @@ update. PR approval and successful CI are separate requirements; neither replace
 the other. See [GitHub's required-check troubleshooting](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks).
 
 Workflow automation is implemented in source; [local verification evidence](docs/05-verification/22-test-strategy-and-acceptance.md#ci-foundation-implementation-and-evidence)
-is separate from GitHub execution. This new workflow has no successful GitHub run
-evidence yet, and ruleset enforcement has not been verified or changed by this
-task. Workflow YAML alone does not enable branch protection. There is no deployment
+is separate from GitHub execution. The [develop baseline run](https://github.com/nvawntien/finfast/actions/runs/39601859299)
+completed all three named jobs successfully at `a4eb9ff`. That run does not verify
+the unpushed BK-003 changes. Ruleset enforcement has not been verified or changed
+by this task. Workflow YAML alone does not enable branch protection. There is no deployment
 CD, and CI does not implement or accept the planned banking business features.
 
 ### Frontend readiness
@@ -407,7 +433,7 @@ retention, log/trace queries, networking, resource use and repeatable end-to-end
 | Path | Purpose |
 |---|---|
 | `backend/` | One Spring Boot application, common infrastructure, Flyway migrations and isolated tests |
-| `backend/src/test/java/com/finfast/architecture/` | Production architecture scans, candidate rules and fixture verification |
+| `backend/src/test/java/com/finfast/architecture/` | Production architecture scans, approved boundary/capability rules and fixture verification |
 | `compose.yaml`, `compose.docs.yaml` | Backend/PostgreSQL and separate Swagger UI stacks |
 | `compose.observed.yaml`, `compose.observability.yaml` | Opt-in backend overlay and six telemetry services |
 | `observability/` | Stack runbook, component configs, Grafana provisioning and verification helpers |
@@ -425,7 +451,8 @@ proposals retain their existing approval status.
 Before starting a business module, read [AGENTS.md](AGENTS.md), the approved use
 cases/rules through the docs index, the [module collaboration guide](docs/03-design/module-contracts-and-boundaries.md)
 and [shared error/VND guide](docs/03-design/shared-error-money-contracts.md).
-Review public APIs and new dependency edges with the owning contributor; do not
+Consult owning contributors and obtain Tiến's approval for new public capabilities,
+dependency edges or breaking changes; do not
 access another module's repositories/entities. No empty business-module scaffolding
 or banking implementation is provided by these foundation steps.
 

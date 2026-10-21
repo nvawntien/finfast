@@ -17,7 +17,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 
-/** Test-only candidate policy: architecture 15 §3.2, ARC-06 / TD-016 (PROPOSED). */
+/** Test-only enforcement of approved architecture 15 §3.2, ARC-06 / TD-016. */
 final class ModuleArchitectureRules {
 
     static final String ROOT = "com.finfast";
@@ -71,7 +71,7 @@ final class ModuleArchitectureRules {
 
     static ArchRule moduleDependencies(String root) {
         return classes().that(businessClasses(root)).should(new ArchCondition<>(
-                "use only candidate-allowed module directions through the provider api") {
+                "use only approved module directions through the provider api") {
             @Override
             public void check(JavaClass origin, ConditionEvents events) {
                 String consumer = moduleOf(origin, root);
@@ -83,7 +83,7 @@ final class ModuleArchitectureRules {
                     }
                     if (!ALLOWED.get(consumer).contains(provider)) {
                         events.add(SimpleConditionEvent.violated(dependency, dependency.getDescription()
-                                + ": candidate direction " + consumer + " -> " + provider + " is forbidden"));
+                                + ": unapproved direction " + consumer + " -> " + provider + " is forbidden"));
                     } else if (!inPackage(target, root + "." + provider + ".api")) {
                         events.add(SimpleConditionEvent.violated(dependency, dependency.getDescription()
                                 + ": cross-module access requires " + provider + ".api; internals are private"));
@@ -106,6 +106,65 @@ final class ModuleArchitectureRules {
                 return "the nine FinFast business modules";
             }
         }).should().beFreeOfCycles().allowEmptyShould(true);
+    }
+
+    /** Approved BK-003 capability policy; it narrows, never expands, ALLOWED. */
+    static ArchRule restrictedCapabilities(String root) {
+        Map<String, Set<String>> callers = Map.ofEntries(
+                Map.entry("accounts.api.AccountProvisioning", Set.of("customer")),
+                Map.entry("accounts.api.TreasuryProvisioning", Set.of("bootstrap")),
+                Map.entry("accounts.api.PostingAccounts", Set.of("ledger")),
+                Map.entry("accounts.api.AccountStatusCommands", Set.of("administration")),
+                Map.entry("ledger.api.FinancialPosting", Set.of("transfers")),
+                Map.entry("ledger.api.AllocationPosting", Set.of("administration")),
+                Map.entry("ledger.api.GenesisPosting", Set.of("bootstrap")),
+                Map.entry("ledger.api.LedgerQueries", Set.of("history")),
+                Map.entry("identity.api.AdminProvisioning", Set.of("bootstrap")),
+                Map.entry("customer.api.CustomerProvisioning", Set.of("identity")),
+                Map.entry("customer.api.CustomerQueries", Set.of("identity", "administration")));
+        return classes().that(businessClasses(root)).should(new ArchCondition<>(
+                "use restricted capabilities only from their documented callers") {
+            @Override
+            public void check(JavaClass origin, ConditionEvents events) {
+                String consumer = moduleOf(origin, root);
+                for (Dependency dependency : origin.getDirectDependenciesFromSelf()) {
+                    String target = dependency.getTargetClass().getName();
+                    for (var capability : callers.entrySet()) {
+                        String name = root + "." + capability.getKey();
+                        String provider = capability.getKey().split("\\.", 2)[0];
+                        if ((target.equals(name) || target.startsWith(name + "$"))
+                                && !provider.equals(consumer) && !capability.getValue().contains(consumer)) {
+                            events.add(SimpleConditionEvent.violated(dependency, dependency.getDescription()
+                                    + ": restricted capability " + name + " is forbidden to " + consumer));
+                        }
+                        if (target.equals(name) && !provider.equals(consumer) && origin.isAssignableTo(name)) {
+                            events.add(SimpleConditionEvent.violated(dependency, origin.getName()
+                                    + ": provider implementation belongs to " + provider + ", not " + consumer));
+                        }
+                    }
+                }
+                // Include method references as well as calls; normal posting cannot initialize supply.
+                for (var access : origin.getCodeUnitAccessesFromSelf()) {
+                    if (access.getTargetOwner().isAssignableTo(root + ".accounts.api.PostingAccounts")
+                            && access.getName().equals("initializeTreasury")
+                            && !("ledger".equals(consumer)
+                            && origin.isAssignableTo(root + ".ledger.api.GenesisPosting"))) {
+                        events.add(SimpleConditionEvent.violated(access, access.getDescription()
+                                + ": Treasury initialization requires the Ledger GenesisPosting implementation"));
+                    }
+                }
+            }
+        }).allowEmptyShould(true);
+    }
+
+    static ArchRule purePublicApis(String root) {
+        return noClasses().that(predicate("business public api classes", type -> moduleOf(type, root) != null
+                        && inPackage(type, root + "." + moduleOf(type, root) + ".api")))
+                .should().dependOnClassesThat(predicate("framework, HTTP, persistence or technical infrastructure", target ->
+                        inPackage(target, "org.springframework") || isHttpOrDatabase(target)
+                                || inPackage(target, "jakarta.persistence") || inPackage(target, "jakarta.validation")
+                                || inPackage(target, "com.fasterxml") || inPackage(target, "tools.jackson")
+                                || isTechnicalCommon(target))).allowEmptyShould(true);
     }
 
     static ArchRule domainIsolation(String root) {

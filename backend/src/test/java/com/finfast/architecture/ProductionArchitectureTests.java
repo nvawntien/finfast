@@ -28,6 +28,12 @@ class ProductionArchitectureTests {
     static final ArchRule module_contracts = ModuleArchitectureRules.moduleDependencies(ROOT);
 
     @ArchTest
+    static final ArchRule restricted_capabilities = ModuleArchitectureRules.restrictedCapabilities(ROOT);
+
+    @ArchTest
+    static final ArchRule pure_public_apis = ModuleArchitectureRules.purePublicApis(ROOT);
+
+    @ArchTest
     static final ArchRule no_module_cycles = ModuleArchitectureRules.noCycles(ROOT);
 
     @ArchTest
@@ -58,7 +64,7 @@ class ProductionArchitectureTests {
                     || ModuleArchitectureRules.moduleOf(type, ROOT) != null)
                     .as("Recognized production package for %s", type.getName()).isTrue();
         }
-        // No business packages exist yet: empty matches are intentional, not evidence
-        // about implemented business modules. RuleVerificationTests supplies negative proof.
+        // BK-003 supplies public contracts, not business implementations. Internal-layer
+        // selections can remain empty; RuleVerificationTests supplies negative proof.
     }
 }
