@@ -236,6 +236,108 @@ native datasource environment variables configured above, start it using
 
 For documentation/OpenAPI checks, see [docs/README.md](docs/README.md#validate-documentation-locally-and-in-ci).
 
+## Continuous integration
+
+The [CI workflow](.github/workflows/ci.yml), named **CI**, runs on every PR targeting
+`develop` or `main`, pushes to either branch, and manual `workflow_dispatch`.
+Documentation-only and future frontend-only PRs run the same checks. There are no
+path filters. Superseded runs are cancelled within the same PR or branch/event;
+separate PRs, push events and manual events have distinct concurrency groups.
+
+| Stable job/check name | What it verifies |
+|---|---|
+| `backend-tests` | Temurin Java 21, executable Maven Wrapper, usable Docker; full JUnit suite including ArchUnit, context, HTTP, PostgreSQL/Flyway and Testcontainers tests; 30-minute timeout |
+| `backend-package` | Requires successful `backend-tests`, compiles tests with `-DskipTests package`, then verifies the executable JAR, manifest, launcher and absence of compiled test classes/test-only libraries; 15-minute timeout |
+| `docs-validation` | Python 3.12, pinned documentation dependencies, OpenAPI schema/references, duplicate YAML keys, README/docs links/anchors and documentation Compose config; 10-minute timeout |
+
+All jobs use `ubuntu-24.04`. Java jobs cache Maven dependencies using `setup-java`
+and hashes of the backend POM/Wrapper properties; documentation caches pip using
+the pinned requirements file. Official actions are pinned to immutable SHAs with
+release comments. Existing checkout v4.2.2, setup-python v5.6.0 and documentation
+dependency versions are preserved; setup-java v6.1.0 supplies Java/caching.
+
+Testcontainers uses the runner's Docker Engine to start disposable PostgreSQL
+16.15 containers with synthetic test data and Boot `@ServiceConnection` wiring.
+CI does not load `.env`, run the persistent application Compose stack, supply a
+shared database or exclude integration tests. Missing Docker or failed image/
+dependency downloads fail CI. Docker image builds remain outside this baseline.
+
+The workflow uses normal `pull_request`, `contents: read` permissions and checkout
+with credential persistence disabled. It needs no application/deployment secrets,
+service containers, privileged PR context or Docker socket container mounts.
+No artifacts are uploaded: Surefire XML can contain JVM properties and captured
+output, so reports remain in the runner workspace rather than being published by
+default. JARs are validated without release, registry or deployment publication.
+
+### Reproduce and investigate checks
+
+With Java 21 and Docker available, use a fresh shell without developer datasource
+exports. From the repository root:
+
+```bash
+java -version
+test -x backend/mvnw
+docker version
+cd backend
+./mvnw --batch-mode --no-transfer-progress test
+# Only after the full suite succeeds; test compilation is still enabled.
+./mvnw --batch-mode --no-transfer-progress -DskipTests package
+cd ..
+python3 scripts/check_backend_jar.py
+```
+
+The [JAR checker](scripts/check_backend_jar.py) uses Python's standard library and
+reads the artifact name/packaging from the checked-in POM. For documentation, run
+the [same local validation commands as CI](docs/README.md#validate-documentation-locally-and-in-ci).
+`make test` / `make build` remain available; `make build` reruns tests.
+
+In GitHub, open **PR → Checks → failing job → Details**, or **Actions → CI → run →
+job**, then inspect the first failing step. A package prerequisite failure points
+back to `backend-tests`; packaging never starts after failed tests. Locally, inspect
+`backend/target/surefire-reports/` for test failures. Do not publish raw reports,
+logs or environment files containing private data. For a confirmed transient
+Docker Hub/Maven Central outage, retain the failure evidence and rerun failed jobs
+after recovery; do not suppress failures or disable tests.
+
+### Required checks and review
+
+Intended flow: `feature/* → PR → develop → reviewed release PR → main`. After the
+new workflow has completed successfully on GitHub, a maintainer can configure
+**Settings → Rules → Rulesets** for both branches:
+
+1. Open/create the branch ruleset targeting `develop`, then repeat for `main`.
+2. Enable **Require status checks to pass**, inspect the successful run's actual
+   job names/conclusions on the latest PR commit, and select `backend-tests`,
+   `backend-package` and `docs-validation` from GitHub Actions.
+3. If the retired documentation job `validate` was required, replace it with
+   `docs-validation` after confirming the new successful check exists.
+4. Configure required PR review/approvals separately according to team policy,
+   and verify the saved ruleset's enforcement on a real PR.
+
+**CI** is the workflow name; the three explicit job `name` values above are the
+intended required check names. They still need confirmation from real GitHub
+runs before selection. Path-filtered required workflows can leave checks pending
+and block merges. Conditional jobs can report success when skipped without doing
+the work. Here jobs are never skipped by changed files: `backend-package` uses
+`!cancelled()` plus an explicit success gate, so failed tests produce a failing
+package check while superseded runs can still cancel. Renaming a required job can require a ruleset
+update. PR approval and successful CI are separate requirements; neither replaces
+the other. See [GitHub's required-check troubleshooting](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks).
+
+Workflow automation is implemented in source; [local verification evidence](docs/05-verification/22-test-strategy-and-acceptance.md#ci-foundation-implementation-and-evidence)
+is separate from GitHub execution. This new workflow has no successful GitHub run
+evidence yet, and ruleset enforcement has not been verified or changed by this
+task. Workflow YAML alone does not enable branch protection. There is no deployment
+CD, and CI does not implement or accept the planned banking business features.
+
+### Frontend readiness
+
+No frontend application, package manager lockfile or build scripts exist yet.
+When Sĩ establishes the actual stack, add a stable frontend check for dependency
+installation from its lockfile, lint, type checking, unit tests and a production
+build. Validate it on GitHub before requiring it in both rulesets. Until then,
+there is no frontend tooling or placeholder required job.
+
 ## Swagger UI
 
 Run from the repository root:
@@ -310,6 +412,7 @@ retention, log/trace queries, networking, resource use and repeatable end-to-end
 | `compose.observed.yaml`, `compose.observability.yaml` | Opt-in backend overlay and six telemetry services |
 | `observability/` | Stack runbook, component configs, Grafana provisioning and verification helpers |
 | `docs/` | Approved discovery, draft/proposed designs, contracts and verification guidance |
+| [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | Backend tests, executable JAR packaging and documentation validation |
 
 Start at the [documentation index](docs/README.md). The
 [logging/error/tracing contract](docs/03-design/logging-and-error-handling.md) defines

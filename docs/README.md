@@ -54,7 +54,7 @@ backend and observability paths.
 ```text
 finfast/
 ├── compose.docs.yaml                 # Local Swagger UI only
-├── .github/workflows/docs.yml        # Documentation CI
+├── .github/workflows/ci.yml          # Backend tests/package and documentation CI
 ├── scripts/
 │   ├── check_docs.py                 # Local Markdown links and OpenAPI refs
 │   └── requirements-docs.txt         # Pinned documentation dependencies
@@ -113,10 +113,28 @@ docker compose -f compose.docs.yaml config --quiet
 git diff --check
 ```
 
-The [CI workflow](../.github/workflows/docs.yml) runs schema validation, local Markdown path/heading checks, all local OpenAPI JSON-pointer checks (including unused components), duplicate YAML-key checks and Compose configuration validation on relevant pushes/PRs or manual dispatch. [Pinned tools](../scripts/requirements-docs.txt) include `openapi-spec-validator` and `markdown-it-py`; image/action releases are also version pinned. Upgrade pins through review and rerun the checks. The [checker](../scripts/check_docs.py) does not fetch remote links or prove runtime banking behavior. Browser rendering and Mermaid checks are separate review checks, not claimed as jobs in this workflow.
+The `docs-validation` job in the consolidated [CI workflow](../.github/workflows/ci.yml)
+runs on every PR targeting `develop`/`main`, every push to those branches and manual
+dispatch, with no path filters. It preserves schema validation, local Markdown
+path/heading checks, all local OpenAPI JSON-pointer checks (including unused
+components), duplicate YAML-key checks and Compose configuration validation.
+[Pinned tools](../scripts/requirements-docs.txt) and Python 3.12 are unchanged;
+official actions now use immutable SHA pins with upstream release comments.
+Documentation errors fail the job. Upgrade pins through review and rerun the
+checks. The [checker](../scripts/check_docs.py) does not fetch remote links or prove
+runtime banking behavior. Browser rendering and Mermaid checks are separate
+review checks, not claimed as jobs in this workflow.
 
-The checker starts from `docs/**/*.md`; outgoing links in the root README and
-observability runbooks need additional review when those files change.
+The checker covers `README.md` and `docs/**/*.md`, retaining the existing link/
+anchor and OpenAPI semantics. Including the root README also checks its new CI
+source links; observability runbooks still need outgoing-link review separately.
+The previous docs-only workflow is retired without a duplicate validation job.
+See the [CI guide](../README.md#continuous-integration) for backend reproduction,
+failure diagnosis, exact proposed required checks and ruleset setup for both
+branches. Select checks only after a successful GitHub run confirms their names;
+source implementation, local verification, remote evidence and enforcement are
+[tracked separately](05-verification/22-test-strategy-and-acceptance.md#ci-foundation-implementation-and-evidence).
+Frontend validation waits for Sĩ's actual stack; no framework is assumed.
 
 The OpenAPI YAML remains the design-stage source of truth. Future Springdoc integration must follow [17 — Spring Boot implementation guidance](03-design/17-api-contracts.md#future-spring-boot-integration); no Springdoc dependency or second maintained specification is introduced now.
 
