@@ -1,25 +1,21 @@
 # FinFast
 
-> Documentation freeze snapshot: base `develop` `8a04ca03505a140930b9bbc976dcdc1148db2693`. BK-010 Phase 1 is separate on `feat/BK-010-ledger-core` at `44dd3ed`; its immutable model is not posting persistence and is not merged into this baseline. See [member readiness and phase handoff](docs/02-requirements/10-product-backlog.md#member-implementation-readiness--2026-10-22).
+FinFast is a banking simulator for simulated funds and synthetic customer data.
+Its V1 scope covers Customer accounts, internal transfers, a signed-entry Ledger,
+finite Treasury allocations, committed history/receipts and Admin account controls.
+Customer and Admin Web interfaces are planned within that scope.
 
-FinFast is a banking simulation project designed as one deployable modular
-monolith, with DDD-inspired business modules and pragmatic Hexagonal Architecture.
-The Database Foundation includes PostgreSQL/Flyway and eight banking tables with no
-automatic seed data. Observability Steps 4D.1–4D.5 provide safe logging, centralized
-HTTP errors, real HTTP tracing, optional log/trace storage, metrics, dashboards and
-local alerts. Shared error/VND contracts and ArchUnit architecture checks are
-implemented against the approved BK-003 dependency baseline.
-BK-003 adds compile-time Identity/Customer/Accounts/Ledger/Idempotency APIs and
-immutable DTOs for parallel development. Tiến explicitly approved the current Java
-signatures, TD-015 posting ownership/transaction responsibilities and TD-016
-nine-module/18-edge boundary policy on 2026-10-22. They become the mandatory shared
-V1 baseline following BK-003 PR #10, merged into `develop` at `8a04ca0` on 2026-10-22. Provider implementations,
-authentication, transfers, Ledger posting,
-Admin operations, controlled GENESIS bootstrap and the frontend are not implemented.
+The backend is one deployable Java/Spring Boot modular monolith with DDD-inspired
+modules, pragmatic Hexagonal Architecture and PostgreSQL/Flyway. Implemented
+foundations include eight banking tables without seed data, shared error/VND
+contracts, compile-time module APIs, architecture checks, logging, HTTP tracing
+and optional metrics/dashboards/alerts. Authentication, financial posting services,
+Admin operations, controlled GENESIS setup and the frontend still require implementation.
 
-See the [documentation index](docs/README.md) and
-[system architecture](docs/03-design/15-system-architecture.md) for the agreed
-direction and the [2026-10-22 engineering freeze](docs/6-governance/25-design-decision-register.md#v1-engineering-design-freeze--2026-10-22). Its designs are approved under Tech Lead authorization. The later [Product/UX/REST freeze](docs/6-governance/25-design-decision-register.md#2026-10-22--v1-product-ux-and-rest-contract-freeze) also approves PRD 09, functional specification 12, UX 14 and API 17/existing OpenAPI for implementation. Banking/runtime, external feasibility, benchmark evidence and separate final release acceptance remain outstanding.
+Start with the [documentation index](docs/README.md) for the approved V1 requirements,
+UX, architecture and Java/REST contracts. The [backlog](docs/02-requirements/10-product-backlog.md)
+records implementation dependencies and remaining work. Design approval is separate
+from passing runtime tests, measured performance and release acceptance.
 
 ## Backend baseline
 
@@ -257,7 +253,7 @@ Tiến for an integration decision before adapting member-owned code and tests.
 Additional capabilities/edges or breaking changes require prior Tech Lead approval;
 Java, tests, canonical documentation and decisions change together. Concrete locking,
 retry, cursor and bootstrap mechanisms are now selected by the later V1 engineering freeze; this does not claim their implementation or runtime verification.
-BK-003 has merged. Once the consolidated documentation baseline merges, each teammate updates their own feature branch from `develop`
+The approved Java and documentation baselines are available on `develop`. Each teammate updates their own feature branch from `develop`
 using the agreed team workflow, adapts their implementation and runs Java 21
 `./mvnw --batch-mode --no-transfer-progress verify` with Docker before review.
 Product/UX/Java/REST and selected designs require no routine reapproval within assigned tasks/phases. Frozen-owner reads, full-scope recovery, atomic audit and commit-confirmed success remain mandatory; static/mocked tests cannot prove these financial guarantees. Retained read-capability gaps, FIX-001 and API-ERR-01 remain scoped integration obligations; no bypass or whole-project review is required.
@@ -353,9 +349,9 @@ Workflow automation is implemented in source; [local verification evidence](docs
 is separate from GitHub execution. Live verification on 2026-10-22 confirmed the
 [merged develop run](https://github.com/nvawntien/finfast/actions/runs/39649338194)
 at `8a04ca0` completed `backend-tests`, `backend-package` and `docs-validation`
-successfully, including the merged BK-003 baseline. This does not verify banking
-providers or this uncommitted documentation freeze. Ruleset enforcement has not
-been verified or changed by this task. Workflow YAML alone does not enable branch protection. No deployment CD or banking-feature acceptance is provided by these foundation checks.
+successfully, including the merged BK-003 baseline. This evidence applies to that
+foundation revision and does not verify banking providers. Ruleset enforcement
+requires separate verification. Workflow YAML alone does not enable branch protection. No deployment CD or banking-feature acceptance is provided by these foundation checks.
 
 ### Frontend readiness
 

@@ -102,7 +102,7 @@ All FR-001 through FR-013, UX-001 through UX-005, and NFR-001 through NFR-006 ar
 |---|---|
 | Asynchronous in-app completed-transfer notifications | Optional; failure cannot affect a committed transfer; no mandatory message broker |
 | Advanced history filtering, basic metrics, improved account search | Add convenience after the required history, inspection, and pagination behavior works |
-| Extended load testing and autoscaling demonstration | Course justification is recorded in the current vision; capture exact rubric, workload, topology, and evidence in EV-001 before scheduling the follow-on milestone |
+| Extended load testing and autoscaling demonstration | External justification remains unverified; capture the exact rubric, workload, topology, and evidence in EV-001 before scheduling the follow-on milestone |
 
 Baseline financial-invariant, concurrency, and section 9 performance checks are P0. The placement of extended scaling work after P0 does not waive any verified course-completion requirement.
 

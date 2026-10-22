@@ -300,7 +300,7 @@ mint/GENESIS APIs exist. Real concurrency/rollback/authorization evidence is def
 | R-06 / TD-016 | Existing nine-module/18-edge graph and enforcement remain approved; providers/runtime integration pending; new capabilities/edges need Tiến's amendment | Tiến + affected owners |
 | R-07 / TD-008 | Existing OpenAPI preserved, stable protocol/final/rejection/non-final distinctions selected; endpoint-specific catalog/response mapping must fit that contract and pass real HTTP tests | Tiến + provider owners + Sĩ |
 
-These choices do not await routine reapproval after the freeze merges. Only a genuine incompatibility, security defect, financial correctness failure or necessary breaking API triggers amendment. Individual owner endorsement is not implied. [Explicit integration exceptions](../6-governance/25-design-decision-register.md#explicit-exceptions-and-implementation-findings) block only the affected projection paths. Unit fakes support independent work while providers are absent; they cannot establish PostgreSQL correctness.
+These choices are the active implementation baseline and do not await routine reapproval. Only a genuine incompatibility, security defect, financial correctness failure or necessary breaking API triggers amendment. Individual owner endorsement is not implied. [Explicit integration exceptions](../6-governance/25-design-decision-register.md#explicit-exceptions-and-implementation-findings) block only the affected projection paths. Unit fakes support independent work while providers are absent; they cannot establish PostgreSQL correctness.
 
 For allocation audit, Administration can resolve the immutable recipient identity via existing `AccountQueries.findCustomerByNumber`; a missing target produces the appropriate rejection, and final eligibility is still revalidated under Accounts locks. Canonical allocation uses the trusted singleton `TREASURY` source marker, not an unavailable Treasury UUID query. Ledger alone controls the actual Treasury movement.
 
@@ -436,7 +436,7 @@ integration tests that inject a capability still require a real implementation o
 a correctly scoped test replacement; never install a no-op production @Service.
 Mocks prove consumer behavior only, not PostgreSQL atomicity or financial ACs.
 
-BK-003 has merged. Once the documentation freeze merges, each owner updates their own feature branch from latest
+The approved Java and documentation baselines are available on `develop`. Each owner updates their own feature branch from latest
 `develop` using the team's agreed merge/rebase workflow, inspects these contracts,
 adapts their implementation and scoped test doubles, runs `verify`/docs checks,
 then requests review. This task does not update anyone's branch. For a contract
