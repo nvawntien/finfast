@@ -136,12 +136,23 @@ class LedgerTransactionTests {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"X", "😀"})
-    void referenceBoundCountsCharactersAndPreservesExactText(String character) {
-        String reference = character.repeat(64);
+    @EnumSource(Type.class)
+    void rejectsNulInReference(Type type) {
+        for (String reference : List.of("\0REF", "RE\0F", "REF\0", "\0")) {
+            assertThatIllegalArgumentException().isThrownBy(() -> withReference(type, reference))
+                    .withMessageContaining("reference");
+        }
+    }
 
-        assertThat(withReference(reference).reference()).isEqualTo(reference);
-        assertThatIllegalArgumentException().isThrownBy(() -> withReference(character.repeat(65)));
+    @ParameterizedTest
+    @EnumSource(Type.class)
+    void referenceBoundCountsCharactersAndPreservesExactText(Type type) {
+        assertThat(withReference(type, REFERENCE).reference()).isEqualTo(REFERENCE);
+        for (String character : List.of("X", "😀")) {
+            String reference = character.repeat(64);
+            assertThat(withReference(type, reference).reference()).isEqualTo(reference);
+            assertThatIllegalArgumentException().isThrownBy(() -> withReference(type, character.repeat(65)));
+        }
     }
 
     @ParameterizedTest
@@ -250,7 +261,18 @@ class LedgerTransactionTests {
     }
 
     private static FinancialTransaction withReference(String reference) {
-        return FinancialTransaction.internalTransfer(TRANSACTION, reference, AMOUNT, POSITION, RECORDED_AT, pair(AMOUNT.value()));
+        return withReference(Type.INTERNAL_TRANSFER, reference);
+    }
+
+    private static FinancialTransaction withReference(Type type, String reference) {
+        return switch (type) {
+            case INTERNAL_TRANSFER -> FinancialTransaction.internalTransfer(
+                    TRANSACTION, reference, AMOUNT, POSITION, RECORDED_AT, pair(AMOUNT.value()));
+            case DEMO_ALLOCATION -> FinancialTransaction.demoAllocation(
+                    TRANSACTION, reference, AMOUNT, POSITION, RECORDED_AT, pair(AMOUNT.value()));
+            case GENESIS -> FinancialTransaction.genesis(TRANSACTION, reference, AMOUNT, POSITION, RECORDED_AT,
+                    SOURCE, List.of(new Entry(CREDIT_ENTRY, SOURCE, AMOUNT.value())));
+        };
     }
 
     private static void assertMetadata(FinancialTransaction transaction, Type type, VndAmount amount, long position) {

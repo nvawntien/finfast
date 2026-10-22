@@ -32,8 +32,9 @@ public final class FinancialTransaction {
         this.amount = Objects.requireNonNull(amount, "amount").requirePositive();
         this.recordedAt = Objects.requireNonNull(recordedAt, "recordedAt");
         this.entries = List.copyOf(Objects.requireNonNull(entries, "entries"));
-        if (reference.isBlank() || reference.codePointCount(0, reference.length()) > 64) {
-            throw new IllegalArgumentException("Transaction reference must be nonblank and fit 64 characters");
+        if (reference.isBlank() || reference.indexOf('\0') >= 0
+                || reference.codePointCount(0, reference.length()) > 64) {
+            throw new IllegalArgumentException("Transaction reference must be nonblank, NUL-free and fit 64 characters");
         }
         if (commitSeq <= 0) {
             throw new IllegalArgumentException("Supplied posting position must be positive");
