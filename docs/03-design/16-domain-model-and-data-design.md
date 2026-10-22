@@ -148,17 +148,17 @@ Note: Mermaid diagrams are conceptual. The checked-in V1/V2 SQL and migration gu
 
 ## 3. Existing schema constraints and application obligations
 
-| Table | Columns / uniqueness (illustrative) | Invariant enforced |
+| Table / concept | Columns / uniqueness (illustrative) | Database guarantees and application obligations |
 |---|---|---|
-| `app_user` | UUID PK; `email_normalized` UNIQUE NOT NULL; `role` CUSTOMER/ADMIN; password hash | No case-insensitive duplicate registration, no self-assigned ADMIN |
-| `customer` | UUID PK; UNIQUE `user_id` FK; display_name | One Customer identity per registered Customer User |
+| `app_user` | UUID PK; `email_normalized` UNIQUE NOT NULL; `role` CUSTOMER/ADMIN; password hash | Stored email uniqueness and allowed role values; application normalizes email and prevents Admin self-registration |
+| `customer` | UUID PK; UNIQUE `user_id` FK; display_name | At most one profile per User; application creates the required Customer profile during registration |
 | `account` | UUID PK; UNIQUE `account_number`; `customer_id` nullable FK with UNIQUE; `account_type`; `status`; `currency='VND'`; `balance_vnd BIGINT CHECK >=0` | CUSTOMER has exactly one owner; TREASURY is system-owned; no negative balance |
 | `dataset_control` | singleton PK (=1); Treasury/GENESIS FKs; immutable initial supply; `last_commit_seq` | One supply and one Treasury linkage; globally serialized posting order (TD-004 design; posting implementation pending) |
 | `financial_transaction` | UUID PK; UNIQUE immutable `reference`; UNIQUE `commit_seq`; type enum; amount BIGINT CHECK >0; `committed_at` | Financial facts only when committed; exact ordinary/GENESIS cardinality checked in posting layer and tests |
-| `ledger_entry` | UUID PK; FK tx/account; `delta_vnd BIGINT CHECK <>0`; UNIQUE `(transaction_id, account_id)` | No duplicate account entries in one ordinary transfer; GENESIS exception has one positive entry |
-| `request_outcome` | UNIQUE (`initiator_user_id`,`operation_type`,`idempotency_key`) with all three NOT NULL; canonicalization version, canonical intent, fingerprint, final kind and response snapshot; nullable tx FK; rejection code | Scope lifetime uniqueness and immutable final result; technical failure never final rejection |
-| `admin_audit_event` | UUID PK; admin FK; action; target; reason; timestamp; outcome; tx FK or state-before/after | Complete success audit atomically persisted with funding/status change |
-| `app_session` | framework-managed session ID, authenticated principal, expiry/revocation | Server-side termination prevents reuse |
+| `ledger_entry` | UUID PK; FK tx/account; `delta_vnd BIGINT CHECK <>0`; UNIQUE `(transaction_id, account_id)` | Unique transaction/Account pair and nonzero delta; application enforces paired entries or the single positive GENESIS entry |
+| `request_outcome` | UNIQUE (`initiator_user_id`,`operation_type`,`idempotency_key`) with all three NOT NULL; canonicalization version, canonical intent, fingerprint, final kind and response snapshot; nullable tx FK; rejection code | Unique full scope and valid final-row shape; application enforces lifetime retention, immutable outcomes and technical/business separation |
+| `admin_audit_event` | UUID PK; admin FK; action; target; reason; timestamp; outcome; tx FK or state-before/after | FKs and required audit-row shapes; application persists the complete audit atomically with funding/status change |
+| Session concept (no `app_session` table in V1/V2) | Framework-managed session ID, authenticated principal, expiry/revocation | Application/framework must enforce server-side termination; not a migration guarantee |
 
 **Enforcement notes:** Existing Flyway V1 constraints and V2
 append-only triggers enforce row-level structural guarantees
