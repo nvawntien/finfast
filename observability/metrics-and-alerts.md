@@ -78,7 +78,7 @@ HTTP histograms have 11 finite boundaries: 5, 10, 25, 50, 100, 250, 500ms and
 interpolated estimates; observations beyond the last finite boundary cannot yield
 precise tail estimates. No client-side quantiles or exemplar integration is added.
 With few requests, p95/p99 can be unstable; dashboard quantiles are not a workload
-benchmark or evidence that the proposed banking performance target has been met.
+benchmark or evidence that the approved banking performance target has been met.
 
 Examples in Grafana Explore, using the Prometheus datasource:
 

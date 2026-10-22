@@ -217,3 +217,31 @@ Once this documentation baseline merges into `develop`, all six members may impl
 Follow approved Java and REST contracts, frozen invariants and normal code review/CI; add meaningful tests and report actual failures. Do not invent a provider/API because another member is unfinished, select conflicting algorithms or bypass missing capabilities. This documentation task implements no banking provider or BK-010 phase.
 
 A scoped amendment is required only for an approved business-rule conflict, financial/security defect, breaking public Java/REST change, new cross-module capability/dependency, necessary incompatible schema change or proven inadequacy in the frozen design. Ordinary implementation defects are fixed/tested within the baseline. Stop only the affected integration while independent work continues. Future business-policy changes require the separate project-owner decision; final release acceptance is not implied.
+
+## Design freeze merge activation — 2026-10-22
+
+[PR #12](https://github.com/nvawntien/finfast/pull/12) merged the engineering and
+Product/UX/REST documentation baselines into `develop` at
+`291fd5ae47250182cf2c291557dd5345f55d6282`. The conditional merge wording in the
+original dated approval records above is historical; the selected implementation
+baseline is active. This records integration status, not a new design approval,
+authorization to start another BK-010 phase, closure of the retained exceptions,
+runtime verification or final release acceptance.
+
+## Documentation audit coverage — 2026-10-22
+
+**Historical engineering-review coverage:** this table records the earlier engineering-only synchronization. Its reference to then-draft product/UX scope is historical; the consolidated approval in this register now freezes those existing artifacts. The subsequent follow-up recorded Product/UX/REST approval; this inventory describes the earlier engineering review only.
+
+The freeze review covered all **29 tracked Markdown files**, the existing OpenAPI, checked-in build/configuration, Java API/capability sources, tests and Flyway V1/V2; source/configuration is implementation evidence, not permission to edit it. There are no checked-in frontend implementation documents/stack to infer. Historical local test records retain their original date/scope.
+
+| Area | Reviewed files | Synchronization outcome |
+|---|---|---|
+| Entry/contributor routing (3) | Root README, AGENTS, docs index | Current BK-003 merge status, scoped freeze, member workflow and evidence boundaries |
+| Approved discovery (8) | 01 vision, 02 glossary, 03 actors, 04 use cases, 05 processes, 06 rules, 07 decisions, 08 handoff | 02–05 unchanged; canonical UC/BR/AC/CONS and historical A/OQ/DEC unchanged. 01 restores the omitted GENESIS term and removes an unsupported parenthetical claim of verified course requirements; 06–08 receive current technical routing only |
+| Requirements/delivery (4) | 09 PRD, 10 backlog, 11 traceability, 12 functional specifications | Scoped benchmark method approval, exact six-person assignment/readiness, BK-010 phases/FIX-001 and design-versus-execution traceability; no workload/threshold or canonical requirement change |
+| Design/contracts (7) | 14 UX, 15 architecture, 16 data, 17 API, module guide, shared-error-money guide, logging guide | Selected mechanisms, unchanged Java/OpenAPI baseline, security/transaction/recovery guidance and explicit missing read-capability integrations; UX/product draft scope retained |
+| Verification/governance (3) | 22 strategy, 23 release checklist, 25 decision register | Dated freeze/provenance, TD scopes/rationale/alternatives/owners/revisit criteria, Fineract evidence and required unexecuted runtime tests; historical BK-003 record retained |
+| Persistence guide (1) | Backend migration README | Existing SQL guarantees versus cross-row/provider obligations, selected counter/advisory protocol and database text representability; migrations unchanged |
+| Observability (3) | README, architecture-review, metrics-and-alerts | Existing local evidence/configuration retained; current pure API source status, topology approval versus deployment/benchmark proof clarified |
+
+This register records the approval authority; the inventory above records historical coverage only. See its [explicit exceptions](#explicit-exceptions-and-implementation-findings) before affected History/Admin integrations. No missing standalone ADR/runbook is claimed to exist, and no acceptance checkbox is completed by this audit.
