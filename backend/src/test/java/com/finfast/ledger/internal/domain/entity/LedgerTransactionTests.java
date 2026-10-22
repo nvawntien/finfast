@@ -1,9 +1,9 @@
-package com.finfast.ledger.internal.domain;
+package com.finfast.ledger.internal.domain.entity;
 
 import com.finfast.common.money.VndAmount;
 import com.finfast.common.money.VndArithmetic;
-import com.finfast.ledger.internal.domain.FinancialTransaction.Entry;
-import com.finfast.ledger.internal.domain.FinancialTransaction.Type;
+import com.finfast.ledger.internal.domain.entity.FinancialTransaction.Entry;
+import com.finfast.ledger.internal.domain.entity.FinancialTransaction.Type;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;

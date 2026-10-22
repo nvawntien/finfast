@@ -1,6 +1,6 @@
 package com.finfast;
 
-import com.finfast.ledger.internal.domain.FinancialTransaction.Type;
+import com.finfast.ledger.internal.domain.entity.FinancialTransaction.Type;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;

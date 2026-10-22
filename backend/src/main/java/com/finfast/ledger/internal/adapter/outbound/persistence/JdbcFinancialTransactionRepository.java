@@ -1,9 +1,10 @@
 package com.finfast.ledger.internal.adapter.outbound.persistence;
 
 import com.finfast.common.money.VndAmount;
-import com.finfast.ledger.internal.domain.FinancialTransaction;
-import com.finfast.ledger.internal.domain.FinancialTransaction.Entry;
-import com.finfast.ledger.internal.domain.FinancialTransaction.Type;
+import com.finfast.ledger.internal.application.port.outbound.FinancialTransactionStore;
+import com.finfast.ledger.internal.domain.entity.FinancialTransaction;
+import com.finfast.ledger.internal.domain.entity.FinancialTransaction.Entry;
+import com.finfast.ledger.internal.domain.entity.FinancialTransaction.Type;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ResultSetExtractor;
@@ -28,7 +29,7 @@ import java.util.UUID;
  * Phase 2 does not install a public provider or an automatic startup writer.
  */
 @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
-public class JdbcFinancialTransactionRepository {
+public class JdbcFinancialTransactionRepository implements FinancialTransactionStore {
 
     private final JdbcTemplate jdbc;
 
@@ -37,6 +38,7 @@ public class JdbcFinancialTransactionRepository {
     }
 
     /** All entries are already validated by the immutable domain constructor; failures abort the caller's transaction. */
+    @Override
     public void insert(FinancialTransaction transaction) {
         Objects.requireNonNull(transaction, "transaction");
         LedgerJdbcTransaction.require(jdbc, true);

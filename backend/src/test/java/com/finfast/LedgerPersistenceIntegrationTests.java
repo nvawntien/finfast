@@ -2,9 +2,9 @@ package com.finfast;
 
 import com.finfast.common.money.VndAmount;
 import com.finfast.ledger.internal.adapter.outbound.persistence.JdbcFinancialTransactionRepository;
-import com.finfast.ledger.internal.domain.FinancialTransaction;
-import com.finfast.ledger.internal.domain.FinancialTransaction.Entry;
-import com.finfast.ledger.internal.domain.FinancialTransaction.Type;
+import com.finfast.ledger.internal.domain.entity.FinancialTransaction;
+import com.finfast.ledger.internal.domain.entity.FinancialTransaction.Entry;
+import com.finfast.ledger.internal.domain.entity.FinancialTransaction.Type;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;

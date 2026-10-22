@@ -1,4 +1,4 @@
-package com.finfast.ledger.internal.domain;
+package com.finfast.ledger.internal.domain.entity;
 
 import com.finfast.common.money.VndAmount;
 import com.finfast.common.money.VndArithmetic;
