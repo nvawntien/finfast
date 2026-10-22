@@ -39,6 +39,8 @@ banking workflows and functional HTTP APIs are not implemented.
 | Observability review and deployment limitations | [Architecture review](../observability/architecture-review.md) |
 | Quality and performance | [PRD §9](02-requirements/09-product-requirements.md), [22 verification](05-verification/22-test-strategy-and-acceptance.md) |
 | Release and decision gates | [23 UAT/release checklist](05-verification/23-uat-and-release-checklist.md), [25 technical decisions](6-governance/25-design-decision-register.md) |
+| BK-002 cloud feasibility preparation | [Requirements, assumptions and evidence checklist](05-verification/bk-002-cloud-feasibility.md) — draft preparation; EV-001/EV-002 pending, no provider selected |
+| BK-002 provider research | [AWS, Google Cloud, Render and Railway comparison](05-verification/bk-002-provider-comparison.md) — provisional costs/shortlist; no cloud deployment or provider approval |
 
 ## Required V1 scope (no silent expansion)
 
