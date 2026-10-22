@@ -126,24 +126,18 @@ abstract class LedgerOrdinaryPostingTestSupport extends LedgerGenesisTestSupport
                 """, String.class);
     }
 
-    /** Test-only consistent snapshot probes; this does not implement Phase 5 production reconciliation. */
+    /** Independent committed snapshot; cross-table access remains strictly test-only. */
+    protected LedgerReconciliationVerifier.Result reconciliation() {
+        try {
+            return new LedgerReconciliationVerifier(database).verify();
+        } catch (SQLException error) {
+            throw new AssertionError("Reconciliation query failed", error);
+        }
+    }
+
     protected void assertFinancialInvariants() {
-        Boolean consistent = ledgerJdbc.queryForObject("""
-                SELECT NOT EXISTS (
-                    SELECT a.id FROM public.account a
-                    LEFT JOIN (SELECT account_id, sum(delta_vnd) AS total FROM public.ledger_entry GROUP BY account_id) e
-                        ON e.account_id = a.id
-                    WHERE a.balance_vnd < 0 OR a.balance_vnd::numeric <> COALESCE(e.total, 0))
-                    AND (SELECT sum(balance_vnd) FROM public.account) = (SELECT initial_supply_vnd FROM public.dataset_control)
-                    AND (SELECT count(*) FROM public.financial_transaction WHERE type = 'GENESIS') = 1
-                    AND NOT EXISTS (
-                        SELECT t.id FROM public.financial_transaction t LEFT JOIN public.ledger_entry e ON e.transaction_id = t.id
-                        GROUP BY t.id, t.type, t.amount_vnd
-                        HAVING (t.type = 'GENESIS' AND (count(e.id) <> 1 OR sum(e.delta_vnd) <> t.amount_vnd))
-                           OR (t.type <> 'GENESIS' AND (count(e.id) <> 2 OR sum(e.delta_vnd) <> 0
-                               OR min(e.delta_vnd) <> -t.amount_vnd OR max(e.delta_vnd) <> t.amount_vnd)))
-                """, Boolean.class);
-        assertThat(consistent).as("committed synthetic fixture balances, cardinality and supply").isTrue();
+        var result = reconciliation();
+        assertThat(result.isConsistent()).as("committed synthetic fixture: %s", result.violations()).isTrue();
     }
 
     protected enum Operation { TRANSFER, ALLOCATION }
