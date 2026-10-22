@@ -82,6 +82,19 @@ The consolidated baseline is available on `develop`; all six members may impleme
 
 The freeze resolves design ambiguity, not unfinished implementation. Phase 3/4 independently implement Ledger contributions; Phase 5 supplies reusable test-only reconciliation, not all of BK-009 or BK-010. Hải's real Accounts/Treasury providers, Trung's protected Bootstrap setup/recovery, Hưng's Admin provisioning, Minh's Transfers/Idempotency and Tiến's separately authorized BK-013 orchestration/audit remain integration obligations. A production all-Accounts/Treasury reader still requires a scoped capability amendment with Hải/Tiến. Phase 6 remains NOT STARTED; do not automatically implement BK-009/011/012/013.
 
+## BK-013 Phase 1 — Administration core and audit domain
+
+**IMPLEMENTED AND VERIFIED — domain and outbound port only, 2026-10-23; owner Tiến.** This separately authorized phase starts from `31d2425131766306ccf6a815ca057349bee77bff`, the merged BK-010 baseline. It does not implement allocation orchestration or mark BK-013 Done.
+
+- [AdminAuditEvent](../../backend/src/main/java/com/finfast/administration/internal/domain/entity/AdminAuditEvent.java) is an immutable, allocation-only record: supplied server-owned audit UUID, trusted Admin UUID, target Account UUID, exact reason, required Financial Transaction UUID and supplied timestamp. Action is fixed to `DEMO_ALLOCATION`, outcome to `SUCCESS`; no before/after status or rejected-allocation variant is represented. Construction validates local facts, not authentication, Account eligibility, transaction existence or commit.
+- Reason validation rejects null/blank, NUL, malformed Unicode and more than 500 Unicode code points before SQL. Valid whitespace, Unicode and timestamps remain exact; no trimming, normalization, truncation, business error catalog or custom exception is added.
+- [AdminAuditStore](../../backend/src/main/java/com/finfast/administration/internal/application/port/outbound/AdminAuditStore.java) exposes only `void insert(AdminAuditEvent event)`. Its future adapter must join the Administration-owned transaction and propagate persistence failures; return does not acknowledge commit. No JDBC adapter, transaction implementation or Spring composition is supplied.
+- [AdminAuditEventTests](../../backend/src/test/java/com/finfast/administration/internal/domain/entity/AdminAuditEventTests.java) provide 38 pure test invocations for complete/invalid construction, exact metadata, fixed action/outcome, reason boundaries/NUL/Unicode and immutable state. Baseline Maven `verify` passed 721 tests; focused domain plus existing architecture/capability/module-value checks passed 111 tests, with zero failures/errors/skips, using Java 21.
+
+Final `./mvnw --batch-mode --no-transfer-progress verify` passed **759 tests across 36 suites**, zero failures/errors/skips, using Temurin Java 21.0.12.1+1 and existing isolated PostgreSQL Testcontainers. Executable-JAR/test-isolation checks and the pinned documentation validator passed; no existing source, test, contract, migration, dependency or architecture rule changed. New audit tests are pure domain evidence, not JDBC audit persistence or complete allocation acceptance.
+
+**Phase 2 NOT STARTED:** JDBC audit mapping, existing V1 FK/unique/row-shape enforcement, timestamp precision and real PostgreSQL/Spring transaction participation/rollback require a later authorized phase. Subsequent use-case integration needs Hưng's trusted Admin identity, Hải's Account queries and real Accounts provider, Minh's scoped Idempotency/outcomes, and Tiến's existing Ledger `AllocationPosting` contribution. Allocation, audit and final outcome must commit in the same outer transaction. Full AC-008/010/013/019/032 acceptance remains pending; Phase 1 pure tests do not establish those workflows.
+
 ## Example issue template
 
 ```markdown
