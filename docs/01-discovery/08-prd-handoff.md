@@ -1,5 +1,7 @@
 # 08 — FinFast V1 Business Discovery: PRD Handoff
 
+> Current routing — 2026-10-22: this approved discovery handoff is historical; PRD 09 and its existing V1 browser elaborations are now approved for implementation by Tiến's later [Product/UX/REST freeze](../6-governance/25-design-decision-register.md#2026-10-22--v1-product-ux-and-rest-contract-freeze). The later [engineering freeze](../6-governance/25-design-decision-register.md#v1-engineering-design-freeze--2026-10-22) selects technical mechanisms and the PRD §9 benchmark method; external/runtime evidence remains pending. The original discovery approval and scope below are unchanged.
+
 > **Product:** FinFast Core Banking Platform\
 > **Release:** FinFast V1 Core Banking Foundation\
 > **Status:** Discovery baseline ready for PRD authoring — not the PRD\

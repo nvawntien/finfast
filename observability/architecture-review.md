@@ -1,5 +1,7 @@
 # Observability architecture review
 
+> Snapshot note — 2026-10-22: historical verification/resource observations below retain their original scope and were not rerun for this documentation task. [TD-012](../docs/6-governance/25-design-decision-register.md#engineering-decisions-and-scoped-statuses) approves reference topology only; provider/resources and actual external deployment remain gated by EV-001/002.
+
 This is a local/demo foundation, not an externally deployable production topology.
 Use [setup and log/trace queries](README.md), [metrics and alerts](metrics-and-alerts.md)
 and the [logging/error/tracing contract](../docs/03-design/logging-and-error-handling.md)
@@ -20,7 +22,7 @@ only aggregate health. Grafana uses loopback **http://localhost:3300**, with con
 `GRAFANA_PORT`; frontend port 3000 is reserved. Other telemetry APIs are not host-published.
 
 Domain/application modules must remain independent of logging/tracing/metrics APIs.
-Present production Java consists of the entry point and common technical infrastructure;
+At audited `develop` `8a04ca0`, production Java also includes BK-003 pure public module contracts in addition to the entry point/common technical infrastructure;
 there are no implemented banking use cases to instrument or claim to have verified.
 Logs, traces, metrics and notifications never substitute for committed ledger/audit facts.
 An HTTP 500/503 does not establish rollback or a durable `REJECTED` outcome.

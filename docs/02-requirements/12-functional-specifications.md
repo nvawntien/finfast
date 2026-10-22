@@ -1,6 +1,6 @@
 # 12 — Functional Specifications (behavioral contracts)
 
-> Status: **DERIVED specification for engineering review**. The source of approved business meaning remains [04 use cases](../01-discovery/04-use-cases.md), [06 rules](../01-discovery/06-business-rules.md), and [09 PRD](09-product-requirements.md). External endpoint/HTTP DTO proposals and unresolved technical mechanisms retain their separate statuses; they are not new banking rules. The current internal Java signatures/DTOs and TD-015/016 ownership/boundaries are explicitly approved by Tiến for BK-003, effective as the shared baseline on merge into `develop` (pending); see the [canonical Java contracts](../03-design/module-contracts-and-boundaries.md). This approval does not implement the behaviors below.
+> Status: **APPROVED — DERIVED V1 IMPLEMENTATION SPECIFICATION (2026-10-22)**, explicitly authorized by Tiến alongside PRD 09, UX 14 and API 17/existing YAML. [Approval record](../6-governance/25-design-decision-register.md#2026-10-22--v1-product-ux-and-rest-contract-freeze). Canonical business meaning remains in [04](../01-discovery/04-use-cases.md), [06](../01-discovery/06-business-rules.md) and approved [09](09-product-requirements.md). BK-003/TD-001..016 and module ownership remain unchanged. Existing behaviors/mappings below are approved for implementation; provider completion, real integration/security tests and final release acceptance are not established.
 
 ## Universal conventions
 
@@ -74,9 +74,9 @@
 - Receipt lookup requires a participating Customer and shows immutable committed facts. Unknown/unauthorized references must not expose other Customers' details. Admin inspects transaction and audit records under its own permissions.
 - Durability through restart and retention through the dataset lifetime are mandatory.
 
-## Functional cross-cutting decisions still to be ratified
+## Selected cross-cutting designs and remaining evidence
 
-- API field schemas/error codes and numeric range: [17 API contracts](../03-design/17-api-contracts.md), [OpenAPI proposal](../03-design/contracts/openapi-v1.yaml).
-- Synchronization/locking/commit sequence: [16 transaction/idempotency design](../03-design/16-domain-model-and-data-design.md#5-transaction-boundaries-and-outcomes-arc-02), [16 history ordering](../03-design/16-domain-model-and-data-design.md#8-history-ordering-and-global-sequence-risk-arc-05).
-- Session TTL, CSRF mechanism, explicit privacy of not-found vs forbidden: [15 architecture](../03-design/15-system-architecture.md), [25 decision register](../6-governance/25-design-decision-register.md).
+- Frozen API schemas/statuses and selected numeric range require implementation/conformance, not routine reapproval; API-ERR-01 records the existing generic 400/500 mapping gap and its narrow amendment path: [17 API contracts](../03-design/17-api-contracts.md), [existing OpenAPI contract](../03-design/contracts/openapi-v1.yaml).
+- TD-002/003/004 synchronization/locking/commit sequence are selected; provider implementation and real PostgreSQL proof remain pending: [16 transaction/idempotency design](../03-design/16-domain-model-and-data-design.md#5-transaction-boundaries-and-outcomes-arc-02), [16 history ordering](../03-design/16-domain-model-and-data-design.md#8-history-ordering-and-global-sequence-risk-arc-05).
+- TD-006 selects framework sessions/CSRF/rotation/logout; implement topology-specific cookie/expiry configuration and preserve existing endpoint disclosure/error semantics, then test: [15 architecture](../03-design/15-system-architecture.md), [25 decision register](../6-governance/25-design-decision-register.md).
 - No feature or service in this document is authorized to extend beyond PRD V1 exclusions.

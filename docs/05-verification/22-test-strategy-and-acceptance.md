@@ -1,6 +1,24 @@
 # 22 — V1 Test Strategy, Canonical Acceptance Execution and Failure Evidence
 
-> **PROPOSED test execution plan** grounded in [04 — 38 canonical AC scenarios](../01-discovery/04-use-cases.md), [06 — 19 CONS risk views](../01-discovery/06-business-rules.md), and [09 PRD §§9–11](../02-requirements/09-product-requirements.md). The canonical Given/When/Then in 04 remains normative. `T-*` is a test execution grouping, not new business acceptance criteria. **No banking acceptance, concurrency or performance tests are asserted passing.** Documentation checks are distinct from these runtime evidence gates.
+> Product/UX/REST approval update — 2026-10-22: [the later freeze](../6-governance/25-design-decision-register.md#2026-10-22--v1-product-ux-and-rest-contract-freeze) approves FR-001..013, UX-001..005, NFR-001..006, S01–S10, WEB-01..08, viewport/zoom/keyboard checks and the existing REST schemas/statuses as implementation/test specifications. No runtime result or checkbox changes. API-ERR-01 requires targeted adapter conformance/amendment work for existing generic 400/500 mappings; it is not a new approved HTTP response.
+
+## Freeze verification obligations — 2026-10-22
+
+The [decision register](../6-governance/25-design-decision-register.md#engineering-decisions-and-scoped-statuses) approves design, not tests. BK-003 is merged; banking providers are absent on audited `develop`. Phase 1 Ledger exists on a separate feature branch with FIX-001 open. No financial/security/cloud/performance acceptance is marked PASS by documentation synchronization.
+
+| Evidence level | Required tests for the selected baseline | Current status / owner |
+|---|---|---|
+| Pure unit | Ledger pair/GENESIS cardinality/sign/magnitude/immutability/MAX_VALUE; FIX-001 `rejectsNulInReference()`; canonical v1 exact text/omitted-empty/raw-invalid/version vectors, scope hashing, UUID unsigned boundary vectors; cursor MAC tampering | Existing shared/BK-003 tests and feature-branch Ledger tests are code evidence only; NUL fix and new vectors pending; Tiến/Minh/Hải |
+| Real PostgreSQL repository | V1/V2 structure/guards (existing suites), exact VARCHAR/text/JSONB bounds incl. NUL/trailing spaces, cross-row persisted facts, dataset sequence rollback/serialization, numeric aggregate safety | Existing schema suites are present; provider financial suites pending, not rerun here; Tiến/Hải/Minh |
+| Spring transaction integration | Actual concrete proxy REQUIRED/MANDATORY, no standalone posting commit, checked technical rollback, failures after each balance/entry/outcome/audit write and at commit, no false Pending success | NOT RUN for absent providers; Tiến/Minh/Hải/Trung |
+| PostgreSQL concurrency/recovery | Scope wait + fresh statement, duplicate/hash-collision/conflicting payload, opposite-direction unsigned UUID lock order, Treasury/freeze races, 3 total attempts with nominal 25/75 ms backoff within 2 s/remaining lock budget, ambiguous commit resolution, counter late-commit ordering | NOT RUN for banking providers; Minh with owners. Require independent connections/barriers and SQLSTATE assertions, not H2/mocks |
+| Read/API/security/browser | High-water/HMAC owner/account/page/version binding, changed cursor rejected, secret continuity across restart; session CSRF/expiry/logout/login rotation, role/ownership and BCrypt cost/72-byte Unicode boundary; existing OpenAPI status/schema assertions | NOT RUN for absent endpoints; Hưng/Hải/Trung/Sĩ; affected metadata/Admin projections await narrow capability amendment |
+| Full financial acceptance | AC-003 ordinary movement, AC-008 allocation, AC-010 full rollback, AC-022 every Account balance, AC-023 supply, AC-031 immutable facts; rest of 38 AC/19 CONS crosswalk below; required audit and restart | NOT RUN for full workflows; Tiến/Minh/Sĩ coordinate owners. Consistent test-scoped SQL probes may verify all Accounts/Treasury; no production boundary bypass |
+| Capacity/deployment | Exact PRD §9 workload and outcome distribution; separate disjoint/hot/duplicate/Treasury diagnostics, scope/Account/counter waits and WAL; private durable DB/TLS/backups/recovery | EV-001/002 pending verification, EV-003 awaiting measurement; Minh/Trung/Sĩ/Hưng |
+
+Use genuine isolated PostgreSQL 16/Testcontainers for locking, visibility, uniqueness, row guards, partial writes, commit/restart and aggregate SQL semantics. Unit fakes prove consumer logic only. Documentation tooling validates references/schema, not transaction behavior. Keep every historical execution record below tied to its original review/revision; do not present it as a new run.
+
+> **Required evidence plan for the selected design; execution pending** grounded in [04 — 38 canonical AC scenarios](../01-discovery/04-use-cases.md), [06 — 19 CONS risk views](../01-discovery/06-business-rules.md), and [09 PRD §§9–11](../02-requirements/09-product-requirements.md). The canonical Given/When/Then in 04 remains normative. `T-*` is a test execution grouping, not new business acceptance criteria. **No banking acceptance, concurrency or performance tests are asserted passing.** Documentation checks are distinct from these runtime evidence gates.
 
 ## Test levels and environments
 
@@ -92,7 +110,7 @@ The list above covers **AC-001 through AC-038 exactly once as primary grouped ow
 
 ## PostgreSQL idempotency proof-of-concept (ARC-04)
 
-**PROPOSED small experiment to implement before the financial engine; NOT RUN.** Run on an isolated real PostgreSQL dataset with the intended major version, READ COMMITTED and multiple independent connections. Use a minimal scope/outcome and paired-balance/posting fixture to exercise [16 §7](../03-design/16-domain-model-and-data-design.md#7-idempotency-and-recovery-arc-04); do not install a production feature or public fault API. Record full-scope uniqueness, canonicalization/hash version, lock/timeouts, durability settings (`fsync`, `full_page_writes`, `synchronous_commit`, persistent storage) and every transaction's begin/lock/commit events. Synchronize schedules with barriers and observed database waits, not sleeps alone.
+**REQUIRED proof of the selected TD-003 design before financial integration acceptance; NOT RUN by this freeze.** Run on an isolated real PostgreSQL dataset with the intended major version, READ COMMITTED and multiple independent connections. Use a minimal scope/outcome and paired-balance/posting fixture to exercise [16 §7](../03-design/16-domain-model-and-data-design.md#7-idempotency-and-recovery-arc-04); do not install a production feature or public fault API. Record full-scope uniqueness, canonicalization/hash version, lock/timeouts, durability settings (`fsync`, `full_page_writes`, `synchronous_commit`, persistent storage) and every transaction's begin/lock/commit events. Synchronize schedules with barriers and observed database waits, not sleeps alone.
 
 | Schedule | Assertions / existing acceptance trace |
 |---|---|
@@ -107,7 +125,7 @@ The list above covers **AC-001 through AC-038 exactly once as primary grouped ow
 | Same text key across different initiators or operation types; unauthorized lookup | Scope isolation and role/ownership enforced; no private result leak (AC-024/034) |
 | Reconnect/restart with prior success and rejection records | No key reuse/expiry or reseeding; both results retain original meaning (AC-021/034) |
 
-Also compare a minimal transactional unique-intent-row variant using exactly the same schedules; show no separately committed unfinished PROCESSING record. Test canonicalization vectors and fingerprint version upgrades without losing historical replay. Capture one final outcome at most, one movement at most, two entries for success, zero for rejection, matching balances, required funding audit and conserved supply after each schedule (AC-013/019/022/023). Approval of TD-003 depends on this evidence, not on the conceptual table alone.
+The transactional unique-intent-row alternative is not selected; it is not a second implementation requirement. Prove no separately committed unfinished PROCESSING record in the selected advisory design. Test canonicalization vectors and fingerprint version upgrades without losing historical replay. Capture one final outcome at most, one movement at most, two entries for success, zero for rejection, matching balances, required funding audit and conserved supply after each schedule (AC-013/019/022/023). TD-003 design is approved; implementation acceptance depends on this executed evidence, not on the conceptual table alone. A failing implementation test normally calls for a code fix; only a genuine design defect warrants amendment.
 
 ## Additional PostgreSQL concurrency schedules (ARC-03)
 
@@ -120,6 +138,13 @@ Force a deadlock in a controlled test variant and a lock-timeout on an intention
 Follow [16 §8](../03-design/16-domain-model-and-data-design.md#8-history-ordering-and-global-sequence-risk-arc-05). Hold an earlier posting before commit, start a second disjoint posting and fetch history. Prove the global counter prevents a later-position commit from overtaking the first, and rollback does not create visible financial facts. Traverse pages during new commits: stable initial bound, no missing/duplicate authorized movements, valid default/max size, immutable references, no rejected requests or other Customer's records (AC-025/024/031).
 
 Run the prescribed benchmark below unchanged before separate diagnostic loads. For disjoint pairs, hot Account, duplicate scope and Treasury fan-in, collect offered/achieved throughput; p50/p95/p99; scope/Account/counter wait and hold time; retries/deadlocks/timeouts; database CPU/I/O/commit latency; and reconciliation. Use the documented 10/25/50/100 requests/s diagnostic sweep only within resource capacity. Record actual PostgreSQL version/settings, resource limits and observation overhead. Distinguish counter contention from Treasury or other account contention. TD-004/014 reconsideration requires measured impact and a replacement passing the same pagination/fault tests; no proven bottleneck or benchmark result is asserted.
+
+## Approved UX/REST verification specifications — execution pending
+
+- Execute WEB-01..08 from UX 14 with their unchanged canonical AC mappings; check S01–S10 states on 360×800, 768×1024 and 1440×900 CSS pixels plus desktop 200% zoom/keyboard. Record browsers and actual results; no certification is implied.
+- Assert operation-specific response/status/security/schema sets against the frozen YAML, including generic versus financial 422, authorized stored rejection under resolve 200 and non-final 202/503. The API 17 inventory is a derived reference, not permission to add statuses.
+- Before affected adapter conformance, resolve API-ERR-01 through its narrow amendment/compatible-mapping path. Test malformed financial JSON/raw-invalid intent, framework 400 and unexpected 500 handling explicitly; never erase the protocol/business/technical distinctions to make a schema check pass.
+- Keep Java signature/ArchUnit checks and real provider/PostgreSQL/security/browser tests separate. Approved UX/API specifications do not mark any AC/CONS, deployment or benchmark PASS.
 
 ## PRD performance test (NFR-004; EV-003)
 
@@ -150,8 +175,8 @@ An AC is not considered passed until execution-specific evidence exists. The 38 
 
 The [canonical inventory and compatibility matrix](../03-design/module-contracts-and-boundaries.md)
 records actual source signatures, Tiến's explicit 2026-10-22 approval of the Java
-baseline/TD-015/TD-016, merge activation and unresolved mechanisms. Shared baseline
-activation on merge into `develop` remains pending. Evidence categories must remain
+baseline/TD-015/TD-016, merge activation and the later selected mechanisms. Shared baseline
+activation occurred with PR #10 merge into `develop` at `8a04ca0`. Evidence categories must remain
 separate; approval does not supply a provider or pass a financial AC:
 
 | Level | BK-003 evidence | What it does not establish |
@@ -162,7 +187,7 @@ separate; approval does not supply a provider or pass a financial AC:
 | PostgreSQL regression | Full Maven `verify` passed with isolated PostgreSQL 16.15/Testcontainers, Flyway V1/V2 and existing schema/rollback/concurrency tests | Unimplemented Ledger/Transfers/Idempotency/GENESIS service behavior |
 | Financial integration | NOT IMPLEMENTED / NOT RUN for the new providers; financial plans above remain required | No AC/CONS/EV-003 gate is closed by contract or structural tests |
 
-Re-executed locally for the final approval review on **2026-10-22**, against the
+**Historical BK-003 evidence, not rerun for this documentation freeze:** re-executed locally for the original final approval review on **2026-10-22**, against the
 BK-003 worktree on base `a4eb9ff`, Temurin
 21.0.12.1+1 and Docker Engine 29.7.2:
 
@@ -185,13 +210,13 @@ Final documentation checks used isolated Python 3.12.12 with the pinned
 requirements: OpenAPI validation and `scripts/check_docs.py` passed (24 Markdown
 files, 251 local links, 88 OpenAPI references; no duplicate YAML keys).
 `docker compose -f compose.docs.yaml config --quiet`, actionlint 1.7.7 and
-`git diff --check` passed. The consistency audit confirmed only TD-015/016 status
+`git diff --check` passed. The historical BK-003 consistency audit confirmed only TD-015/016 status
 cells changed, with TD-001..014 retained; no external API, build, SQL migration,
 CI or runtime configuration was modified.
 The existing CI job names `backend-tests`, `backend-package`, `docs-validation`
-are unchanged; new BK-003 changes have no remote GitHub execution evidence yet.
+were unchanged. At that earlier local-review snapshot no new BK-003 remote evidence was available. Current merged-baseline hosted evidence is recorded in the CI table below.
 
-Before provider integration, review outer REQUIRED/concrete collaborator guards,
+Before provider integration, implement the selected outer REQUIRED/concrete collaborator guards,
 then test actual Spring proxies with full rollback, commit-acknowledgement loss,
 rejection persistence, required audit failure, same-key recovery, concurrent
 initialization and account/status races. Business-invalid values must reject before
@@ -201,7 +226,7 @@ direct unproxied class calls cannot substitute for this evidence.
 ## Documentation tooling checks (DOC-01/03)
 
 The `docs-validation` job in the [CI workflow](../../.github/workflows/ci.yml)
-validates the design OpenAPI file, all local `$ref` pointers, duplicate YAML keys,
+validates the frozen OpenAPI file, all local `$ref` pointers, duplicate YAML keys,
 root README/docs Markdown paths/heading anchors and Compose configuration using
 the existing pinned tools. It runs on every PR into `develop`/`main`, pushes to
 those branches and manual dispatch, including Java-only changes. Use the
@@ -209,6 +234,23 @@ those branches and manual dispatch, including Java-only changes. Use the
 Swagger browser rendering and Mermaid rendering can be checked separately during
 review; these are documentation checks, not financial acceptance tests. No AC/CONS
 is marked PASS by a successful documentation job.
+
+### Documentation freeze synchronization evidence — 2026-10-22
+
+**Historical engineering-only review:** the commands/results below belong to the earlier documentation synchronization. The subsequent Product/UX/REST approval additionally changes OpenAPI approval metadata only; it does not turn earlier structural checks into runtime acceptance.
+
+Local documentation validation ran in isolated `/tmp/finfast-freeze-docs-venv` with Python 3.14.7 and the unchanged `scripts/requirements-docs.txt` pins. The host interpreter initially lacked `markdown_it`; installing those existing pins in the temporary environment resolved that environment limitation. No project dependencies/configuration changed.
+
+```sh
+/tmp/finfast-freeze-docs-venv/bin/python -B scripts/check_docs.py
+/tmp/finfast-freeze-docs-venv/bin/python -m openapi_spec_validator docs/03-design/contracts/openapi-v1.yaml
+docker compose -f compose.docs.yaml config --quiet
+git diff --check
+```
+
+The existing checker passed local Markdown/OpenAPI reference validation, the OpenAPI validator passed, and documentation Compose configuration validation passed. An additional temporary review script reused the existing parser across **all 29 tracked Markdown files** (including AGENTS, migration README and observability), checking local outgoing links/headings and table structure. It also checked unchanged canonical requirement/scenario content, exact PRD workload/thresholds, original BK-003 approval history, dependency graph, release checkboxes and source/configuration preservation. Git checkout line endings were accounted for by comparing non-Markdown bytes to the original checkout snapshot, including the CRLF Maven Windows wrapper. This script is a review artifact in `/tmp`, not new repository tooling or CI enforcement.
+
+Only Markdown is changed by the freeze. No Maven, financial database, banking security/concurrency, browser, performance or Fineract test suite was executed for this documentation task. Existing/hosted test evidence above retains its own revision and scope. Swagger/Mermaid rendering and deployment verification were not executed by the documentation checks.
 
 ## CI foundation implementation and evidence
 
@@ -227,7 +269,7 @@ parallel with backend tests. No required job is filtered by changed files.
 | Automation in source | Implemented as one `CI` workflow with stable job/check names `backend-tests`, `backend-package`, `docs-validation`; read-only token; no deployment |
 | Local backend verification, 2026-10-21 | Temurin 21.0.12.1+1, Docker Engine 29.7.2, Testcontainers 2.0.5 and PostgreSQL 16.15: 466 tests, zero failures/errors/skips (235 PostgreSQL/container tests, 57 ArchUnit tests, 174 other unit/context/HTTP tests); Flyway V1/V2 applied to disposable databases. Subsequent `-DskipTests package` and executable JAR/isolation checks passed. |
 | Local documentation / workflow validation, 2026-10-21 | Pinned dependencies installed in isolated Python 3.12.12; OpenAPI validation and README/docs link/anchor/reference checks passed (24 Markdown files, 223 local links, 88 refs, no duplicate YAML keys). Documentation Compose config, actionlint 1.7.7 and `git diff --check` passed. These are local checks, not a GitHub run. |
-| GitHub baseline run | [develop run 39601859299](https://github.com/nvawntien/finfast/actions/runs/39601859299) at `a4eb9ff`: backend-tests, backend-package and docs-validation all completed successfully. BK-003 changes have NOT RUN remotely. |
+| GitHub baseline run (live verification, 2026-10-22) | [Merged develop run 39649338194](https://github.com/nvawntien/finfast/actions/runs/39649338194) at `8a04ca03505a140930b9bbc976dcdc1148db2693`: `backend-tests`, `backend-package` and `docs-validation` completed successfully. This is hosted BK-003/foundation evidence, not this uncommitted freeze or banking-provider acceptance. Earlier [run 39601859299](https://github.com/nvawntien/finfast/actions/runs/39601859299) at `a4eb9ff` remains historical. |
 | Required-check enforcement | Not verified or changed by this task; configure both branch rulesets only after successful remote checks exist |
 | Banking acceptance / performance / CD | Not established by CI foundation; canonical AC/CONS and EV-003 evidence gates remain unchanged |
 

@@ -1,11 +1,11 @@
 # 10 — FinFast V1 Delivery Backlog
 
-> Status: **PROPOSED engineering decomposition**, not a fully assigned or approved delivery plan. Scoped BK-003 task/module assignments are recorded below. Derived from [PRD 09](09-product-requirements.md), canonical [use cases 04](../01-discovery/04-use-cases.md), and [business rules 06](../01-discovery/06-business-rules.md). All P0 requirements remain mandatory regardless of delivery order. P1 is explicitly excluded from V1 completion.
+> Status: Engineering decomposition with the explicitly authorized **2026-10-22 six-person assignment and scoped design baseline** below; sprint dates and completed delivery are not asserted. The later Product/UX/REST freeze approves existing PRD, derived behavior, screens/E2E and YAML semantics for implementation; runtime evidence remains separate. No story becomes Done through this documentation freeze. Derived from [PRD 09](09-product-requirements.md), canonical [use cases 04](../01-discovery/04-use-cases.md), and [business rules 06](../01-discovery/06-business-rules.md). All P0 requirements remain mandatory regardless of delivery order. P1 is explicitly excluded from V1 completion.
 
 ## Planning conventions
 
 - **Epic** = customer/business outcome; **story** = independently verifiable thin slice; **task** = engineering work (implementation, design, verification). Issue IDs `BK-*` are new *planning IDs*, not substitutes for `FR-*`, `UC-*`, `BR-*`, or `AC-*`.
-- Priority P0 means V1 release-blocking. Suggested size S/M/L describes relative implementation effort, **not hours**. The architecture is sized for a six-person team; sprint dates/velocity and other story assignments are not asserted here. The BK-003 request explicitly assigns BK-003/010/013 to Tiến and module responsibilities in the [canonical module guide](../03-design/module-contracts-and-boundaries.md#ownership-and-approved-dependencies).
+- Priority P0 means V1 release-blocking. Suggested size S/M/L describes relative implementation effort, **not hours**. The architecture is sized for a six-person team; sprint dates/velocity are not asserted here. The final engineering-freeze instruction supplies the six-person task assignment below; module responsibilities remain those in the [canonical module guide](../03-design/module-contracts-and-boundaries.md#ownership-and-approved-dependencies).
 - A story is Done only with code, documentation/contract updates, relevant tests, review, CI success, deployable artifact, and evidence linked to its AC IDs; no financial feature is Done with unit tests alone.
 - Backlog sequencing follows PRD section 11 slices; vertical delivery and technical spikes can run in parallel. A slice is not a requirement to merge unfinished work.
 
@@ -15,7 +15,7 @@
 |---|---|---|---|---|---|
 | BK-001 | E0 — Verify course rubric and deployment requirements (EV-001) | P0 | S | NFR-005, EV-001 | None; gate for topology |
 | BK-002 | E0 — Verify cloud/storage/TLS feasibility and budget (EV-002) | P0 | M | NFR-005, EV-002 | BK-001 |
-| BK-003 | E0 — Review architecture decisions: boundaries, consistency/idempotency, pagination | P0 | M | NFR-001/002/003/006; FR-005/006/007 | Java baseline/TD-015/016 approved; merge pending; BK-001 still gates deployment/topology |
+| BK-003 | E0 — Review architecture decisions: boundaries, consistency/idempotency, pagination | P0 | M | NFR-001/002/003/006; FR-005/006/007 | Java baseline/TD-015/016 merged at 8a04ca0; later TD-001..014 selections recorded; BK-001/002 still gate actual deployment resources |
 | BK-004 | E0 — Repository baseline: CI, Docker, migrations, config, health checks | P0 | M | NFR-005/006 | BK-002 |
 | BK-005 | E1 Identity — Customer registration with unique normalized email and atomic account provisioning | P0 | L | FR-001; UC-AUTH-01; AC-001/027/035/037 | BK-003/004 |
 | BK-006 | E1 Identity — Protected Admin bootstrap (not self-registration) | P0 | M | FR-001/002; AC-024/027/030 | BK-004 |
@@ -46,30 +46,53 @@
 
 ## BK-003 implementation and approval status
 
-On 2026-10-22 Tiến explicitly **APPROVED** the current Java interfaces/DTOs,
-TD-015 ownership/transaction responsibilities and TD-016 nine-module/18-edge
-boundary policy. Contracts and structural checks are IMPLEMENTED in this feature
-branch; the mandatory shared V1 baseline activates when the PR merges into
-`develop` (**pending**). Individual owner endorsements are not inferred.
-Follow the [canonical change-control process](../03-design/module-contracts-and-boundaries.md#compatibility-audit-and-review-matrix)
-for mismatches; additional capabilities/edges or breaking changes need Tiến's
-prior approval. Other technical proposals retain their own review gates.
+Tiến approved the Java contracts and TD-015/016 on 2026-10-22. PR #10 is **MERGED** into `develop` at `8a04ca03505a140930b9bbc976dcdc1148db2693`; the shared Java baseline is active. The later [V1 engineering freeze](../6-governance/25-design-decision-register.md#v1-engineering-design-freeze--2026-10-22) selects TD-001..014 with scoped design/method/topology approval. The subsequent [Product/UX/REST record](../6-governance/25-design-decision-register.md#2026-10-22--v1-product-ux-and-rest-contract-freeze) approves the existing implementation-facing PRD/functional/UX/external API baselines; it changes no task assignment, module ownership or evidence gate. Owner endorsements, provider implementations and financial acceptance do not follow from that approval. Unpushed teammate work remains unknown.
 
-Provider implementations, financial integration/fault/concurrency evidence and
-remote CI for BK-003 remain separate delivery work. **BK-010, BK-011, BK-012 and
-BK-013 are not complete** because interfaces compile or ArchUnit passes.
+Additional public capabilities/edges or breaking changes require Tiến's prior amendment; independent provider code can proceed against approved contracts with test-scoped fakes. BK-010/011/012/013 are not complete because source contracts compile or architecture checks pass.
+
+## Member implementation readiness — 2026-10-22
+
+These task assignments come from the explicit final-freeze instruction. They do not transfer the BK-003 module ownership or grant extra API capabilities. In particular, Hải coordinates BK-017 delivery while Tiến retains Administration orchestration/audit ownership; Trung's BK-016/018 work remains in the relevant approved modules. Sĩ consumes REST only, not Java capabilities.
+
+| Task owner / assigned items | Approved baseline / APIs to consume | Dependencies and safe independent implementation | Integration/test responsibility and outstanding evidence |
+|---|---|---|---|
+| **Tiến — BK-003/010/013/025** | TD-001..005/008..011/014..016; Ledger consumes `PostingAccounts`; Administration uses `AllocationPosting`, `RequestOutcomes`, `CurrentIdentity`, `AccountQueries` and `AccountStatusCommands` | Ledger/Administration remain Tiến-owned. Preserve Phase 1; later authorized persistence/domain work can use test fakes while Hải/Minh providers are absent. Allocation needs real Treasury/GENESIS, Accounts and Idempotency; no Phase 2 is started by this freeze | Ledger cardinality/signed facts/reconciliation, allocation audit rollback, cross-module capability review, final traceability/release evidence; real providers/commit/AC-003/008/010/019/022/023/031 still pending |
+| **Minh — BK-011/012/022/023** | TD-001..005/008/013..016; Transfers consumes `CurrentIdentity`, `AccountQueries`, `FinancialPosting`, `RequestOutcomes` | Canonical v1 vectors and Idempotency PostgreSQL adapter/proof fixture can proceed; transfer orchestration tests use scoped fakes. Real transfer needs Hưng auth, Hải Accounts and Tiến Ledger; capacity run needs deployed resources | Same-key/conflict/raw-invalid replay, fresh transaction retry, ambiguous commit, restart/concurrency/fault harness and exact PRD §9 benchmark; no benchmark result yet |
+| **Hưng — BK-001/004/005/007** | TD-001/006..009/012/015/016; Identity consumes `CustomerProvisioning`; Customer consumes `AccountProvisioning`; provides `CurrentIdentity`/`AdminProvisioning` | Registration/session/BCrypt implementation and pure tests within Identity/Customer; framework/config additions only in separately authorized implementation scope. Onboarding integration needs Hải provisioning; EV-001 needs real rubric | Atomic registration/duplicate email, password UTF-8 72-byte boundary/cost, CSRF/session rotation/logout/role tests and CI/runtime baseline evidence; no security pass implied |
+| **Hải — BK-008/014/015/017** | TD-001/002/004/005/008/011/015/016; Accounts provides approved queries/provisioning/posting/status; History consumes `CurrentIdentity`, `AccountQueries`, `LedgerQueries` | Accounts locking/current-state invariants and History consumer tests can proceed. BK-017 Accounts status provider is Hải-owned; Administration outer transaction/audit stays Tiến-owned. History participant-label provider integration waits for narrow metadata capability amendment | Balance/status/provider races with Tiến/Minh; HMAC snapshot traversal/receipt authorization with Tiến; freeze-first/movement-first/audit failure with Administration. Real PostgreSQL and read-projection gaps remain |
+| **Trung — BK-006/009/016/018/024** | TD-002/008..012/015/016; Bootstrap consumes `AdminProvisioning`, `TreasuryProvisioning`, `GenesisPosting`; approved Administration readers may consume `CurrentIdentity`, `AccountQueries` | Protected operator setup command/orchestration tests can use provider fakes; real initialization needs Hưng/Hải/Tiến. No direct `PostingAccounts`. BK-016/018 production read integration requires reviewed projections; no use of History-only LedgerQueries. Deployment runbook/reference topology can proceed, provider gated | Atomic setup/uniqueness race/restart/no reseed with owners; Admin read authorization; TLS/private persistent DB/secrets/backup/recovery evidence, EV-001/002 before actual deployment |
+| **Sĩ — BK-002/019/020/021** | TD-001/003/004/006/008/012/013; existing OpenAPI REST contract only | Cloud feasibility and browser state/decimal-string/original-key recovery work can proceed with test-scoped HTTP fixtures; verify actual frontend stack before dependencies. End-to-end execution needs implemented/authenticated APIs and selected resources | EV-002 evidence, safe cookie/CSRF browser wiring, Customer/Admin permission/error/uncertainty E2E and canonical AC/CONS evidence coordination; existing flows/viewports are approved test specifications, not passing browser tests; styling remains Sĩ's choice within the baseline |
+
+Once the consolidated baseline merges into `develop`, all six members may implement approved product/UX/Java/REST behavior and selected mechanisms without routine reapproval, within each assigned/authorized task phase. API-ERR-01 affects only adapter/contract conformance for undocumented foundation error statuses; preserve the YAML and obtain a narrow amendment rather than silently adding them. A failing code test normally requires a code fix. Escalate actual incompatible APIs/security/financial correctness defects for a scoped amendment and stop only the affected path; preserve work and never add duplicate contracts or no-op production providers.
+
+## BK-010 continuation — preserve phase boundaries
+
+Phase 1 is visible separately at `44dd3ed34c262c4de23a670af43fa0727054f9a0` (`feat/BK-010-ledger-core`), not in the audited develop baseline. Its immutable pure model does not perform persistence, lock Accounts, allocate a sequence or prove a database commit. Existing phase evidence is not rerun or expanded by this documentation work.
+
+**FIX-001 — Transaction Reference NUL Validation remains open:** `ledger/internal/domain/FinancialTransaction.java` permits U+0000; PostgreSQL text/varchar cannot persist it. A later authorized implementation must reject `\u0000`, add `rejectsNulInReference()` in `ledger/internal/domain/LedgerTransactionTests.java`, and rerun the focused pure and architecture tests. Do not change Java during this freeze.
+
+| Phase | Precise continuation / gate | Verification obligation |
+|---|---|---|
+| 1 — Immutable Ledger Domain Model | Preserve existing implementation; review/fix FIX-001 in its own authorized change | Pure invariants/immutability/MAX_VALUE plus NUL regression and existing architecture checks |
+| 2 — Ledger Persistence and Posting Position | **NOT STARTED**. Requires explicit phase authorization, unchanged V1/V2 mapping, Phase 1 review/FIX-001 closure and TD-002/004 existing-transaction/counter protocol. Keep work in Ledger internals; no Accounts provider substitutes or new migrations | Isolated real PostgreSQL round-trip, bounds/FKs/immutability, counter serialization/rollback and proxy guard tests; test fixtures only, no banking service yet |
+| 3 — GENESIS Contribution | Existing GenesisPosting only; coordinate real Treasury provider and Bootstrap outer setup | One positive Treasury entry and consistent dataset control; full rollback/concurrent setup/restart, no reseed |
+| 4 — Ordinary Posting | Existing FinancialPosting/AllocationPosting only; real Accounts locking/balance invariants plus caller-owned transactions and Idempotency integration | Exactly two opposite entries, no writes on business rejection, partial SQL rollback and bounded same-key retries |
+| 5 — Reconciliation Foundations | Consistent snapshot assertions, GENESIS exactly once, safe aggregation; no reporting/repair expansion | Every Account equals signed sum; full supply preserved; missing/duplicate/inconsistent entry detection after faults/concurrency |
+| 6 — Integration and Acceptance | Real Transfers/Idempotency/Administration/Bootstrap/History providers and reviewed read capabilities | Canonical AC/CONS, audit/commit response loss, restart, security, concurrency and benchmark evidence with owners |
+
+The freeze resolves design ambiguity, not unfinished implementation. Do not skip phases or automatically implement BK-009/011/012/013.
 
 ## Example issue template
 
 ```markdown
 Title: [BK-012] Implement safe internal Customer transfers
-Type: User Story | Priority: P0 | Owner: Unassigned | Status: Ready after design
+Type: User Story | Priority: P0 | Owner: Minh | Status: Ready for authorized implementation scope
 Requirement: FR-004, FR-005, FR-006
 Canonical use case: UC-TRF-01 | Process: BP-02
 Rules: BR-TRF-01..12, BR-LED-04, BR-LED-06
 Acceptance: AC-003/004/005/006/007/010/011/014/016/017/018/033/034/036
 Depends on: BK-008, BK-010, BK-011
-Tasks: finalize API contract; build atomic transfer workflow; implement errors;
+Tasks: preserve approved API contract; build atomic transfer workflow; implement errors;
        add authorization and concurrency tests; E2E Customer transfer demo.
 Definition of Done: PR approved; mandatory tests green; invariant/replay evidence attached;
        docs/contracts updated; cloud-integrated test passes.
@@ -89,17 +112,17 @@ Definition of Done: PR approved; mandatory tests green; invariant/replay evidenc
 - Domain: Account/Transfer/Ledger rules, signed postings, concurrency/fault testing; financial PRs require domain peer review.
 - Identity/admin: session design, authorization, controlled bootstrap, audits, freeze controls.
 - Platform/quality: Docker/CI/cloud, test harness, benchmark, release evidence.
-- Cross-team contracts are reviewed before implementation. Suggested ownership is **not** an assertion of actual team assignments.
+- Cross-team contracts are reviewed before implementation. Use the explicitly supplied assignment above; preserve documented module ownership and capability permissions.
 
 ## Technical review work within existing backlog items
 
-These refinements do not add business capabilities, renumber acceptance criteria or mark implementation stories Done. The detailed design remains subject to [25 decision review](../6-governance/25-design-decision-register.md).
+These refinements do not add business capabilities, renumber acceptance criteria or mark implementation stories Done. The selected design and scoped evidence obligations are in [25 decision register](../6-governance/25-design-decision-register.md).
 
 | Existing items | Required technical work before/alongside implementation | Source |
 |---|---|---|
-| BK-003/004 | Backend build, PostgreSQL/Flyway, Swagger UI/CI, shared contracts and ArchUnit checks exist. BK-003 Java APIs/DTOs, ownership/boundary policy and capability checks are explicitly approved; merge into `develop` pending. Real providers, financial integration and deployment automation remain future work. Contract compilation does not mark implementation stories Done. | [15 §3](../03-design/15-system-architecture.md#3-module-ownership-and-the-controlled-posting-path), [module guide](../03-design/module-contracts-and-boundaries.md), [README workflow](../README.md#browse-the-api-locally-doc-01) |
+| BK-003/004 | Backend build, PostgreSQL/Flyway, Swagger UI/CI, shared contracts and ArchUnit checks exist. BK-003 Java APIs/DTOs, ownership/boundary policy and capability checks are explicitly approved; merged into `develop` at `8a04ca0`. Real providers, financial integration and deployment automation remain future work. Contract compilation does not mark implementation stories Done. | [15 §3](../03-design/15-system-architecture.md#3-module-ownership-and-the-controlled-posting-path), [module guide](../03-design/module-contracts-and-boundaries.md), [README workflow](../README.md#browse-the-api-locally-doc-01) |
 | BK-010/012/013 | Implement one Ledger-owned posting path with Accounts-owned state; outer use-case transaction includes both balances, facts, final outcome and required allocation audit. | [16 §5](../03-design/16-domain-model-and-data-design.md#5-transaction-boundaries-and-outcomes-arc-02), TD-015 |
-| BK-011/022 | Run small real-PostgreSQL idempotency PoC before adopting advisory coordination; test canonicalization, concurrency, missing outcome and crash recovery. | [22 PoC](../05-verification/22-test-strategy-and-acceptance.md#postgresql-idempotency-proof-of-concept-arc-04), TD-003 |
+| BK-011/022 | Run the small real-PostgreSQL proof suite for the selected advisory coordination before financial integration acceptance; test canonicalization, concurrency, missing outcome and crash recovery. | [22 PoC](../05-verification/22-test-strategy-and-acceptance.md#postgresql-idempotency-proof-of-concept-arc-04), TD-003 |
 | BK-012/013/017/022 | Verify shared lock order for transfers, Treasury allocations and freeze; audit failure rollback, opposite-direction transfers and bounded same-key technical retries. | [16 §6](../03-design/16-domain-model-and-data-design.md#6-locking-and-isolation-discipline-arc-03), TD-002 |
 | BK-014/021/023 | Validate late-commit pagination and benchmark the global counter separately from Account/Treasury contention; preserve PRD reference workload. | [16 §8](../03-design/16-domain-model-and-data-design.md#8-history-ordering-and-global-sequence-risk-arc-05), TD-004/014 |
 | BK-021/022 | Maintain approved module-boundary/capability fixture checks; add real business-module integration and proxied transaction/fault tests as modules are implemented. Record canonical AC/CONS runtime evidence separately from structural checks. | [22 strategy](../05-verification/22-test-strategy-and-acceptance.md), TD-016 |
