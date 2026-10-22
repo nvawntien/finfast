@@ -2,6 +2,8 @@
 
 This is the canonical V1 engineering decision register. Approved discovery (A-001..014, closed OQ-001..013, DEC-001..008) and financial policy remain unchanged. **APPROVED describes authority and scope; IMPLEMENTED describes visible code; VERIFIED requires executed evidence.** An approved algorithm is not a passing financial workflow. The later 2026-10-22 Product/UX/REST record below approves the existing PRD/browser/REST implementation baselines; implementation evidence, external gates and final release acceptance remain separate.
 
+The separately authorized [BK-010 implementation evidence](#bk-010-fix-001-and-phase-2-implementation-evidence--2026-10-22) closes FIX-001 and records Phase 2 infrastructure verification. Earlier dated freeze findings below remain historical; they do not override this later scoped status or imply completion of banking workflows.
+
 ## Approved baseline to preserve
 
 - One Customer Account, integral VND, ACTIVE/FROZEN, finite Treasury GENESIS, synchronous atomic movements, controlled Admin actions and committed-only history.
@@ -245,3 +247,13 @@ The freeze review covered all **29 tracked Markdown files**, the existing OpenAP
 | Observability (3) | README, architecture-review, metrics-and-alerts | Existing local evidence/configuration retained; current pure API source status, topology approval versus deployment/benchmark proof clarified |
 
 This register records the approval authority; the inventory above records historical coverage only. See its [explicit exceptions](#explicit-exceptions-and-implementation-findings) before affected History/Admin integrations. No missing standalone ADR/runbook is claimed to exist, and no acceptance checkbox is completed by this audit.
+
+## BK-010 FIX-001 and Phase 2 implementation evidence — 2026-10-22
+
+Tiến separately authorized FIX-001 and Phase 2 implementation after the documentation freeze. This records execution against existing TD-002/004/015/016, not a new design decision or an amendment to any approved Java/REST contract, dependency edge or V1/V2 migration.
+
+**FIX-001 — IMPLEMENTED AND VERIFIED:** the immutable Ledger domain now rejects reference U+0000; all three construction paths have NUL regressions and exact valid/64-code-point boundary coverage. The pre-Phase-2 pure/architecture/contract checkpoint passed 130 tests. The earlier exception rows record the finding at freeze time; FIX-001 is no longer outstanding in this working tree.
+
+**Phase 2 — IMPLEMENTED AND VERIFIED, infrastructure scope only:** Ledger-owned JDBC storage/reconstruction and transactional singleton posting-position allocation join an existing outer transaction. Actual Spring proxies, partial-write rollback, counter bounds, lock waiting, commit serialization and rollback reuse were verified on isolated PostgreSQL 16.15. The completed full Maven `verify` passed 568 tests with zero failures/errors/skips. See [test strategy execution evidence](../05-verification/22-test-strategy-and-acceptance.md#bk-010-fix-001-and-phase-2-execution--2026-10-22) for exact commands, initial failures/fixes and evidence limits, and [data design implementation notes](../03-design/16-domain-model-and-data-design.md#11-phase-2-internal-jdbc-infrastructure) for adapter responsibilities and future Spring wiring.
+
+These primitives are not public posting providers or commit acknowledgements. No Accounts balances, Idempotency outcomes, Admin audit or production GENESIS workflow were implemented. Phase 3–6 remain NOT STARTED. Tiến must coordinate future GenesisPosting wiring with Hải's real Treasury/Accounts capability and Trung's Bootstrap outer setup; Minh's durable outcomes/Transfers and Administration success audit remain later integration obligations. Missing History/Receipt metadata, Admin projections, production reconciliation access, API-ERR-01 and external/security/deployment/performance evidence retain their existing owners and impacts. No full AC/CONS, BK-010 completion or final release acceptance is granted by this implementation record.

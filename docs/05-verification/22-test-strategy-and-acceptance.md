@@ -4,21 +4,140 @@
 
 ## Freeze verification obligations — 2026-10-22
 
-The [decision register](../6-governance/25-design-decision-register.md#engineering-decisions-and-scoped-statuses) approves design, not tests. BK-003 is merged; banking providers are absent on audited `develop`. Phase 1 Ledger exists on a separate feature branch with FIX-001 open. No financial/security/cloud/performance acceptance is marked PASS by documentation synchronization.
+The [decision register](../6-governance/25-design-decision-register.md#engineering-decisions-and-scoped-statuses) approves design, not tests. BK-003 is merged; banking providers were absent on the audited `develop` baseline. The separately authorized BK-010 FIX-001/Phase 2, Phase 3, Phase 4 and Phase 5 executions below verify domain/persistence infrastructure, Ledger GENESIS/ordinary posting contributions and test-only reconciliation on the feature branch, not complete banking workflows. No financial/security/cloud/performance acceptance is marked PASS by documentation synchronization.
 
 | Evidence level | Required tests for the selected baseline | Current status / owner |
 |---|---|---|
-| Pure unit | Ledger pair/GENESIS cardinality/sign/magnitude/immutability/MAX_VALUE; FIX-001 `rejectsNulInReference()`; canonical v1 exact text/omitted-empty/raw-invalid/version vectors, scope hashing, UUID unsigned boundary vectors; cursor MAC tampering | Existing shared/BK-003 tests and feature-branch Ledger tests are code evidence only; NUL fix and new vectors pending; Tiến/Minh/Hải |
-| Real PostgreSQL repository | V1/V2 structure/guards (existing suites), exact VARCHAR/text/JSONB bounds incl. NUL/trailing spaces, cross-row persisted facts, dataset sequence rollback/serialization, numeric aggregate safety | Existing schema suites are present; provider financial suites pending, not rerun here; Tiến/Hải/Minh |
-| Spring transaction integration | Actual concrete proxy REQUIRED/MANDATORY, no standalone posting commit, checked technical rollback, failures after each balance/entry/outcome/audit write and at commit, no false Pending success | NOT RUN for absent providers; Tiến/Minh/Hải/Trung |
-| PostgreSQL concurrency/recovery | Scope wait + fresh statement, duplicate/hash-collision/conflicting payload, opposite-direction unsigned UUID lock order, Treasury/freeze races, 3 total attempts with nominal 25/75 ms backoff within 2 s/remaining lock budget, ambiguous commit resolution, counter late-commit ordering | NOT RUN for banking providers; Minh with owners. Require independent connections/barriers and SQLSTATE assertions, not H2/mocks |
+| Pure unit | Ledger pair/GENESIS cardinality/sign/magnitude/immutability/MAX_VALUE; FIX-001 `rejectsNulInReference()`; canonical v1 exact text/omitted-empty/raw-invalid/version vectors, scope hashing, UUID unsigned boundary vectors; cursor MAC tampering | 57 Ledger domain tests including FIX-001 executed successfully; canonical/scope/UUID/cursor vectors remain pending; Tiến/Minh/Hải |
+| Real PostgreSQL repository | V1/V2 structure/guards (existing suites), exact VARCHAR/text/JSONB bounds incl. NUL/trailing spaces, cross-row persisted facts, dataset sequence rollback/serialization, numeric aggregate safety | Existing schema suites, 26 Phase 2 JDBC, 37 Phase 3 GENESIS and 63 Phase 4 ordinary integration cases executed successfully; Phase 5 adds 38 reconciliation integration invocations with exact numeric aggregates; Phase 3–5 use test-only Accounts, and real provider integration remains pending; Tiến/Hải/Minh |
+| Spring transaction integration | Actual concrete proxy REQUIRED/MANDATORY, no standalone posting commit, checked technical rollback, failures after each balance/entry/outcome/audit write and at commit, no false Pending success | Phase 2 resource/proxy checks and Phase 3/4 MANDATORY/partial-write/outer rollback with test Accounts verified; real Accounts/Bootstrap, durable outcomes/required audits and commit acknowledgement workflows NOT RUN; Tiến/Minh/Hải/Trung |
+| PostgreSQL concurrency/recovery | Scope wait + fresh statement, duplicate/hash-collision/conflicting payload, opposite-direction unsigned UUID lock order, Treasury/freeze races, 3 total attempts with nominal 25/75 ms backoff within 2 s/remaining lock budget, ambiguous commit resolution, counter late-commit ordering | 3 Phase 2 counter, 3 Phase 3 GENESIS and 7 Phase 4 ordinary race/timeout cases plus 5 Phase 5 committed-snapshot/mixed-workload cases executed successfully; real Accounts/Bootstrap and scope/freeze/restart/retry integration NOT RUN; Minh with owners. Require independent connections/barriers and SQLSTATE assertions, not H2/mocks |
 | Read/API/security/browser | High-water/HMAC owner/account/page/version binding, changed cursor rejected, secret continuity across restart; session CSRF/expiry/logout/login rotation, role/ownership and BCrypt cost/72-byte Unicode boundary; existing OpenAPI status/schema assertions | NOT RUN for absent endpoints; Hưng/Hải/Trung/Sĩ; affected metadata/Admin projections await narrow capability amendment |
-| Full financial acceptance | AC-003 ordinary movement, AC-008 allocation, AC-010 full rollback, AC-022 every Account balance, AC-023 supply, AC-031 immutable facts; rest of 38 AC/19 CONS crosswalk below; required audit and restart | NOT RUN for full workflows; Tiến/Minh/Sĩ coordinate owners. Consistent test-scoped SQL probes may verify all Accounts/Treasury; no production boundary bypass |
+| Full financial acceptance | AC-003 ordinary movement, AC-008 allocation, AC-010 full rollback, AC-022 every Account balance, AC-023 supply, AC-031 immutable facts; rest of 38 AC/19 CONS crosswalk below; required audit and restart | NOT RUN for full workflows; Tiến/Minh/Sĩ coordinate owners. Phase 5 verifies synthetic fixtures through reusable consistent cross-table probes; real-provider AC-022/023 acceptance remains pending; no production boundary bypass |
 | Capacity/deployment | Exact PRD §9 workload and outcome distribution; separate disjoint/hot/duplicate/Treasury diagnostics, scope/Account/counter waits and WAL; private durable DB/TLS/backups/recovery | EV-001/002 pending verification, EV-003 awaiting measurement; Minh/Trung/Sĩ/Hưng |
 
 Use genuine isolated PostgreSQL 16/Testcontainers for locking, visibility, uniqueness, row guards, partial writes, commit/restart and aggregate SQL semantics. Unit fakes prove consumer logic only. Documentation tooling validates references/schema, not transaction behavior. Keep every historical execution record below tied to its original review/revision; do not present it as a new run.
 
-> **Required evidence plan for the selected design; execution pending** grounded in [04 — 38 canonical AC scenarios](../01-discovery/04-use-cases.md), [06 — 19 CONS risk views](../01-discovery/06-business-rules.md), and [09 PRD §§9–11](../02-requirements/09-product-requirements.md). The canonical Given/When/Then in 04 remains normative. `T-*` is a test execution grouping, not new business acceptance criteria. **No banking acceptance, concurrency or performance tests are asserted passing.** Documentation checks are distinct from these runtime evidence gates.
+## BK-010 FIX-001 and Phase 2 execution — 2026-10-22
+
+**Executed locally on the authorized feature-branch working tree:** Java 21.0.12.1, Spring Boot 4.1.1 and the existing PostgreSQL 16.15 Testcontainers image `postgres@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea`. Fresh isolated test databases apply unchanged V1/V2; no developer database or persistent volume is used.
+
+From `backend/`, using Java 21 through the invocation environment (no build configuration changes):
+
+```bash
+./mvnw --batch-mode --no-transfer-progress -Dtest=LedgerTransactionTests,ProductionArchitectureTests,RuleVerificationTests,CapabilityVerificationTests,ModuleContractValueTests test
+./mvnw --batch-mode --no-transfer-progress -Dtest=LedgerTransactionTests,LedgerPersistenceIntegrationTests,LedgerPostingPositionConcurrencyTests,FinancialTransactionAndLedgerTests,ProductionArchitectureTests,RuleVerificationTests,CapabilityVerificationTests,ModuleContractValueTests test
+./mvnw --batch-mode --no-transfer-progress verify
+```
+
+| Executed check | Final result | Evidence boundary |
+|---|---|---|
+| FIX-001 checkpoint, before Phase 2 | PASS — 130 tests, zero failures/errors/skips | 57 pure Ledger tests and 73 architecture/contract checks; all three factories reject NUL and preserve valid exact/64-code-point references |
+| Focused domain/JDBC/concurrency/schema/architecture run | PASS — 191 tests, zero failures/errors/skips | Includes 26 new JDBC and 3 new concurrency cases, plus 32 existing financial fact/schema tests |
+| Full Maven `verify`, rerun after resuming an interrupted run | PASS — 568 tests across 29 suites, zero failures/errors/skips; executable JAR packaged | Includes the new tests and unchanged existing suites; local evidence, not hosted CI or banking acceptance |
+| `python3 scripts/check_backend_jar.py` from repository root | PASS | Executable JAR contains no compiled test classes or test-only libraries |
+
+Initial execution found and corrected two implementation/test-fixture defects: the JDBC guard compared a close-suppressing connection proxy instead of its transaction-bound target; a nested generic test configuration leaked into unrelated Spring contexts. The guard now unwraps through `DataSourceUtils.getTargetConnection`, and the fixture uses `@TestConfiguration`. The initial focused run failed (14 failures/9 errors); a JDBC rerun passed 28 cases before adding the nonfinite-timestamp regression, and the final focused run passed 191. The initial full run failed (4 failures/20 errors); a subsequent run was interrupted before completion and is not counted as PASS. The completed full rerun above includes both fixes. Existing tests were not weakened or excluded.
+
+The new tests prove all three fact types round-trip, exact IDs/reference/currency/maximum amount, explicit microsecond timestamps, deterministic complete reconstruction, and safe rejection of incomplete/corrupt facts. Actual Spring proxies reject missing transactions; resource/isolation/read-only guards reject incompatible writes. SQLSTATE-checked duplicate/FK/second-entry failures and outer rollback remove headers, entries and counter increments, including when a caller catches an inner persistence failure. Missing/exhausted counters fail without setup or wraparound. Two independent PostgreSQL transactions expose their backend PIDs; `pg_blocking_pids` proves the second waits on the first. Commit releases the next position; rollback permits reuse; a bounded lock timeout remains a technical failure. Timestamps deliberately run opposite to position order.
+
+This is partial infrastructure evidence toward AC-003/008/010/031 and CONS-02/11/17, not completion of their full scenarios. No Accounts balance mutation, real Treasury eligibility, idempotency outcome, required Admin audit, authorized history/receipt, restart or response-loss workflow is exercised by Phase 2. AC-022/023 reconciliation and supply acceptance remain pending. Concrete adapters are registered as real Spring beans in test contexts; future Ledger use-case wiring must register them behind transaction proxies in production. At that Phase 2 checkpoint, Phase 3–6 had not started. The later Phase 3 execution below does not mark BK-010 Done.
+
+## BK-010 Phase 3 GENESIS contribution execution — 2026-10-22
+
+**IMPLEMENTED AND VERIFIED — Ledger contribution with a test-only Accounts collaborator.** The existing Java 21.0.12.1 / Spring Boot 4.1.1 / PostgreSQL 16.15 Testcontainers baseline above was reused. Each test uses a fresh isolated database with unchanged V1/V2. Actual `GenesisPostingService`, fact repository and dataset repository execute through Spring transaction proxies on the same DataSource; only the missing Accounts provider is replaced with a test-scoped, row-locking zero-Treasury initializer. No production Accounts/Bootstrap implementation or configuration is added.
+
+Commands executed from `backend/`, with Java 21 selected through `JAVA_HOME`/`PATH`:
+
+```bash
+./mvnw --batch-mode --no-transfer-progress -Dtest=GenesisPostingIntegrationTests test
+./mvnw --batch-mode --no-transfer-progress -Dtest=GenesisPostingIntegrationTests,GenesisPostingConcurrencyTests,LedgerTransactionTests,LedgerPersistenceIntegrationTests,LedgerPostingPositionConcurrencyTests,FinancialTransactionAndLedgerTests,DatasetControlConstraintTests,SchemaIdentityAndCounterTests,ProductionArchitectureTests,RuleVerificationTests,CapabilityVerificationTests,ModuleContractValueTests test
+./mvnw --batch-mode --no-transfer-progress verify
+```
+
+| Executed check | Observed result | Scope |
+|---|---|---|
+| New GENESIS integration suite | PASS — 37 tests, zero failures/errors/skips | Correct supply including BIGINT maximum, exact single-entry/linkage/position/reference/time, invalid input/eligibility, rollback, repeated setup and actual proxy checks |
+| GENESIS + prior Ledger/schema/architecture suite | Initial FAIL — 264 tests, one architecture failure; corrected rerun PASS — 264, zero failures/errors/skips | Initial service dependency on concrete JDBC adapters violated application isolation. Two Ledger-internal outbound ports corrected the dependency; SQL and architecture rules were unchanged |
+| Full Maven `verify` | PASS — 608 tests across 31 suites, zero failures/errors/skips | Includes 37 new GENESIS integration and 3 new concurrency cases, all prior tests, and executable JAR packaging |
+| `python3 scripts/check_backend_jar.py` from repository root | PASS | No compiled test classes or test-only libraries in the executable JAR |
+
+Rollback is injected after Treasury initialization, transaction insertion, entry insertion, dataset insertion and Pending return. Each point is tested with both a preexisting zero Treasury and Treasury provisioned inside the failed outer transaction. Post-transaction snapshots prove no additional balance, transaction, entry or singleton survives; a caught inner SQL failure still prevents outer commit. Collision tests exercise PostgreSQL reference uniqueness and orphan-GENESIS uniqueness failures without repairing/replacing preexisting data. Existing domain tests reject malformed GENESIS entries; dataset type/position/linkage checks run at their owning layer.
+
+The three concurrency invocations use independent backend PIDs and observe actual `pg_blocking_pids` relationships with bounded waits. Two Ledger calls both observe an absent dataset, then serialize on the scoped Accounts Treasury lock: a committed winner prevents a second Pending/funding, while a rolled-back tentative winner permits the remaining transaction to initialize once. A separate test-only outer provisioning race loses on `uq_account_single_treasury` (SQLSTATE 23505) before reaching Ledger. Losing-transaction marker rows also roll back. No Java monitor substitutes for PostgreSQL locking, and no internal Ledger retry is added.
+
+Repeated calls with the same/different amount or another Account are rejected before Accounts mutation. Recreating the Spring context against the same database still rejects reseeding; **this is not a process/deployment restart test**. Pending is observed before outer completion while independent reads still see the prior committed state. No standalone commit or automatic setup is performed.
+
+This contributes partial evidence to AC-010/020/022/023/031 and CONS-02/14/15/16; no canonical scenario is marked complete. Real Accounts/Treasury providers, protected operator authorization, configured Admin provisioning, Bootstrap outer setup/race recovery, production composition and restart/no-reseed integration remain pending with Hải/Trung/Hưng and Tiến. At that Phase 3 checkpoint, Phase 4–6 remained NOT STARTED; the separately authorized Phase 4 execution follows below. BK-009/BK-010 remain incomplete.
+
+## BK-010 Phase 4 ordinary posting execution — 2026-10-22
+
+**IMPLEMENTED AND VERIFIED — Ledger contribution with test-only Accounts.** Java 21.0.12.1, Spring Boot 4.1.1, PostgreSQL 16.15 and the existing pinned Testcontainers image above are unchanged. The starting checkout was clean; a pre-change full `verify` re-established the 608-test baseline. All tests use disposable isolated databases and the actual Spring-managed Ledger services/adapters. Production Accounts composition, Transfers/Idempotency and Administration workflows remain absent from this evidence.
+
+From `backend/`, with Java 21 selected through `JAVA_HOME`/`PATH`, executed commands were:
+
+```bash
+./mvnw --batch-mode --no-transfer-progress verify
+./mvnw --batch-mode --no-transfer-progress -Dtest=OrdinaryPostingIntegrationTests test
+./mvnw --batch-mode --no-transfer-progress -Dtest=OrdinaryPostingIntegrationTests,OrdinaryPostingConcurrencyTests test
+./mvnw --batch-mode --no-transfer-progress '-Dtest=OrdinaryPostingIntegrationTests#incompleteGenesisCannotPost' test
+./mvnw --batch-mode --no-transfer-progress -Dtest=OrdinaryPostingIntegrationTests,OrdinaryPostingConcurrencyTests,LedgerTransactionTests,LedgerPersistenceIntegrationTests,LedgerPostingPositionConcurrencyTests,GenesisPostingIntegrationTests,GenesisPostingConcurrencyTests,FinancialTransactionAndLedgerTests,DatasetControlConstraintTests,SchemaIdentityAndCounterTests,ProductionArchitectureTests,RuleVerificationTests,CapabilityVerificationTests,ModuleContractValueTests test
+./mvnw --batch-mode --no-transfer-progress verify
+```
+
+| Executed check | Actual result | Evidence boundary |
+|---|---|---|
+| Full baseline verification before Phase 4 | PASS — 608 tests, zero failures/errors/skips | Re-executed locally; historical test counts were not assumed |
+| First ordinary integration run | PASS — 56 tests | Success/rejection, partial-write/outer rollback and transaction guards |
+| First ordinary integration + concurrency run | PASS — 63 tests | Added 7 independent-transaction race/timeout cases |
+| Incomplete-GENESIS precondition regression before correction | FAIL — 5 tests, 5 failures, zero errors/skips | Exposed that the previous counter primitive could reserve against incomplete GENESIS facts |
+| Combined final Ledger/domain/JDBC/GENESIS/ordinary/schema/architecture run | PASS — 334 tests, zero failures/errors/skips | Includes all 70 Phase 4 cases after readiness enforcement and null-intent regressions |
+| Final full Maven `verify` | PASS — 678 tests across 33 suites, zero failures/errors/skips | 63 new ordinary integration + 7 new concurrency cases, original suites and executable JAR packaging |
+| `python3 scripts/check_backend_jar.py` from repository root | PASS | Executable JAR contains no compiled test classes or test-only libraries |
+
+The missing precondition was corrected with a read-only, Ledger-table GENESIS completeness check before the unchanged counter UPDATE. Five negative fixtures now reject missing, wrong-Account, wrong-delta, wrong-supply and extra GENESIS entries/linkage without repairing existing data or committing pending balances. Missing/exhausted singleton tests retain technical rollback behavior. This adds no schema constraint or production reconciliation capability.
+
+Successful transfers/allocations verify one ordinary transaction, two distinct opposite entries, exact UUIDs/amounts, unique references, increasing positions, reconstruction and microsecond Pending metadata. Amounts 1, 75 and BIGINT maximum execute with valid resulting balances. Notes preserve absent/empty/exact text; allocation reasons remain exact. No required Admin audit or durable outcome is fabricated. The Tech Lead explicitly approved the two Ledger eligibility codes/messages documented in [data design §13](../03-design/16-domain-model-and-data-design.md#13-phase-4-ordinary-posting-contribution); Accounts fixture reason identifiers are test-only, not Hải's production error catalog.
+
+Rejected funds/frozen/type/recipient/self-transfer/ownership/amount/reason cases leave complete state snapshots and the counter unchanged. Expected Accounts reasons pass through by identity. A resulting-credit overflow fixture deliberately starts with inconsistent balances: in a valid conserved dataset bounded by BIGINT supply, that overflow is unreachable. It verifies pre-write numeric rejection only and makes no valid-supply claim for corrupt input.
+
+Actual PostgreSQL failures after each balance write, counter write, header insert and first/second entry insert roll back both balances, position and all new facts. Outer failure after Pending does the same; catching an inner SQL failure still produces outer rollback. Real proxies enforce MANDATORY; actual JDBC guards reject incompatible isolation and PostgreSQL rejects read-only locking/writes. Independent reads see only prior committed state until the outer transaction completes.
+
+The test-only Accounts provider uses individual sequential row locks in unsigned UUID order, revalidates the locked participant set and computes both checked resulting balances before writes. Boundary vectors compare its ordering with PostgreSQL UUID ordering. Seven concurrency invocations cover competing spends, opposite transfers, Treasury allocations, disjoint pairs waiting for the global counter, reservation reuse after rollback, and Account/counter lock timeouts. Distinct backend PIDs and `pg_blocking_pids` prove actual database blocking; disjoint waiters have already applied both pending balances before waiting on the counter. Later transactions observe committed balances, and equal recorded timestamps do not establish position order. Bounded waits and SQLSTATE 55P03 checks replace sleep-based assumptions; no Ledger retry is introduced.
+
+This is partial evidence toward AC-003/004/007/008/010/016/017/022/023/031/032/036 and CONS-01/02/11/12/15/16, not completion of canonical scenarios. Consistent test-only probes validate the synthetic fixtures. At that Phase 4 checkpoint Phase 5 had not started; its separately authorized test-only execution follows below. No production reconciliation reader is implemented. Real Accounts providers, caller authorization, scoped idempotency/final outcomes, same-key recovery, required BK-013 audit, HTTP, freeze integration, restart and benchmark acceptance remain pending. Phase 6 is NOT STARTED; BK-010 is not Done.
+
+## BK-010 Phase 5 reconciliation foundations execution — 2026-10-23
+
+**IMPLEMENTED AND VERIFIED — test-scoped foundation:** starting branch `feat/BK-010-ledger-core`, HEAD `306ea3cd3a20faafcebf87647153484aa71671d1`, clean working tree. Phase 5 was explicitly authorized; no staging, commit, push, migration, public API or production code change is included. [Data design §14](../03-design/16-domain-model-and-data-design.md#14-phase-5-test-scoped-reconciliation-foundation) describes the helper and snapshot contract.
+
+Executed from `backend/` using Temurin Java 21.0.12.1+1, the existing pinned PostgreSQL 16.15 Testcontainer and V1/V2 in disposable isolated databases:
+
+```sh
+env JAVA_HOME=/tmp/finfast-bk010-java21/opt/java/openjdk PATH=/tmp/finfast-bk010-java21/opt/java/openjdk/bin:$PATH ./mvnw --batch-mode --no-transfer-progress -Dtest=LedgerReconciliationIntegrationTests,LedgerReconciliationConcurrencyTests test
+
+env JAVA_HOME=/tmp/finfast-bk010-java21/opt/java/openjdk PATH=/tmp/finfast-bk010-java21/opt/java/openjdk/bin:$PATH ./mvnw --batch-mode --no-transfer-progress -Dtest=LedgerTransactionTests,LedgerPersistenceIntegrationTests,LedgerPostingPositionConcurrencyTests,GenesisPostingIntegrationTests,GenesisPostingConcurrencyTests,OrdinaryPostingIntegrationTests,OrdinaryPostingConcurrencyTests,LedgerReconciliationIntegrationTests,LedgerReconciliationConcurrencyTests,FinancialTransactionAndLedgerTests,DatasetControlConstraintTests,SchemaIdentityAndCounterTests,ProductionArchitectureTests,RuleVerificationTests,CapabilityVerificationTests,ModuleContractValueTests test
+
+env JAVA_HOME=/tmp/finfast-bk010-java21/opt/java/openjdk PATH=/tmp/finfast-bk010-java21/opt/java/openjdk/bin:$PATH ./mvnw --batch-mode --no-transfer-progress verify
+```
+
+- Initial focused run: **40 PASS**, zero failures/errors/skips. Additional offsetting-drift, mixed transfer/allocation commit/rollback and actual read-only enforcement assertions were then added during review; the final focused run passed **43** (38 integration, 5 concurrency), zero failures/errors/skips. No failing or interrupted run is hidden.
+- Combined Ledger domain, Phases 2–5, schema, architecture/capability and module-value suite: **377 PASS**, zero failures/errors/skips. The existing Phase 4 race/rollback tests now reuse the stronger verifier rather than maintaining a duplicate boolean SQL check.
+- Full Maven `verify`: **721 PASS** across 35 suites, zero failures/errors/skips; the prior 678 tests and 43 new Phase 5 tests all executed. No test exclusion or dependency change was required.
+
+Repository-root checks also passed: `python3 scripts/check_backend_jar.py` (executable JAR, no compiled test classes/test-only libraries), `/tmp/finfast-freeze-docs-venv/bin/python -B scripts/check_docs.py` (24 Markdown files, 315 local links, 88 OpenAPI references), and `git diff --check`. All 20 documentation dependency pins match that existing environment. New untracked Java files were separately checked for trailing whitespace/tabs/final newlines; no Git staging was used to inspect them.
+
+The immutable findings distinguish Account balance mismatches, supply, GENESIS/linkage, ordinary entry cardinality/sign/magnitude/net, transaction metadata and posting positions/counter. Empty Customer Accounts are included and GENESIS is counted once from zero. NUMERIC-to-BigInteger conversion preserves corrupt total balances of `27670116110564327421` and signed sums of `18446744073709551614` / `-18446744073709551616`; valid one-VND and BIGINT-maximum postings also reconcile. Offsetting Account drift is detected even when total supply still matches.
+
+Controlled sequential and concurrent workloads execute actual Ledger GENESIS, transfer and allocation use cases with the existing test-only Accounts provider. Expected transaction UUID sets, entry counts, positions and complete state snapshots detect missing/extra effects after business rejection and SQL/outer rollback. Existing Phase 4 concurrency tests cover competing debits, opposite/disjoint pairs, Treasury contention, counter serialization/reuse and bounded lock timeouts. New mixed transfer/allocation races verify both commit and allocation rollback.
+
+Snapshot tests use distinct backend PIDs and bounded latches. While a writer is held after the first balance write or after complete Pending facts, independent reconciliation reads only the prior committed state. A held read-only REPEATABLE READ transaction retains that state across writer commit; a fresh verifier sees the new complete state. A deliberately naive two-statement READ COMMITTED probe observes old balance 60 and new signed sum 50, demonstrating why it is unsuitable. A verifier called inside the writer's transaction still uses a separate connection and excludes its tentative writes. PostgreSQL reports read-only/repeatable-read settings and rejects attempted writes with SQLSTATE 25006.
+
+Committed incomplete ordinary/GENESIS rows allowed by V1/V2 produce deterministic diagnostics, without repair. Impossible negative balances, nonpositive amounts, invalid currency, duplicate positions/GENESIS/participants and invalid dataset links are rejected by the original constraints/triggers (23505/23514), without disabling guards. A denied SELECT propagates SQLSTATE 42501 rather than returning healthy/empty data.
+
+This is partial evidence for BR-LED-02..06, BR-ADM-02, AC-003/008/010/022/023/031 and CONS-15/16; no canonical scenario is marked fully complete. Cross-table SQL remains strictly test-scoped under the existing production-read exception. Real Accounts/Treasury, protected Bootstrap/restart, durable Idempotency outcomes/replay, required Administration audit, authorized reads, HTTP/security and performance acceptance remain pending with their owners. A production-wide reader still needs a scoped capability amendment with Hải/Tiến. **Phase 6 is NOT STARTED; BK-010 is not Done.**
+
+> **Remaining financial workflow execution plan** grounded in [04 — 38 canonical AC scenarios](../01-discovery/04-use-cases.md), [06 — 19 CONS risk views](../01-discovery/06-business-rules.md), and [09 PRD §§9–11](../02-requirements/09-product-requirements.md). The canonical Given/When/Then in 04 remains normative. `T-*` is a test execution grouping, not new business acceptance criteria. **No complete banking acceptance or performance result is asserted by the scoped checks above.** Documentation checks are distinct from these runtime evidence gates.
 
 ## Test levels and environments
 
