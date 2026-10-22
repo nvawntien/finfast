@@ -1,70 +1,134 @@
 # 25 — Engineering Decisions and Verification Dependencies
 
-> This register separates **approved product/discovery facts**, **approved BK-003 architecture/Java contracts**, **unapproved technical mechanisms** and **external measurements**. Do not reopen A-001..014 or OQ-001..013 by treating them as new questions. The project owner has decision authority for policy changes; Tiến (Tech Lead) has final authority over cross-module architectural contracts.
+This is the canonical V1 engineering decision register. Approved discovery (A-001..014, closed OQ-001..013, DEC-001..008) and financial policy remain unchanged. **APPROVED describes authority and scope; IMPLEMENTED describes visible code; VERIFIED requires executed evidence.** An approved algorithm is not a passing financial workflow. The later 2026-10-22 Product/UX/REST record below approves the existing PRD/browser/REST implementation baselines; implementation evidence, external gates and final release acceptance remain separate.
 
 ## Approved baseline to preserve
 
-| IDs | Approved meaning / architectural constraint |
-|---|---|
-| A-001..A-012, A-014 | One Customer Account; VND integers; ACTIVE/FROZEN; finite Treasury GENESIS; safe synchronous transactions; controlled Admin operations; committed-only history |
-| A-013 / DEC-006 | Java/Spring Boot + PostgreSQL + channel-independent Core + modular monolith initial direction; server-managed protected cookie sessions |
-| DEC-001..DEC-005 | Business vision, ownership, signed ledger/GENESIS, retry/final outcomes, atomic Admin audit |
-| DEC-007 | Zero financial-invariant violations; provisional benchmark target awaiting measurement |
-| DEC-008 | External course/cloud/performance evidence gates remain separate from product approval |
+- One Customer Account, integral VND, ACTIVE/FROZEN, finite Treasury GENESIS, synchronous atomic movements, controlled Admin actions and committed-only history.
+- Java 21 / Spring Boot 4.1.1 / Maven Wrapper / PostgreSQL 16 / Flyway; one deployable modular monolith, pragmatic Hexagonal Architecture, constructor injection and one logical database per environment.
+- Existing BK-003 public source signatures, provider ownership, nine-module/18-edge graph and capability checks. No foreign `internal` access, new API, dependency or schema is authorized by this documentation change.
 
 ## Confirmed architecture direction — Tech Lead agreement
 
-The earlier refinement request records the Tech Lead's agreement on Java/Spring Boot, PostgreSQL, **one deployable Modular Monolith**, DDD-inspired domain modules, pragmatic Hexagonal Architecture, constructor-based Spring DI, REST/OpenAPI/Swagger UI, protected server-managed sessions, PostgreSQL ACID transactions, and in-process Java calls. These decisions are **AGREED**, not reopened by the table below. Future extraction is optional when justified; separate internal databases/network APIs, mandatory microservices/Kafka/Kubernetes/Redis, distributed transactions and event sourcing are not introduced.
-
-That earlier agreement alone did not ratify particular Java signatures or mechanisms. The explicit 2026-10-22 BK-003 decision below now approves the current Java contracts, TD-015 and TD-016 only. It does not ratify lock algorithms, retry limits or performance claims. No additional individual owner endorsements are inferred. Source architecture: [15](../03-design/15-system-architecture.md).
+The initial Java/Spring Boot/PostgreSQL modular monolith, in-process APIs, server-managed protected sessions and PostgreSQL ACID direction remains agreed. Historical BK-003 approval selected Java contracts and TD-015/016 only. The later freeze below explicitly selects the other mechanisms; it does not retrospectively enlarge the earlier approval.
 
 ## Engineering decisions and scoped statuses
 
-| Tech decision | Choice / approval scope | Alternatives / remaining review | Implementation or evidence dependency | Status |
-|---|---|---|---|---|
-| TD-001 Numeric representation | Checked Java `long` / PostgreSQL `BIGINT`, JSON decimal **strings** | BigInteger/Numeric(precision), JSON number safe subset | Final API, migrations, AC-016 | PROPOSED |
-| TD-002 Concurrency | READ COMMITTED with full-scope coordination → ascending stable Account-ID locks → global counter; recheck locked status/funds/bounds; fresh-transaction bounded retry | Optimistic version+retry | Transfers/funding/freeze implementation | PROPOSED |
-| TD-003 Idempotency identity | NOT NULL/UNIQUE full `(initiator_user_id, operation_type, idempotency_key)` + transaction-scoped advisory coordination; versioned canonical bytes/fingerprint and durable final response | Transactional unique-intent-row coordination; no separately committed PROCESSING lifecycle | API/UX-004, AC-005/006/015/034 | PROPOSED |
-| TD-004 History ordering | Ledger-owned transactional global `last_commit_seq` + committed high-water/keyset cursor; nextval alone is not commit order | Per-Account positions with separate Admin design; materialized snapshot; commit-ordered projection | History API, AC-025, EV-003 | PROPOSED |
-| TD-005 Materialized Account balance | Store checked balance with posted entries in same ACID transaction | Compute solely from entries | Data schema, reconciliation, benchmark | PROPOSED |
-| TD-006 Browser session | Spring Security server sessions + protected HttpOnly/Secure/SameSite cookies + CSRF | Other server-side session configurations | FR-002/API security | PROPOSED within approved direction |
-| TD-007 Password hash | Argon2id or configured BCrypt with benchmarked work factor | Other adaptive hash | Registration/login | PROPOSED |
-| TD-008 Transaction/error contracts | `/api/v1`, decimal-string VND, `Idempotency-Key`, explicit FINAL vs UNKNOWN statuses | Alternate route/status contracts | Parallel frontend/backend | PROPOSED |
-| TD-009 GENESIS/bootstrap implementation | Restricted migration/setup command with singleton uniqueness + atomic POSTGRES transaction | Dedicated one-shot deployment Job | Initial deployment/AC-020 | PROPOSED |
-| TD-010 Append-only enforcement | No mutation APIs, restricted DB privileges, optional DB guard triggers | Application-only immutability | Migrations/AC-031 | PROPOSED |
-| TD-011 Audit storage | Admin success events in same database tx; security failure evidence separate | Dedicated operational store | Admin implementation/AC-019 | PROPOSED |
-| TD-012 Cloud topology | One Core container + frontend + private persistent PostgreSQL | Other cloud runtimes | EV-001, EV-002 | NOT_SELECTED |
-| TD-013 Exact benchmark client/environment | Execute PRD §9 plan on verified demo resources | Adjust with owner-approved documented deviation only | EV-003 | AWAITING MEASUREMENT |
-| TD-014 Lock/cursor throughput risk | Measure potential counter contention separately from Account/Treasury waits; revisit TD-004 only with correctness-preserving alternative | See 16 §8 and 22: baseline then disjoint/hot-account/Treasury diagnostics, lock waits/holds and p95/throughput | EV-003 | PROPOSED |
-| TD-015 Financial posting ownership | Transfers owns transfer outer transaction; Administration owns allocation outer transaction/required audit; Ledger owns controlled paired posting, immutable facts/reconciliation through Accounts `PostingAccounts`; Accounts owns balance/status invariants; Idempotency owns scoped intent/final outcomes. Separate restricted GENESIS/Treasury capabilities; all required effects commit atomically, success only after durable commit | Concrete annotation placement/guards, SQL locking/isolation/retry and bootstrap mechanisms remain separate review items; no bypass or isolated debit/credit commit | BK-010/011/012/013; ARC-01/02; real transaction/fault tests still required | APPROVED |
-| TD-016 Module enforcement | Current nine-module/18-edge graph, provider `api` only/private `internal`, no cycles/common-to-business dependency, pure APIs and current ArchUnit structural/capability enforcement | Additional public capabilities/directions or rule amendments need Tech Lead approval; no weaker enforcement, speculative modules or Spring Modulith dependency | Approved baseline applies on BK-003 merge into `develop`; real provider integration still required | APPROVED |
+Previous status means the status immediately before the dated freeze, not implementation readiness. All APPROVED scopes below were selected in the supplied architecture-review baseline under Tiến's authorization; no member endorsement is inferred.
+
+| Decision | Previous status | Selected V1 baseline | Current approval scope |
+|---|---|---|---|
+| TD-001 | PROPOSED | Checked Java `long`, existing `VndAmount`/`VndArithmetic`, PostgreSQL BIGINT, JSON decimal strings; positive amounts, nonnegative balances, signed deltas | APPROVED — DESIGN |
+| TD-002 | PROPOSED | READ COMMITTED; scope coordination → unsigned UUID-ordered sequential Account row locks → locked validation → dataset counter → atomic writes; concrete REQUIRED/MANDATORY; bounded fresh retries | APPROVED — DESIGN; concurrency/transaction evidence pending |
+| TD-003 | PROPOSED | Full scoped identity, transaction advisory lock, canonical v1 UTF-8 JSON + SHA-256, full-intent comparison, atomic final-only outcomes and authorized recovery | APPROVED — DESIGN; PostgreSQL proof pending |
+| TD-004 | PROPOSED | Transactional `dataset_control.last_commit_seq`; committed high-water descending keyset; HMAC-SHA256 protected cursor; 20/default, 100/max | APPROVED — DESIGN; correctness/capacity evidence pending |
+| TD-005 | PROPOSED | Accounts-owned materialized balance, updated atomically with Ledger facts, reconciled against committed signed entries | APPROVED — DESIGN |
+| TD-006 | PROPOSED within agreed direction | Spring Security server sessions; HttpOnly/Secure under HTTPS, explicit SameSite (initial Lax where topology permits), expiry/logout/rotation, roles and CSRF | APPROVED — DESIGN; security evidence pending |
+| TD-007 | PROPOSED | Standard Spring Security BCrypt, initial strength 12, configurable and benchmarked; per-password salt, no secret logging | APPROVED — DESIGN; security/cost measurements pending |
+| TD-008 | PROPOSED | Preserve existing `/api/v1` OpenAPI, decimal strings, Idempotency-Key and distinct final/rejected/conflict/non-final/protocol results | APPROVED — EXISTING IMPLEMENTATION DIRECTION; endpoints not supplied |
+| TD-009 | PROPOSED | Explicit protected operator-driven setup, one outer transaction for configured Admin + Treasury + GENESIS + positive entry + dataset control; verify existing dataset, never automatic startup reseed | APPROVED — DESIGN; initialization/restart evidence pending |
+| TD-010 | PROPOSED (V1/V2 already implemented) | Retain V2 UPDATE/DELETE/TRUNCATE guards and immutable facts/migrations; no repair API; restrict runtime privileges where deployment supports | APPROVED — EXISTING IMPLEMENTATION DIRECTION |
+| TD-011 | PROPOSED | PostgreSQL Admin success audit in the same operation transaction; audit failure rolls back allocation/status effects; security-denial logs separate | APPROVED — DESIGN |
+| TD-012 | NOT_SELECTED | One Core deployment + frontend + private persistent PostgreSQL 16, TLS/secrets/backups/restart; no added distributed services | APPROVED — REFERENCE TOPOLOGY / PROVIDER PENDING |
+| TD-013 | AWAITING MEASUREMENT | Exact PRD §9 reproducible benchmark and reporting method, with unchanged workload/thresholds | APPROVED — METHOD / EVIDENCE PENDING |
+| TD-014 | PROPOSED | Keep counter; measure disjoint/hot Account/duplicate scope/Treasury waits and commit/WAL; revisit only on measured impact plus equivalent correctness proof | APPROVED — DIAGNOSTIC AND REVISIT POLICY; measurements pending |
+| TD-015 | APPROVED | Transfers outer transfer transaction; Administration allocation/status + audit; Ledger posting/facts/reconciliation; Accounts state; Idempotency scoped outcomes; Bootstrap initialization | APPROVED — PREVIOUSLY RATIFIED |
+| TD-016 | APPROVED | Existing nine modules/18 edges, pure APIs/private internals and current structural/capability enforcement | APPROVED — PREVIOUSLY RATIFIED |
+
+## Rationale, obligations and revisit conditions
+
+| TD | Rationale / alternative considered | Affected owners and implementation obligations | Verification / revisit condition |
+|---|---|---|---|
+| 001 | Exact finite VND with existing shared values; reject floating point, unnecessary multicurrency BigDecimal or new money abstractions | All; check every addition/subtraction/negation, bounds before writes and JSON parsing | Numeric boundary/overflow tests incl. Long.MAX_VALUE; widen only for an explicitly changed monetary requirement |
+| 002 | Short serialized current-state decisions avoid stale spending; optimistic retries not selected | Minh/Hải/Tiến/Trung; all mutations share lock order and one transaction manager; 3 total attempts, nominal 25/75 ms backoff+jitter within initial 2 s deadline, bounded waits; recognized 40P01/40001/55P03 only; resolve ambiguous commit first | Real PostgreSQL/proxied rollback, opposite direction, freeze races, Treasury competition and retry exhaustion; tune defaults from evidence without changing correctness |
+| 003 | Coordinate before absent-row lookup; no persisted unfinished lifecycle; unique-intent-row alternative not selected | Minh with callers; exact `(initiator_user_id, operation_type, idempotency_key)` (1–200 exact characters); stable namespaced SHA-256-derived 64-bit lock; fresh SQL read after wait; canonical version/intent/fingerprint/response | Duplicate/crash/lost-response/hash-collision/version vectors; amendment only if proof exposes a correctness/security incompatibility |
+| 004 | Counter lock serializes commit tail; sequence allocation, OFFSET and timestamp-only ordering cannot prove snapshot completeness | Tiến/Hải; increment ordinary success once after Account validation, rollback increment, GENESIS initializes; none for rejection/replay/freeze; owner/account/bounds/version-bound HMAC cursor, current auth each page | Late commit/page tampering/restart tests and counter capacity; replace only with measured need and equivalent ordering proof |
+| 005 | Reads remain cheap while Accounts retains balance authority; historical SUM alone is not available balance | Hải/Tiến; balance + facts same transaction; consistent-snapshot reconciliation, including Treasury/GENESIS once | Per-Account/dataset conservation after failures/concurrency/restart; no balance repair or arbitrary setter |
+| 006 | Existing browser session architecture; no localStorage bearer, bespoke auth/OIDC or Redis added | Hưng/Sĩ; framework CSRF token integration, session rotation/expiry/logout, resource/role checks, topology-aware cookie/CORS settings | Real security/browser tests; revisit topology-specific cookie settings when actual hosting is known |
+| 007 | Existing Spring Security ecosystem avoids a new Argon2 dependency/strategy layer | Hưng; BCrypt strength 12 default, measured cost, salt, private credentials; reject passwords exceeding BCrypt's 72 UTF-8 byte capacity before encoding, never truncate or add custom prehash | Non-ASCII/72-byte boundary/login/rehash tests and hash-cost measurement; tuning is not a latency guarantee or a new password API |
+| 008 | Stable frontend integration; Java Pending cannot certify HTTP success | Provider owners/Sĩ; bind existing YAML statuses/schemas exactly, finalize only after commit, technical uncertainty stays non-final | Endpoint contract and browser recovery tests; actual incompatible contract requires a narrow reviewed amendment |
+| 009 | Explicit operator action protects finite supply; startup reseeding/ordinary GENESIS endpoint rejected | Trung with Hưng/Hải/Tiến; Bootstrap orchestrates Identity provisioning, Accounts Treasury and Ledger GENESIS, private credentials, immediate-FK insert order and uniqueness-race recovery | Concurrent first setup, partial failure, existing-dataset verification, restart; no later automatic credential reset or re-mint |
+| 010 | Existing DB guards add defense beyond immutable Java; application-only protection insufficient | Tiến/platform; retain V1/V2, no UPDATE/DELETE/TRUNCATE financial API; separate migration/runtime roles where feasible | Real PostgreSQL guard tests and deployment privilege inspection; DB owner/superuser can bypass controls and remains a deployment limitation |
+| 011 | A successful Admin operation without its evidence violates approved policy; asynchronous audit rejected | Tiến with Hải/Minh; allocation all effects + success audit; freeze/unfreeze state + complete audit in one transaction; UNCHANGED is not a movement | Audit failure injection, unchanged status, no partial commit; operational security logging is not a substitute |
+| 012 | Minimal topology meets current monolith constraints; no Kubernetes/Kafka/Redis/microservices | Trung/Sĩ/Hưng; verify course/provider, private DB, persistent volume, TLS, secrets, backups and recovery | EV-001/002 still pending; amend if verified external obligations genuinely conflict; provider/SKU/region/budget not selected |
+| 013 | Reproducible honest comparison; no easier workload/fast-rejection substitute | Minh/Sĩ with Trung; PRD §9 environment, 100 Customers/50 pairs, 100M supply/100 allocations, warm-up 300 intents/30 s, measured 3,000/300 s at 10/s, alternating directions | All 3,000 eligible intents complete once, completed p95 ≤2 s, zero invariant violations, full failure distribution; EV-003 awaiting measurement |
+| 014 | Isolate counter cost from hot Account/Treasury serialization; no speculative optimization | Minh/Tiến/Trung; collect waits/holds, throughput/latencies, retries, DB CPU/I/O/WAL; diagnostic 10/25/50/100 requests/s only within capacity | Measured material counter bottleneck plus replacement passing the same correctness tests; diagnostics do not change acceptance thresholds |
+| 015 | Preserve module authority and atomicity; no isolated debit/credit or REQUIRES_NEW effects | All owners; consume only approved capabilities; implement concrete guards selected separately by TD-002 | Real provider/proxy/commit/audit/rollback/authorization evidence remains missing |
+| 016 | Shared compile-time baseline prevents boundary drift without speculative frameworks | All; retain approved graph/signatures and ArchUnit; fakes only in tests while providers absent | New capability/direction/breaking API requires Tiến's prior amendment; green structural checks do not prove finance |
+
+Detailed protocols and stable encoding obligations: [16 §§5–9](../03-design/16-domain-model-and-data-design.md#5-transaction-boundaries-and-outcomes-arc-02). Owners/tasks/readiness and BK-010 phases: [10](../02-requirements/10-product-backlog.md#member-implementation-readiness--2026-10-22). Runtime evidence gates: [22](../05-verification/22-test-strategy-and-acceptance.md).
 
 ## Review items and implementation evidence gates
 
-| Item | Refined source of truth | Review/evidence still required |
+| Item | Authority / implementation location | Remaining work (not routine design reapproval) |
 |---|---|---|
-| DOC-01 | [17 workflow and future integration](../03-design/17-api-contracts.md#design-stage-api-documentation-workflow), [README run commands](../README.md#browse-the-api-locally-doc-01) | Tool/image upgrade review; actual Boot/Springdoc compatibility and runtime contract tests later |
-| DOC-02 | [15 §3.3](../03-design/15-system-architecture.md#33-java-project-and-module-structure-doc-02) | Package/API details during implementation; no empty-package scaffolding required |
-| DOC-03 | [README navigation](../README.md#navigation-requirements-to-engineering-documents) | Keep real paths/anchors valid in documentation CI; standalone missing docs remain planned |
-| ARC-01 | [15 §3.1](../03-design/15-system-architecture.md#31-one-financial-posting-path-arc-01), TD-015 | Ownership/caller capabilities approved; implement controlled path and verify real authorization/transaction guards |
-| ARC-02 | [16 §5](../03-design/16-domain-model-and-data-design.md#5-transaction-boundaries-and-outcomes-arc-02), TD-015 | Proxied transaction/rollback tests, rejection persistence, audit/commit failure injection |
-| ARC-03 | [16 §6](../03-design/16-domain-model-and-data-design.md#6-locking-and-isolation-discipline-arc-03), TD-002 | Approve lock comparator and isolation premises; real PostgreSQL races, timeout/retry budgets |
-| ARC-04 | [16 §7](../03-design/16-domain-model-and-data-design.md#7-idempotency-and-recovery-arc-04), TD-003 | Canonicalization/API review; execute [22 PostgreSQL PoC](../05-verification/22-test-strategy-and-acceptance.md#postgresql-idempotency-proof-of-concept-arc-04) |
-| ARC-05 | [16 §8](../03-design/16-domain-model-and-data-design.md#8-history-ordering-and-global-sequence-risk-arc-05), TD-004/014 | Late-commit pagination proof and EV-003/diagnostic contention measurements |
-| ARC-06 | [15 §3.2/3.4](../03-design/15-system-architecture.md#34-enforcing-the-boundaries-arc-06), TD-016 | Policy/ArchUnit enforcement approved and fixtures implemented; real business-module integration remains pending |
+| DOC-01/02/03 | [docs index](../README.md), [15](../03-design/15-system-architecture.md), [17](../03-design/17-api-contracts.md) | Actual runtime OpenAPI/framework compatibility, docs links and source synchronization |
+| ARC-01/02 | TD-002/015, [16 §5](../03-design/16-domain-model-and-data-design.md#5-transaction-boundaries-and-outcomes-arc-02) | Real guards/proxies, checked-failure rollback, partial SQL/audit/commit failure tests |
+| ARC-03 | TD-002, [16 §6](../03-design/16-domain-model-and-data-design.md#6-locking-and-isolation-discipline-arc-03) | Unsigned comparator equivalence, bounded retry/deadline, real PostgreSQL races |
+| ARC-04 | TD-003, [16 §7](../03-design/16-domain-model-and-data-design.md#7-idempotency-and-recovery-arc-04) | Canonical/advisory encoding golden vectors and [PostgreSQL proof tests](../05-verification/22-test-strategy-and-acceptance.md#postgresql-idempotency-proof-of-concept-arc-04) |
+| ARC-05 | TD-004/014, [16 §8](../03-design/16-domain-model-and-data-design.md#8-history-ordering-and-global-sequence-risk-arc-05) | Late commit, cursor integrity, EV-003 and separate contention diagnostics |
+| ARC-06 | TD-016, [module guide](../03-design/module-contracts-and-boundaries.md#automated-evidence-and-limits) | Current ArchUnit checks implemented; actual providers and runtime integration unverified |
 
-**Step 4E.2 implementation evidence:** ArchUnit 1.5.1
-(`archunit-junit6`, TEST scope) matches the checked-in Boot-managed Jupiter 6.0.3.
-Production scans and segregated positive/negative fixtures implement the
-module package/API isolation, dependency, cycle and basic layer rules; see the
-[module guide](../03-design/module-contracts-and-boundaries.md#automated-evidence-and-limits).
-Tooling alone did not approve TD-015/016 or §3.2's allowlist; approval comes from
-Tiến's explicit decision below. Tooling does not mark ARC-01/02/06 runtime evidence
-complete. BK-003 adds actual source contracts and approved capability/Treasury
-initialization checks; proxied transaction/authorization integration and financial
-provider behavior remain future work.
+## V1 Engineering Design Freeze — 2026-10-22
 
-### BK-003 approval record and remaining authority
+**Authority/provenance:** Tiến explicitly authorized the final V1 engineering design freeze and supplied the architecture reviewer's selected Section 5 baseline. Codex synchronizes that selection into this register and the existing documentation. This is not an invented meeting, approval by each member, or evidence that mechanisms work. TD-015/016 retain their prior ratification. TD-001..014 acquire only the scopes above under this later authorization.
+
+**Verified repository context:** BK-003 PR #10 merged into `develop` at `8a04ca03505a140930b9bbc976dcdc1148db2693` on 2026-10-22 (01:03:49 +07). Live `develop`, local `develop` and `origin/develop` matched that revision during this audit. Pure module contracts and V1/V2 schema exist; business providers remain absent on that baseline. Unpushed teammate work is unknown. BK-010 Phase 1 exists separately at `44dd3ed34c262c4de23a670af43fa0727054f9a0` on `feat/BK-010-ledger-core`; it is not in this `develop` snapshot and is not a persisted or committed banking workflow.
+
+**Effective team baseline:** BK-003 already applies. Once this documentation freeze merges into `develop`, every member/agent implements against these selected designs within their assigned/authorized implementation phase. No routine approval is needed again for selected algorithms. A failing implementation test normally requires a code fix. A proven incompatibility, security defect, financial correctness failure or necessary breaking API requires a scoped amendment; stop only the affected path while independent work continues. This documentation change does not authorize starting BK-010 Phase 2 or mark any financial story Done.
+
+### Explicit exceptions and implementation findings
+
+| Finding | Evidence / affected path | Required next action |
+|---|---|---|
+| FIX-001 — reference NUL | Feature-branch `ledger/internal/domain/FinancialTransaction.java` validates blank/64 characters but permits U+0000; PostgreSQL text/varchar rejects it | Later authorized Java change rejects `\u0000`, adds `rejectsNulInReference()`, reruns pure/architecture checks; no Java change in this freeze |
+| Customer history/receipt metadata | `accounts/api/AccountQueries.java` has Customer-ID/number queries but no Account-ID-to-number/counterparty projection; `ledger/api/LedgerQueries.java` requires labels | Narrow read-capability amendment before affected BK-014/015 provider integration; preserve current signatures, no private Account SQL join or fabricated label |
+| Admin read projections | Current AccountQueries has no Admin paginated listing; LedgerQueries is History-only and excludes GENESIS | BK-016/018 require concrete reviewed public read capabilities within the existing graph; do not grant Administration/Bootstrap a History-only capability |
+| Reconciliation snapshot | No production all-balances/Treasury read API exists | AC-022/023 can use test-scoped consistent cross-table probes. A future production reader needs a reviewed capability; no production boundary bypass |
+| Treasury identity in canonical allocation | AllocationPosting.Intent has recipient/amount/reason; Administration cannot read Treasury UUID | Canonicalize trusted source as fixed `TREASURY` marker in the singleton dataset; Ledger selects/verifies real Treasury. Resolve target UUID via existing AccountQueries for audit, then revalidate under Accounts locks |
+| Financial invalid-input binding | Generic `VndAmountJson` decoding rejects invalid input before a typed positive Intent can exist | Financial adapter captures distinguishable raw typed invalid money before construction so accepted financial rejection can be durable; malformed/ambiguous/unpersistable JSON remains protocol failure; no global handler/YAML change |
+| Database text / BCrypt input bounds | PostgreSQL disallows NUL; BCrypt supports at most 72 UTF-8 password bytes | Reject unsupported/unpersistable input before accepting intent/hash; never normalize/truncate. Existing OpenAPI is unchanged; any necessary external-contract extension is an explicit amendment |
+
+Current deployment privilege limitation: `compose.yaml` supplies the same `POSTGRES_USER` to PostgreSQL initialization and the application DataSource, and `backend/src/main/resources/application.yml` supplies no separate Flyway credentials. Thus the local baseline does not establish runtime/migration role separation; a database owner/superuser can defeat append-only defenses. Retain V2 and verify least privileges during the separately authorized deployment implementation; no role/configuration is changed here.
+
+These are concrete integration/validation obligations, not permission to introduce speculative provider Beans, new public interfaces or migrations. None demonstrates that the selected transaction/idempotency/counter protocol is unsafe; the affected projection integrations remain blocked until their capability amendments exist.
+
+## Apache Fineract reference review — 2026-10-22
+
+Examined actual source at **`71c39730e9178301b7ab949ba711238ce81fc66d`** in Apache Fineract. Structure includes `fineract-accounting`, `fineract-core`, `fineract-provider` and test modules. Source is engineering reference, never FinFast authority; no source/dependency/schema is copied. Tests were read, not executed.
+
+| Actual source (pinned revision) | Observed pattern / FinFast comparison | Decision |
+|---|---|---|
+| [JournalEntry.java](https://github.com/apache/fineract/blob/71c39730e9178301b7ab949ba711238ce81fc66d/fineract-accounting/src/main/java/org/apache/fineract/accounting/journalentry/domain/JournalEntry.java), [JournalEntryType.java](https://github.com/apache/fineract/blob/71c39730e9178301b7ab949ba711238ce81fc66d/fineract-core/src/main/java/org/apache/fineract/accounting/journalentry/domain/JournalEntryType.java) | Mutable JPA GL entries associate an account, type, magnitude, shared transaction ID and reversal fields. GL DEBIT/CREDIT is a category whose balance effect depends on account class; FinFast delta is directly negative/positive on a participant Account | ADAPT explicit grouping/participants; REJECT GL hierarchy/reversals and treating GL debit as universally negative |
+| [JournalEntryWritePlatformServiceImpl.java](https://github.com/apache/fineract/blob/71c39730e9178301b7ab949ba711238ce81fc66d/fineract-provider/src/main/java/org/apache/fineract/accounting/journalentry/service/JournalEntryWritePlatformServiceImpl.java), [JournalEntryCommand.java](https://github.com/apache/fineract/blob/71c39730e9178301b7ab949ba711238ce81fc66d/fineract-accounting/src/main/java/org/apache/fineract/accounting/journalentry/command/JournalEntryCommand.java) | `createJournalEntry`, `checkDebitAndCreditAmounts`, `validateBusinessRulesForJournalEntries` validate grouping and equal total magnitudes; framework transaction wraps writes. General journal cardinality/zero allowances differ | ADOPT validate before facts; ADAPT to exactly two opposite entries or one positive GENESIS, strictly positive amounts, FinFast-owned outer transaction |
+| [Money.java](https://github.com/apache/fineract/blob/71c39730e9178301b7ab949ba711238ce81fc66d/fineract-core/src/main/java/org/apache/fineract/organisation/monetary/domain/Money.java), [MoneyTest.java](https://github.com/apache/fineract/blob/71c39730e9178301b7ab949ba711238ce81fc66d/fineract-core/src/test/java/org/apache/fineract/organisation/monetary/domain/MoneyTest.java) | Value-based arithmetic and tests; BigDecimal, currency/rounding and convenience conversions support a much larger domain | ADAPT exact-value validation/tests; REJECT multicurrency/rounding/double/null-as-zero patterns for integral VND |
+| [AccountTransfersWritePlatformServiceImpl.java](https://github.com/apache/fineract/blob/71c39730e9178301b7ab949ba711238ce81fc66d/fineract-provider/src/main/java/org/apache/fineract/portfolio/account/service/AccountTransfersWritePlatformServiceImpl.java), [AccountTransferTransactionTest.java](https://github.com/apache/fineract/blob/71c39730e9178301b7ab949ba711238ce81fc66d/fineract-provider/src/test/java/org/apache/fineract/portfolio/account/domain/AccountTransferTransactionTest.java) | Transactional `create`/`transferFunds`, linked withdrawal/deposit; factory association tests. Loan/savings/interest/reversal workflows exceed V1 | ADAPT atomic grouping and association tests; REJECT extra products/strategy framework. These tests do not prove FinFast rollback/concurrency |
+| [CommandSourceService.java](https://github.com/apache/fineract/blob/71c39730e9178301b7ab949ba711238ce81fc66d/fineract-core/src/main/java/org/apache/fineract/commands/service/CommandSourceService.java), [SynchronousCommandProcessingService.java](https://github.com/apache/fineract/blob/71c39730e9178301b7ab949ba711238ce81fc66d/fineract-core/src/main/java/org/apache/fineract/commands/service/SynchronousCommandProcessingService.java) | `saveInitial`/`saveResult` and `processCommandAndSaveResult` support durable commands/results; initial command may be saved separately, with under-processing/error lifecycle and different action/entity/key scope | ADAPT durable original result and duplicate handling; REJECT copying separate processing/error commits. FinFast full scope and final-only atomic protocol require their own proof |
+| [JournalEntryWritePlatformServiceImplTest.java](https://github.com/apache/fineract/blob/71c39730e9178301b7ab949ba711238ce81fc66d/fineract-provider/src/test/java/org/apache/fineract/accounting/journalentry/service/JournalEntryWritePlatformServiceImplTest.java) | Examined empty-reversal-list regression; not an end-to-end reconciliation, isolation or exactly-once proof | ADAPT focused regressions; no inferred universal correctness |
+
+Additional actual integration sources: [IdempotencyTest.java](https://github.com/apache/fineract/blob/71c39730e9178301b7ab949ba711238ce81fc66d/integration-tests/src/test/java/org/apache/fineract/integrationtests/IdempotencyTest.java) checks cached repeat success/error responses for business-step configuration; [AccountTransferTest.java](https://github.com/apache/fineract/blob/71c39730e9178301b7ab949ba711238ce81fc66d/integration-tests/src/test/java/org/apache/fineract/integrationtests/AccountTransferTest.java) checks paired savings balances, associated GL entries and negative/insufficient-balance cases. **ADAPT** assertions over both participant balances, grouped facts and original error replay; **REJECT** copying product-specific HTTP codes, GL account behavior or treating these read tests as a concurrent crash/idempotency proof. These sources were inspected, not run. No generic Fineract per-Account/supply reconciliation guarantee was established by this review.
+
+Implementation constraint sources: PostgreSQL 16 [locking](https://www.postgresql.org/docs/16/explicit-locking.html), [READ COMMITTED statement snapshots](https://www.postgresql.org/docs/16/transaction-iso.html), [character bounds/NUL](https://www.postgresql.org/docs/16/datatype-character.html) and [JSONB storage](https://www.postgresql.org/docs/16/datatype-json.html); Spring [transaction propagation](https://docs.spring.io/spring-framework/reference/data-access/transaction/declarative/tx-propagation.html), [password storage](https://docs.spring.io/spring-security/reference/features/authentication/password-storage.html) and [BCrypt UTF-8/72-byte validation source](https://github.com/spring-projects/spring-security/blob/7.0.0/crypto/src/main/java/org/springframework/security/crypto/bcrypt/BCrypt.java). These support constraints and test obligations; they are not proof that FinFast already implements them or a new dependency/version selection.
+
+[FINERACT-2485](https://issues.apache.org/jira/browse/FINERACT-2485) was **In Progress / Unresolved** when inspected on 2026-10-22; its proposed hardening is opt-in/phased and calls for network-failure/retry tests. It is not proof that all Fineract operations provide FinFast's durable-idempotency guarantees. No inaccessible source or unexecuted Fineract test is claimed as verified. FinFast reconciliation remains its own signed-balance/supply assertions, not a copied GL trial-balance feature.
+
+## External evidence tasks (status inherited from approved baseline)
+
+- **EV-001 — PENDING VERIFICATION:** actual course rubric, mandated deployment/load/acceptance evidence. Reference topology approval does not invent course requirements.
+- **EV-002 — PENDING VERIFICATION:** actual provider, region/SKU/budget, compute/storage/TLS, persistent private DB, secrets and backup feasibility. No provider selected.
+- **EV-003 — AWAITING MEASUREMENT:** exact PRD §9 3,000-intent/300 s benchmark at 10/s, p95 ≤2 s, all eligible intents completed once and zero invariant violations. Method is approved; result is not.
+
+## Design-review change protocol
+
+1. Follow this selected V1 baseline and canonical UC/BR/AC/CONS identifiers. No routine reapproval of selected mechanisms after the freeze merges.
+2. Preserve work and report exact signatures/source/status when a real incompatibility, security issue, financial failure or breaking change appears. Isolate the affected path; continue independent work.
+3. Tiến approves cross-module capability/edge/breaking amendments; project owner explicitly decides business-policy changes. Update affected source, canonical inventory, governance and tests together only in an authorized implementation change.
+4. Keep implementation and evidence separate. Record commands, revision, environment, observations and limitations; no financial/cloud/performance PASS without actual evidence.
+
+
+> **Historical snapshot — original BK-003 final-review record, before PR #10 merged.** The original text below is retained for provenance. Its “merge pending”, mechanism-review and remaining-decisions statements describe that earlier review only. The dated freeze above supersedes them for current design status; it does not rewrite the original approval. Historical local test results belong to that review, not this documentation task.
+
+## BK-003 approval record and remaining authority
 
 **Decision context/date:** on **2026-10-22**, the explicit *BK-003 — Final Architecture
 Review, Tech Lead Approval & Module API Contract Freeze* instruction records
@@ -104,20 +168,52 @@ affected integration BLOCKED while awaiting that decision.
 
 **Remaining decisions:** deployment-specific PostgreSQL durability, bounded retry/deadline values, cursor details and counter capacity. Checked-in build/configuration and foundation guides record implemented framework/test/database pins; those are not blanket approval of the remaining proposals. Technical proposals remain PROPOSED until explicitly reviewed; documentation or architecture checks alone do not approve them. Standalone ADR-001..003 do not yet exist; current rationale lives in 15/16 and statuses here. Structural fixtures are not financial application/concurrency/benchmark evidence.
 
-## External evidence tasks (status inherited from approved baseline)
+## 2026-10-22 — V1 Product, UX and REST Contract Freeze
 
-- **EV-001 — PENDING VERIFICATION:** actual course rubric; any mandated cloud technology, autoscaling/load demonstration, acceptance format. Before architecture/deployment finalization.
-- **EV-002 — PENDING VERIFICATION:** provider/budget/compute/DB storage/TLS and feasible persistence. Before resource allocation and performance test.
-- **EV-003 — AWAITING MEASUREMENT:** PRD §9 deterministic 3,000-intent, 300 s workload; p95 target ≤2 s, reported honestly with correctness evidence.
+**Authority and provenance:** Tiến (Tech Lead) explicitly authorizes and approves the existing V1 implementation-facing product/delivery requirements, derived functional specification, UX/E2E design and external REST contract in the supplied *FINAL V1 Product, UX & REST API Contract Approval* instruction. Codex records/synchronizes that authorization; it does not act as an additional approving stakeholder. No separate project-owner, member or course-evaluator signature is fabricated. Future business-policy changes and final release acceptance retain their distinct project-owner authority.
 
-## Design-review change protocol
+This is a later, additive approval. PRD 09 was originally created as a draft on 2026-10-17; the earlier engineering freeze approved mechanisms and the benchmark method without approving all product/browser elaborations. This record closes those remaining implementation-baseline approval gaps without retrospectively changing that history, any TD decision or banking policy.
 
-1. Log proposed choice, rationale, affected `FR/UX/NFR`, `UC/BR/AC`, trade-offs, owner and decision date.
-2. Verify proposal preserves approved business policy. If it *changes* policy, obtain explicit project owner decision and update 01–09 as needed **before** implementation.
-3. Update the decision register, architecture/data design, API contracts, tests and backlog together (and standalone ADRs if later created); review with relevant domain and presentation owners.
-   For the approved Java baseline, obtain prior Tech Lead approval for breaking
-   changes, new public capabilities or dependency directions. Preserve compatibility
-   where practical; no silent renames, competing DTOs or boundary bypass. Consultation
-   does not imply individual endorsements; Tiến has final architectural authority.
-4. Treat proposed benchmark/browser elaborations in PRD 09 as **awaiting review**, not pre-existing discovery approval.
-5. Do not claim any application, cloud or performance outcome until linked executed evidence exists.
+| Artifact / evidence | Final disposition | Implementation / verification boundary |
+|---|---|---|
+| Discovery 01–08 | Preserve previously approved | Canonical business meaning and IDs unchanged |
+| [PRD 09](../02-requirements/09-product-requirements.md) | APPROVED V1 REQUIREMENTS BASELINE | FR-001..013, UX-001..005, NFR-001..006 and existing P0 scope; implementation not complete |
+| [Functional Specifications 12](../02-requirements/12-functional-specifications.md) | APPROVED DERIVED IMPLEMENTATION SPECIFICATION | Existing behaviors/mappings approved; runtime acceptance not established |
+| [UX 14](../03-design/14-ux-user-flows-and-e2e.md) | APPROVED V1 UX/E2E DESIGN BASELINE | Information architecture, S01–S10, required states, WEB-01..08 and existing viewport/zoom/keyboard checks approved; execution not verified |
+| [API 17](../03-design/17-api-contracts.md) | APPROVED V1 REST CONTRACT | Exact operation-specific YAML mapping; endpoint implementation/conformance pending |
+| [OpenAPI YAML](../03-design/contracts/openapi-v1.yaml) | APPROVED FROZEN V1 EXTERNAL API | Only info title/version/description approval metadata changes; paths, methods, fields, schemas, statuses and security unchanged |
+| TD-001–016 | Preserve previously selected/approved decisions | No algorithm, invariant, ownership or evidence gate changed |
+| BK-003 Java contracts | Preserve approved/frozen | Pure source signatures and capability permissions unchanged; providers/integration still required |
+| EV-001 | PENDING VERIFICATION | Actual course rubric remains unverified |
+| EV-002 | PENDING VERIFICATION | Actual cloud provider/resources/budget/persistence/TLS remain unselected/unverified |
+| EV-003 | AWAITING MEASUREMENT | Exact approved PRD §9 method; no achieved-performance claim |
+| Runtime acceptance | NOT YET VERIFIED | No acceptance/security/concurrency/browser test passes are created by this approval |
+| Final release acceptance | NOT YET GRANTED | Separate project-owner release decision still required |
+
+**Approved elaborations:** 360×800, 768×1024 and 1440×900 CSS pixels plus desktop 200% zoom and keyboard checks are now test specifications, not WCAG certification or passing browser evidence. ASCII wireframes remain low-fidelity references; Sĩ may choose presentation/components without routine architecture reapproval while preserving required capabilities/states, accessibility, safe recovery and frozen REST semantics. No frontend framework/dependency is mandated.
+
+**Benchmark unchanged:** PRD §9 retains 100 Customers/50 pairs, existing GENESIS/allocation fixture, 300 warm-up intents/30 s, 3,000 measured intents/300 s at 10/s, p95 ≤2 s and zero financial-invariant violations. All eligible intents must complete once and failures/non-final/recovery outcomes must be reported honestly. Method approval does not close EV-003.
+
+**REST authority:** the existing YAML is the sole external HTTP contract; BK-003 is the separate internal Java contract. Operation response sets were inspected: command financial 422 is durable REJECTED, generic validation 422 is not a financial outcome, permitted resolve 200 can replay a rejection, and applicable 202/503 remain non-final. Info version `0.1.0` removes the historical `-proposal` status suffix only; `/api/v1` and all operation semantics remain fixed. API-ERR-01 below is explicit, not a silently adopted amendment.
+
+### Retained exceptions, owners and affected paths
+
+| Exception / obligation | Owner / coordination | Impact and required disposition |
+|---|---|---|
+| Account metadata for History/Receipts | Hải (Accounts/History), Tiến (Ledger) | BK-014/015 labels and owner-bound cursor provider integration need a narrow reviewed read capability; no private Account join, duplicate API or invented labels |
+| Admin read projections | Trung with Tiến/Accounts owner Hải | BK-016/018 integration needs approved Account listing/financial projections; no bypass of History-only LedgerQueries or changed ownership |
+| Production reconciliation access | Tiến with Hải; Minh verification | Existing APIs lack an all-Accounts/Treasury snapshot. Test-scoped consistent probes can verify AC-022/023; a production read capability needs a scoped amendment |
+| BK-010 FIX-001 | Tiến | Later authorized Java fix rejects reference U+0000 and adds `rejectsNulInReference()`; Phase 1 unchanged here and Phase 2 not started |
+| API-ERR-01 — framework protocol/error mapping | Tiến + affected backend owners, with Sĩ | Current common handler returns 400/500; no frozen YAML operation lists those statuses. Before affected adapter conformance, review the smallest per-operation generic ErrorResponse amendment or prove a compatible mapping. No semantic YAML change authorized/performed here; no false financial rejection |
+| Missing real provider/transaction/concurrency/recovery evidence | Respective module owners; Minh BK-022 | Test fakes permit independent code; real PostgreSQL/proxy/failure/restart evidence required before financial acceptance |
+| Security/browser evidence | Hưng/Sĩ with read/API owners | Sessions/CSRF/authorization/BCrypt/cursor and approved browser journeys remain unverified |
+| External course/cloud/deployment evidence | Hưng EV-001; Sĩ EV-002; Trung deployment | Verify rubric/resources, private durable DB/TLS/secrets/privileges/backups/restart before deployment acceptance |
+| Actual performance | Minh BK-023 with Trung/Sĩ | Execute unchanged PRD §9 and separate diagnostics; EV-003 remains awaiting measurement |
+
+### Contributor implementation and amendment policy
+
+Once this documentation baseline merges into `develop`, all six members may implement their assigned, authorized tasks/phases without another routine product/UX/API/architecture approval: Tiến Ledger/Administration/architecture/release; Minh Idempotency/Transfers/concurrency/recovery; Hưng Identity/Customer/authentication/security; Hải Accounts/History/Receipts/Account status behavior; Trung Bootstrap/GENESIS orchestration/Admin reads/deployment; Sĩ frontend/browser UX/E2E. Preserve the exact backlog assignment and module ownership; Hải's BK-017 assignment does not transfer Administration outer-transaction/audit ownership from Tiến.
+
+Follow approved Java and REST contracts, frozen invariants and normal code review/CI; add meaningful tests and report actual failures. Do not invent a provider/API because another member is unfinished, select conflicting algorithms or bypass missing capabilities. This documentation task implements no banking provider or BK-010 phase.
+
+A scoped amendment is required only for an approved business-rule conflict, financial/security defect, breaking public Java/REST change, new cross-module capability/dependency, necessary incompatible schema change or proven inadequacy in the frozen design. Ordinary implementation defects are fixed/tested within the baseline. Stop only the affected integration while independent work continues. Future business-policy changes require the separate project-owner decision; final release acceptance is not implied.

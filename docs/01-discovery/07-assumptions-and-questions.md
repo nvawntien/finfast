@@ -1,5 +1,7 @@
 # 07 — Assumptions, Questions, and Decision Log
 
+> Historical discovery decisions below remain dated/unchanged. Current technical selections and evidence gates are in the later [2026-10-22 engineering freeze](../6-governance/25-design-decision-register.md#v1-engineering-design-freeze--2026-10-22); this does not reopen accepted A-* or closed OQ-* or rewrite DEC-* approvals.
+
 > **Stage:** Phase 1 — Domain Discovery\
 > **Status:** Finalized V1 business discovery baseline — project owner decisions recorded\
 > **Version:** 1.0 | **Last updated:** 2026-10-16

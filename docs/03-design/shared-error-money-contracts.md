@@ -1,12 +1,15 @@
 # Shared error and VND contracts
 
+> External-contract authority — 2026-10-22: [Product/UX/REST approval](../6-governance/25-design-decision-register.md#2026-10-22--v1-product-ux-and-rest-contract-freeze) freezes the existing YAML semantics. Generic foundation 400/500 mappings below remain implemented behavior, not automatically listed V1 operation responses; [API-ERR-01](17-api-contracts.md#protocol-error-integration-exception--api-err-01) requires a narrow integration disposition before affected adapter conformance. No handler, money type or dependency changes here.
+
+> Current authority: [TD-001/003/008 freeze](../6-governance/25-design-decision-register.md#engineering-decisions-and-scoped-statuses). Shared code is implemented, financial providers remain absent on audited `develop`, and selected designs are not evidence of committed banking behavior. Existing runtime and historical test claims below retain their original scope.
+
 Implemented in Step 4E.1: reusable error and numeric infrastructure, with no banking
 services, endpoints, persistence adapters or durable financial outcomes.
 The [business rules](../01-discovery/06-business-rules.md) remain authoritative
 (BR-ACC-03/04, BR-TRF-01/12; numeric acceptance AC-016).
-[TD-001 and TD-008](../6-governance/25-design-decision-register.md) remain **PROPOSED**.
-This scoped implementation follows their existing direction; it does not approve
-all proposed routes, business codes or financial status mappings.
+[TD-001 and TD-008](../6-governance/25-design-decision-register.md#engineering-decisions-and-scoped-statuses) are now approved within the freeze's explicit design/existing-contract scopes.
+The original scoped implementation followed the then-current direction without approving all proposed routes/codes/mappings. Current TD-008 separately preserves the existing OpenAPI contract direction; it adds no endpoint implementation.
 
 ## Expected errors
 
@@ -48,7 +51,7 @@ Only `GlobalExceptionHandler` maps transport-independent categories to HTTP:
 | `FORBIDDEN` | 403 |
 | `UNPROCESSABLE` | 422 |
 
-These are adapter conventions, not approved endpoint-specific TD-008 decisions.
+These generic adapter conventions do not override the existing endpoint-specific OpenAPI. The later TD-008 freeze preserves that contract direction without inventing new codes/statuses.
 The owning use case must choose safe disclosure and authorization semantics.
 Controllers need no repetitive catch blocks or success envelope. Expected errors
 produce only `{"code":"RESOURCE_NOT_FOUND","message":"The requested resource was not found."}`
@@ -109,7 +112,7 @@ tokens), booleans, objects and arrays are rejected rather than coerced. Ordinary
 Use `@Valid` on request DTOs and `@NotNull` on required `VndAmount` fields to reject
 missing/null values. Optional money fields may remain null.
 
-Malformed JSON money reaches the existing safe `INVALID_REQUEST`/400 boundary.
+Generic typed money decoding failures reach the existing safe `INVALID_REQUEST`/400 boundary. For transfer/allocation intent acceptance, TD-003 requires the owning financial adapter to retain distinguishable raw typed invalid monetary input before positive value/Intent construction; financially accepted numeric rejections use the existing durable REJECTED/422 contract. Unreadable JSON, ambiguous duplicate properties and unpersistable text remain protocol failures. Do not apply the generic typed decoder blindly to erase this distinction; no codec/handler or semantic OpenAPI change is made in this documentation task.
 Positive-operation validation remains explicit in the owning module: validate
 before writes and use its safe expected error catalog. Do not globally classify
 all `IllegalArgumentException` or arithmetic failures as client errors; an
@@ -118,8 +121,7 @@ financial rejection.
 
 Persist `amount.value()` with JDBC as `BIGINT` and reconstruct with
 `new VndAmount(storedValue)` when that field is nonnegative. No JDBC adapter or
-schema change is introduced. Signed ledger transport needs a separate reviewed
-contract; the existing nonnegative OpenAPI `MoneyVnd` is unchanged.
+schema change is introduced. Use the existing frozen `AdminFinancialTransaction.entries[].deltaVnd` signed decimal-string schema for Ledger transport; the nonnegative OpenAPI `MoneyVnd` and Java `VndAmount` remain unchanged. No new money type or routine contract approval is needed.
 
 Accounts still owns persisted balance/status/ownership invariants and locking;
 Transfers owns positive intent/authorization; Ledger owns balanced immutable

@@ -1,9 +1,10 @@
 # Database migrations
 
+> Boundary reminder: V1/V2 are IMPLEMENTED schema guarantees, not posting providers or a completed bank. PostgreSQL text/varchar/JSONB cannot persist NUL; the separate BK-010 Phase 1 reference validation finding FIX-001 remains open. No applied migration is edited. Full cross-row cardinality, arithmetic, atomic audit/outcome and authorization remain application/test obligations under the approved freeze.
+
 Flyway is the schema source of truth and runs automatically at Spring Boot startup.
 The concrete schema decisions approved in Step 4B.1 take precedence over older
-`PROPOSED` labels for those same decisions in design documents. The transactional
-global commit counter remains provisional and requires performance benchmarking.
+`PROPOSED` labels for those same decisions in design documents. The later [2026-10-22 freeze](../../../../../../docs/6-governance/25-design-decision-register.md#v1-engineering-design-freeze--2026-10-22) selects the transactional global counter design (TD-004); real commit-order tests and performance benchmarking remain pending. No SQL/migration changes are part of that freeze.
 
 ## Versions and tables
 
@@ -45,8 +46,7 @@ Only these four additional indexes are defined:
 - Idempotency keys are 1–200 characters, matching the existing OpenAPI header
   bound. `VARCHAR(200) COLLATE "C"` preserves case-sensitive, exact stored-value
   equality, including whitespace. Never trim, normalize or truncate keys; reject
-  oversized input before persistence. Ordinary overlength inserts fail rather
-  than truncating; explicit casts must not be used to truncate application input.
+  oversized input before persistence. PostgreSQL can truncate overlength trailing spaces (and explicit casts can truncate other values), so validate full character length before SQL; never rely solely on the database error. See [PostgreSQL 16 character types](https://www.postgresql.org/docs/16/datatype-character.html).
 - Canonicalization versions are positive SMALLINTs. Fingerprints are exactly 64
   hexadecimal characters (either case), suitable for SHA-256. JSONB is NOT NULL;
   canonical/response JSON shapes, full-intent comparison and sensitive-field
@@ -105,7 +105,7 @@ Row constraints and append-only guards do not establish correct financial postin
 - Balance changes, posting facts, final outcomes and required success audit must
   commit atomically. SUCCESS must only be reported after commit confirmation.
 - Idempotency requires full-scope coordination (the transaction-scoped advisory
-  strategy remains a TD-003 proposal), full canonical intent comparison,
+  strategy is selected by TD-003; real proof remains pending), full canonical intent comparison,
   immutable final results and dataset-lifetime retention; the
   UNIQUE constraint alone does not implement replay, retries or authorization.
 - The future posting path must increment the global counter transactionally under

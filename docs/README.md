@@ -1,13 +1,13 @@
 # FinFast V1 — PRD-to-Engineering Handoff Pack
 
-> **Artifact status:** Approved **discovery baseline (01–08)**, **draft PRD 09**, agreed architecture direction, and explicitly marked engineering **proposals**. Tiến explicitly approved current BK-003 Java signatures, TD-015 ownership/transaction responsibilities and TD-016 boundaries on **2026-10-22**; shared integration baseline activates on merge into `develop` (pending). Other mechanisms retain their individual statuses. This is not a completed banking application, successful banking acceptance run or cloud deployment. No new actors/banking policies/features are approved by generating these files.
+> **Artifact status — 2026-10-22:** Discovery 01–08, PRD 09, derived specification 12, UX 14, API 17/existing OpenAPI, BK-003 Java contracts and TD-001..016 are APPROVED implementation baselines within their recorded scopes. [Consolidated Product/UX/REST approval](6-governance/25-design-decision-register.md#2026-10-22--v1-product-ux-and-rest-contract-freeze). Tiến authorizes implementation-baseline approval; future banking-policy changes and final release acceptance retain separate project-owner authority. BK-003 is merged at `8a04ca0`; runtime/integration/security/browser acceptance is not established, EV-001/002 remain pending and EV-003 awaits measurement.
 
 ## How to use
 
-1. Read [Discovery scope](01-discovery/01-product-vision-and-scope.md), [PRD handoff](01-discovery/08-prd-handoff.md) and [draft PRD](02-requirements/09-product-requirements.md) before changing scope. Canonical UC/BR/AC/CONS/A/OQ/DEC/BP/EV identifiers remain in their source documents.
-2. Begin review with the [decision register](6-governance/25-design-decision-register.md). Separate the Tech Lead's agreed architecture direction from proposed mechanisms, and verify EV-001/002 before deployment decisions.
-3. Use the [backlog](02-requirements/10-product-backlog.md) for planning; assign people/dates only through team planning. Follow approved Java APIs/ownership; review unresolved locking, idempotency and pagination mechanisms separately.
-4. Review [API contracts](03-design/17-api-contracts.md) with frontend/backend contributors using Swagger UI below. Freeze reviewed contracts before parallel implementation.
+1. Read [Discovery scope](01-discovery/01-product-vision-and-scope.md), [PRD handoff](01-discovery/08-prd-handoff.md) and [approved PRD](02-requirements/09-product-requirements.md) before changing scope. Canonical UC/BR/AC/CONS/A/OQ/DEC/BP/EV identifiers remain in their source documents.
+2. Begin review with the [decision register](6-governance/25-design-decision-register.md). Distinguish selected mechanisms from implementation/verification, and verify EV-001/002 before selecting actual deployment resources.
+3. Use the [backlog](02-requirements/10-product-backlog.md) for planning; use the explicitly supplied six-person assignment and readiness matrix. Follow approved Java APIs/ownership and selected locking, idempotency and pagination designs; obtain amendments only for genuine incompatibilities.
+4. Implement the [frozen REST API](03-design/17-api-contracts.md) and separate Java contracts without routine reapproval; use Swagger UI below to browse the YAML. Only OpenAPI approval metadata changes; no operation/status/schema/security or Java capability changes are authorized.
 5. Track implementation in the [traceability matrix](02-requirements/11-requirements-traceability.md) and collect real runtime evidence through the [test strategy](05-verification/22-test-strategy-and-acceptance.md) and [release checklist](05-verification/23-uat-and-release-checklist.md).
 
 New contributor reading path: [root README](../README.md) → [AGENTS.md](../AGENTS.md)
@@ -45,7 +45,7 @@ banking workflows and functional HTTP APIs are not implemented.
 - P0: CUSTOMER and ADMIN; one zero-balance VND CUSTOMER Account per registrant; one finite TREASURY initialized once with GENESIS; authenticated sessions; internal Customer transfers and demo allocations; signed-entry ledger, atomic postings/outcomes, immutable history/receipts, freeze/unfreeze with required atomic Admin audit, responsive Web and repeatable cloud delivery.
 - P1 only **after** P0 acceptance: notifications, advanced filtering/metrics, separately justified extended scaling work. There is **no mandatory event broker** and no separate notification service in mandatory V1.
 - Explicitly excluded: real funds/bank rails, full General Ledger, loans, cards, FX, additional account types/states, mint/reset/overwrites via normal APIs, real-world KYC/AML, native mobile, production HA guarantees.
-- **Initial approved architecture direction** A-013 / DEC-006: Java/Spring Boot, PostgreSQL, domain-oriented modular monolith, secure server-managed sessions. The confirmed direction also includes DDD-inspired modules, pragmatic Hexagonal Architecture, Spring constructor DI, REST/OpenAPI/Swagger UI and in-process calls. Detailed mechanisms remain proposals.
+- **Initial approved architecture direction** A-013 / DEC-006: Java/Spring Boot, PostgreSQL, domain-oriented modular monolith, secure server-managed sessions. The confirmed direction also includes DDD-inspired modules, pragmatic Hexagonal Architecture, Spring constructor DI, REST/OpenAPI/Swagger UI and in-process calls. Detailed mechanisms now follow the scoped 2026-10-22 engineering freeze; runtime proof remains pending.
 - **Provisional target** EV-003: transfer-request p95 ≤2s at 10 new requests/s for five minutes, with **actual** environment and correctness evidence required; no measured outcome is claimed.
 
 ## Folder map
@@ -64,14 +64,14 @@ finfast/
 └── docs/
     ├── README.md
     ├── 01-discovery/                 # 01–08 approved business discovery/handoff
-    ├── 02-requirements/              # 09 draft PRD; 10–12 engineering decomposition
+    ├── 02-requirements/              # 09 approved PRD; 10–12 delivery/derived specification
     ├── 03-design/                    # 14–17 UX, architecture, data and API
-    │   └── contracts/openapi-v1.yaml # Design-stage API source of truth
+    │   └── contracts/openapi-v1.yaml # Frozen V1 external API source of truth
     ├── 05-verification/              # 22 test strategy; 23 release checklist
     └── 6-governance/                 # 25 decision register
 ```
 
-**Planned, not present:** standalone 13 quality-attributes, 18 P1 event contracts, 19–21 ADRs (ADR-001..003), 24 cloud deployment runbook, and a machine-readable coverage report. Current quality/benchmark requirements are in PRD 09/22; boundary rationale is in 15; atomicity/idempotency/history proposals are in 16; statuses are in 25; coverage is in 11. No missing file is a completed deliverable. P1 event contracts remain optional. Backend/database/observability foundations and BK-003 compile-time contracts exist; see the [root README](../README.md). Banking provider implementations remain unimplemented.
+**Planned, not present:** standalone 13 quality-attributes, 18 P1 event contracts, 19–21 ADRs (ADR-001..003), 24 cloud deployment runbook, and a machine-readable coverage report. Current quality/benchmark requirements are in PRD 09/22; boundary rationale is in 15; selected atomicity/idempotency/history implementation guidance is in 16; statuses are in 25; coverage is in 11. No missing file is a completed deliverable. P1 event contracts remain optional. Backend/database/observability foundations and BK-003 compile-time contracts exist; see the [root README](../README.md). Banking provider implementations remain unimplemented.
 
 The [migration README](../backend/src/main/resources/db/migration/README.md) records
 the concrete schema approvals from Step 4B.1. Historical proposal labels in design
@@ -130,7 +130,7 @@ review checks, not claimed as jobs in this workflow.
 
 The checker covers `README.md` and `docs/**/*.md`, retaining the existing link/
 anchor and OpenAPI semantics. Including the root README also checks its new CI
-source links; observability runbooks still need outgoing-link review separately.
+source links. This freeze separately checked outgoing local links for all 29 tracked Markdown files using the existing parser; that broader one-off audit does not extend the checked-in CI checker's scope.
 The previous docs-only workflow is retired without a duplicate validation job.
 See the [CI guide](../README.md#continuous-integration) for backend reproduction,
 failure diagnosis, exact proposed required checks and ruleset setup for both
@@ -139,22 +139,40 @@ source implementation, local verification, remote evidence and enforcement are
 [tracked separately](05-verification/22-test-strategy-and-acceptance.md#ci-foundation-implementation-and-evidence).
 Frontend validation waits for Sĩ's actual stack; no framework is assumed.
 
-The OpenAPI YAML remains the design-stage source of truth. Future Springdoc integration must follow [17 — Spring Boot implementation guidance](03-design/17-api-contracts.md#future-spring-boot-integration); no Springdoc dependency or second maintained specification is introduced now.
+The approved frozen OpenAPI YAML is the single V1 external contract source of truth. Future Springdoc integration must follow [17 — Spring Boot implementation guidance](03-design/17-api-contracts.md#future-spring-boot-integration); no Springdoc dependency or second maintained specification is introduced now.
+
+## Documentation audit coverage — 2026-10-22
+
+**Historical engineering-review coverage:** this table records the earlier engineering-only synchronization. Its reference to then-draft product/UX scope is historical; the later consolidated approval above now freezes those existing artifacts. The present follow-up is targeted approval recording and validation, not a repeat of the comprehensive architecture audit.
+
+The freeze review covered all **29 tracked Markdown files**, the existing OpenAPI, checked-in build/configuration, Java API/capability sources, tests and Flyway V1/V2; source/configuration is implementation evidence, not permission to edit it. There are no checked-in frontend implementation documents/stack to infer. Historical local test records retain their original date/scope.
+
+| Area | Reviewed files | Synchronization outcome |
+|---|---|---|
+| Entry/contributor routing (3) | Root README, AGENTS, this index | Current BK-003 merge status, scoped freeze, member workflow and evidence boundaries |
+| Approved discovery (8) | 01 vision, 02 glossary, 03 actors, 04 use cases, 05 processes, 06 rules, 07 decisions, 08 handoff | 02–05 unchanged; canonical UC/BR/AC/CONS and historical A/OQ/DEC unchanged. 01 restores the omitted GENESIS term and removes an unsupported parenthetical claim of verified course requirements; 06–08 receive current technical routing only |
+| Requirements/delivery (4) | 09 PRD, 10 backlog, 11 traceability, 12 functional specifications | Scoped benchmark method approval, exact six-person assignment/readiness, BK-010 phases/FIX-001 and design-versus-execution traceability; no workload/threshold or canonical requirement change |
+| Design/contracts (7) | 14 UX, 15 architecture, 16 data, 17 API, module guide, shared-error-money guide, logging guide | Selected mechanisms, unchanged Java/OpenAPI baseline, security/transaction/recovery guidance and explicit missing read-capability integrations; UX/product draft scope retained |
+| Verification/governance (3) | 22 strategy, 23 release checklist, 25 decision register | Dated freeze/provenance, TD scopes/rationale/alternatives/owners/revisit criteria, Fineract evidence and required unexecuted runtime tests; historical BK-003 record retained |
+| Persistence guide (1) | Backend migration README | Existing SQL guarantees versus cross-row/provider obligations, selected counter/advisory protocol and database text representability; migrations unchanged |
+| Observability (3) | README, architecture-review, metrics-and-alerts | Existing local evidence/configuration retained; current pure API source status, topology approval versus deployment/benchmark proof clarified |
+
+The decision register is the only approval authority; this inventory is coverage/routing. See its [explicit exceptions](6-governance/25-design-decision-register.md#explicit-exceptions-and-implementation-findings) before affected History/Admin integrations. No missing standalone ADR/runbook is claimed to exist, and no acceptance checkbox is completed by this audit.
 
 ## Review/approval gates
 
-1. **Product:** project owner reviews PRD 09 (currently *draft*, not approved) and any proposed elaborations; baseline 01–08 records its own approved decisions.
+1. **Implementation baseline:** Tiến approves existing PRD 09 requirements, specification 12, UX 14 and REST 17/YAML, including browser checks and the unchanged benchmark method. No routine reapproval is needed. Future banking-policy changes and final release acceptance retain their separate project-owner authority.
 2. **External feasibility:** EV-001 rubric and EV-002 cloud feasibility verified; if course requirements conflict, obtain explicit project owner disposition before final topology.
-3. **Architecture:** TD-015/016 and current BK-003 Java signatures are explicitly approved by Tiến; follow the canonical baseline on merge and obtain prior Tech Lead approval for new capabilities/edges or breaking amendments. TD-001..014 retain their separate proposal/selection/evidence statuses. Standalone ADR-001..003 remain planned; external REST/OpenAPI review is separate from Java contract approval.
+3. **Architecture:** TD-015/016 and current BK-003 Java signatures are explicitly approved by Tiến; BK-003 is already merged; follow the additional engineering freeze when it merges and obtain prior Tech Lead approval for new capabilities/edges or breaking amendments. TD-001..014 have the freeze's scoped approvals; deployment resources, runtime proofs and benchmark results remain pending. Standalone ADR-001..003 remain planned; the later Product/UX/REST freeze approves the exact existing YAML semantics, with metadata-only edits, separate from Java contract approval; API-ERR-01 and missing read capabilities remain scoped integration exceptions.
 4. **Delivery:** execution evidence for all FR-001..013, UX-001..005, NFR-001..006, 38 canonical ACs and 19 CONS risk views collected; verify financial invariants under retries/failures.
 5. **Performance/release:** EV-003 measured on recorded environment, deviations documented; project owner decides acceptance.
 
 ## Known implementation hazards (read before coding)
 
-- Browser JSON VND **strings** and a global financial commit sequence are technical proposals. They do not alter approved integral-VND business semantics. Measure the sequence-lock's throughput against EV-003.
+- Browser JSON VND **strings** and the transactional global financial commit sequence are approved V1 designs under TD-001/004. They do not alter approved integral-VND business semantics. Measure the sequence-lock's throughput against EV-003.
 - History snapshots need true commit-order stability; naive `OFFSET` or `(timestamp,id)` alone may omit late-committing rows.
 - A final business rejection is durable for the dataset lifetime, just like completed intent outcome. A technical failure is **not** a final rejection. Check authorization before replay or lookup.
 - Funding success **audit**, final intent result, signed ledger entries, balance deltas and transaction reference must commit together. Effective freeze and its complete success audit must also commit together.
 - Never expose ordinary GENESIS/replenishment/reset/mint APIs. Dataset recreation is a controlled maintenance operation, not a third banking role.
 
-The full business requirements and canonical acceptance wording remain in `01-discovery/` and `02-requirements/09-product-requirements.md`. Engineering proposals do not replace them.
+The full business requirements and canonical acceptance wording remain in `01-discovery/` and `02-requirements/09-product-requirements.md`. The consolidated freeze approves their implementation-facing scope while preserving canonical banking meanings; it does not establish passing runtime tests or final release acceptance.

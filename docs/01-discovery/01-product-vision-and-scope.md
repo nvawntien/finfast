@@ -45,7 +45,7 @@ The course evaluator is a stakeholder, **not** an application authorization role
 
 - Asynchronous in-app notification of completed transfers.
 - Filtered transaction history, basic metrics dashboard, or account search enhancements.
-- Extended load testing and an autoscaling demonstration if external course requirements justify them (it does). The initial performance and financial-invariant checks below are already part of the V1 acceptance baseline.
+- Extended load testing and an autoscaling demonstration if external course requirements justify them (EV-001 verification remains pending). The initial performance and financial-invariant checks below are already part of the V1 acceptance baseline.
 
 ### Explicitly out of scope
 
@@ -68,7 +68,7 @@ The following are **project-owner-approved V1 choices**, not universal banking r
 | A-004 | Internal customer-to-customer transfers only; no self-transfers | Clear consistency boundary |
 | A-005 | No fees, interest, FX, negative balances, overdrafts, or independent commercial cap; funds and safe numeric bounds apply | Focus on basic transfer invariants |
 | A-006 | Admin funding comes from one finite virtual treasury | Every normal money movement has an auditable source |
-| A-007 | One controlled, auditable  per dataset creates the finite treasury supply | Distinguishes initialization from ordinary zero-sum movements |
+| A-007 | One controlled, auditable GENESIS per dataset creates the finite treasury supply | Distinguishes initialization from ordinary zero-sum movements |
 | A-008 | Frozen accounts can neither send nor receive funds (including allocations) | Simple deterministic rule |
 | A-009 | Transfers are synchronous in V1 | Avoids premature distributed-transaction complexity |
 | A-010 | Admin identities are provisioned through protected bootstrap/administrative procedures | Avoids admin self-registration risks |

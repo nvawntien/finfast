@@ -1,6 +1,10 @@
 # 15 — System Context, Containers, Modules and Security Boundaries
 
-> **AGREED architecture direction:** Java/Spring Boot, PostgreSQL, one deployable Modular Monolith, DDD-inspired domain modules, pragmatic Hexagonal Architecture, constructor-based Spring DI, in-process module calls, REST/OpenAPI/Swagger UI, protected server-managed sessions and PostgreSQL ACID transactions. This preserves A-013 / DEC-006. On 2026-10-22 Tiến explicitly **APPROVED** the current BK-003 Java signatures, TD-015 financial ownership/transaction responsibilities and TD-016 nine-module/18-edge dependency/capability policy; these become the mandatory shared baseline on merge into `develop` (pending). Concrete locking/retry/annotation/bootstrap/cursor mechanisms retain their separate proposal status. Backend/database/observability, shared contracts and architecture checks exist; business provider implementations and deployment design below are not implemented. See the [root README](../../README.md) for current status.
+> Product/UX/REST implementation authority — 2026-10-22: [Tiến's consolidated approval](../6-governance/25-design-decision-register.md#2026-10-22--v1-product-ux-and-rest-contract-freeze) freezes the existing PRD/functional/UX and external YAML baselines in addition to the engineering/Java baseline. It changes no module, edge, capability, financial invariant or selected algorithm. Follow them without routine design reapproval; retained integration exceptions and runtime/external evidence remain open.
+
+The [member readiness matrix](../02-requirements/10-product-backlog.md#member-implementation-readiness--2026-10-22) assigns work without transferring module ownership. TD-012 approves the reference topology only; EV-001/002 still gate provider/resources. Session/CSRF/BCrypt defaults are design selections, not security test evidence.
+
+> **APPROVED V1 ENGINEERING BASELINE — 2026-10-22:** Java 21/Spring Boot 4.1.1/PostgreSQL 16, one modular monolith, pragmatic Hexagonal Architecture, constructor DI and in-process APIs. BK-003 signatures, TD-015 ownership and TD-016 nine-module/18-edge policy merged at `8a04ca0`. The later [engineering freeze](../6-governance/25-design-decision-register.md#v1-engineering-design-freeze--2026-10-22) selects TD-001..014 in scoped design/method/topology approvals. Foundation code/contracts exist; provider workflows, security integration and deployment evidence remain absent or unverified on that baseline.
 
 The Modular Monolith sets deployment and logical module boundaries. DDD gives each module ownership of its domain concepts and invariants. Pragmatic Hexagonal Architecture keeps business logic separate from HTTP and persistence adapters without requiring an interface for every class. One six-person team can work within these boundaries while financial operations still share one database transaction. No mandatory microservices, Kafka, Kubernetes, Redis, event sourcing, distributed transactions or separate module databases are introduced. Provider and infrastructure sizing await EV-001/002.
 
@@ -220,14 +224,14 @@ required by this baseline.
   Follow the [module collaboration guide](module-contracts-and-boundaries.md) and
   real PostgreSQL/transaction gates in [22](../05-verification/22-test-strategy-and-acceptance.md).
 
-## 4. Security design direction (must be reviewed before implementation)
+## 4. Approved security design (implementation and evidence pending)
 
-- **Auth:** HTTPS only; server-side session storage with protected `HttpOnly; Secure; SameSite=Lax` cookie; renew session ID after authentication, use explicit expiry and logout invalidation. `SameSite` alone is insufficient CSRF defense.
-- **CSRF:** Spring Security CSRF token (e.g. same-origin token header obtained through a safe endpoint) for cookie-authenticated mutations, along with Origin/Referer checking where appropriate. No state-changing GET endpoint.
-- **Password:** adaptive hashing (propose Argon2id or a suitably configured BCrypt); never log plaintext/password hashes; lockout/rate-limit rules subject to security review, not a new banking actor.
+- **Auth:** HTTPS only; server-side session storage with protected HttpOnly cookie, Secure under HTTPS and explicit SameSite (initial Lax where the actual frontend/Core topology permits); renew session ID after authentication, use explicit expiry and logout invalidation. `SameSite` alone is insufficient CSRF defense.
+- **CSRF:** Spring Security CSRF token through the existing `/api/v1/auth/csrf` contract and its defined header for cookie-authenticated mutations, along with Origin/Referer checking where appropriate. No state-changing GET endpoint.
+- **Password:** standard Spring Security BCrypt, initial configurable strength 12 (benchmark required); never log plaintext/password hashes; lockout/rate-limit rules subject to security review, not a new banking actor.
 - **Authorization:** endpoints verify role and server-derived ownership before key lookup, receipt/history read and treasury access. Give safe indistinguishable unavailable-resource errors for unrelated Customer financial resources.
 - **Audit:** required success Audit Events written in PostgreSQL transaction with state change. Separate best-effort security logs should record rejected attempts where appropriate without becoming financial postings; secrets and credentials never logged.
-- **Least privilege:** dedicated runtime DB role; migration privileges separate; no UPDATE/DELETE capability against immutable financial facts via application APIs. HTTPS certificates, DB credentials, and session secret/key never committed.
+- **Least privilege:** dedicated runtime DB role with separate migration privileges where deployment supports it (current owner-role limitations must be recorded); no UPDATE/DELETE capability against immutable financial facts via application APIs. HTTPS certificates, DB credentials, and session secret/key never committed.
 - **Operations:** bounded input sizes, page limits, structured request/trace IDs without sensitive payloads; metrics include transaction duration/rejected/unknown counts, not raw account credentials.
 
 ## 5. Deployment and failure domains
@@ -249,4 +253,4 @@ required by this baseline.
 
 ## 7. Architectural trade-offs
 
-Why monolith initially? Strong financial transaction boundary, one small team, no independent scaling or ownership requirement across Accounts/Transfer/Ledger in V1. This is an **approved initial direction**, not a commitment against later decomposition. Approved TD-015/016 ownership/boundaries and independent proposed mechanisms are tracked in the [decision register](../6-governance/25-design-decision-register.md). Standalone ADR-001 is planned and is not an existing deliverable. Optional notifications are a P1 extension and never block financial commit.
+Why monolith initially? Strong financial transaction boundary, one small team, no independent scaling or ownership requirement across Accounts/Transfer/Ledger in V1. This is an **approved initial direction**, not a commitment against later decomposition. Approved TD-015/016 ownership/boundaries and the later scoped TD-001..014 selections are tracked in the [decision register](../6-governance/25-design-decision-register.md). Standalone ADR-001 is planned and is not an existing deliverable. Optional notifications are a P1 extension and never block financial commit.
