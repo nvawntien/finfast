@@ -1,5 +1,7 @@
 # FinFast
 
+> Documentation freeze snapshot: base `develop` `8a04ca03505a140930b9bbc976dcdc1148db2693`. BK-010 Phase 1 is separate on `feat/BK-010-ledger-core` at `44dd3ed`; its immutable model is not posting persistence and is not merged into this baseline. See [member readiness and phase handoff](docs/02-requirements/10-product-backlog.md#member-implementation-readiness--2026-10-22).
+
 FinFast is a banking simulation project designed as one deployable modular
 monolith, with DDD-inspired business modules and pragmatic Hexagonal Architecture.
 The Database Foundation includes PostgreSQL/Flyway and eight banking tables with no
@@ -11,13 +13,13 @@ BK-003 adds compile-time Identity/Customer/Accounts/Ledger/Idempotency APIs and
 immutable DTOs for parallel development. Tiến explicitly approved the current Java
 signatures, TD-015 posting ownership/transaction responsibilities and TD-016
 nine-module/18-edge boundary policy on 2026-10-22. They become the mandatory shared
-V1 baseline when BK-003 merges into `develop` (pending). Provider implementations,
+V1 baseline following BK-003 PR #10, merged into `develop` at `8a04ca0` on 2026-10-22. Provider implementations,
 authentication, transfers, Ledger posting,
 Admin operations, controlled GENESIS bootstrap and the frontend are not implemented.
 
 See the [documentation index](docs/README.md) and
 [system architecture](docs/03-design/15-system-architecture.md) for the agreed
-direction and the proposals awaiting review.
+direction and the [2026-10-22 engineering freeze](docs/6-governance/25-design-decision-register.md#v1-engineering-design-freeze--2026-10-22). Its designs are approved under Tech Lead authorization. The later [Product/UX/REST freeze](docs/6-governance/25-design-decision-register.md#2026-10-22--v1-product-ux-and-rest-contract-freeze) also approves PRD 09, functional specification 12, UX 14 and API 17/existing OpenAPI for implementation. Banking/runtime, external feasibility, benchmark evidence and separate final release acceptance remain outstanding.
 
 ## Backend baseline
 
@@ -254,12 +256,11 @@ public APIs. For a mismatch, preserve work, compare exact signatures and report 
 Tiến for an integration decision before adapting member-owned code and tests.
 Additional capabilities/edges or breaking changes require prior Tech Lead approval;
 Java, tests, canonical documentation and decisions change together. Concrete locking,
-retry, cursor and bootstrap mechanisms retain their separate proposal status.
-After BK-003 merges, each teammate updates their own feature branch from `develop`
+retry, cursor and bootstrap mechanisms are now selected by the later V1 engineering freeze; this does not claim their implementation or runtime verification.
+BK-003 has merged. Once the consolidated documentation baseline merges, each teammate updates their own feature branch from `develop`
 using the agreed team workflow, adapts their implementation and runs Java 21
 `./mvnw --batch-mode --no-transfer-progress verify` with Docker before review.
-Frozen-owner reads, full-scope recovery, atomic audit and commit-confirmed success
-remain mandatory; static/mocked tests cannot prove these financial guarantees.
+Product/UX/Java/REST and selected designs require no routine reapproval within assigned tasks/phases. Frozen-owner reads, full-scope recovery, atomic audit and commit-confirmed success remain mandatory; static/mocked tests cannot prove these financial guarantees. Retained read-capability gaps, FIX-001 and API-ERR-01 remain scoped integration obligations; no bypass or whole-project review is required.
 
 ## Continuous integration
 
@@ -340,8 +341,7 @@ new workflow has completed successfully on GitHub, a maintainer can configure
    and verify the saved ruleset's enforcement on a real PR.
 
 **CI** is the workflow name; the three explicit job `name` values above are the
-intended required check names. They still need confirmation from real GitHub
-runs before selection. Path-filtered required workflows can leave checks pending
+intended required check names. Their current names have been confirmed in the merged-baseline run linked below; select them on the actual protected branches and verify enforcement separately. Path-filtered required workflows can leave checks pending
 and block merges. Conditional jobs can report success when skipped without doing
 the work. Here jobs are never skipped by changed files: `backend-package` uses
 `!cancelled()` plus an explicit success gate, so failed tests produce a failing
@@ -350,11 +350,12 @@ update. PR approval and successful CI are separate requirements; neither replace
 the other. See [GitHub's required-check troubleshooting](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks).
 
 Workflow automation is implemented in source; [local verification evidence](docs/05-verification/22-test-strategy-and-acceptance.md#ci-foundation-implementation-and-evidence)
-is separate from GitHub execution. The [develop baseline run](https://github.com/nvawntien/finfast/actions/runs/39601859299)
-completed all three named jobs successfully at `a4eb9ff`. That run does not verify
-the unpushed BK-003 changes. Ruleset enforcement has not been verified or changed
-by this task. Workflow YAML alone does not enable branch protection. There is no deployment
-CD, and CI does not implement or accept the planned banking business features.
+is separate from GitHub execution. Live verification on 2026-10-22 confirmed the
+[merged develop run](https://github.com/nvawntien/finfast/actions/runs/39649338194)
+at `8a04ca0` completed `backend-tests`, `backend-package` and `docs-validation`
+successfully, including the merged BK-003 baseline. This does not verify banking
+providers or this uncommitted documentation freeze. Ruleset enforcement has not
+been verified or changed by this task. Workflow YAML alone does not enable branch protection. No deployment CD or banking-feature acceptance is provided by these foundation checks.
 
 ### Frontend readiness
 
@@ -437,7 +438,7 @@ retention, log/trace queries, networking, resource use and repeatable end-to-end
 | `compose.yaml`, `compose.docs.yaml` | Backend/PostgreSQL and separate Swagger UI stacks |
 | `compose.observed.yaml`, `compose.observability.yaml` | Opt-in backend overlay and six telemetry services |
 | `observability/` | Stack runbook, component configs, Grafana provisioning and verification helpers |
-| `docs/` | Approved discovery, draft/proposed designs, contracts and verification guidance |
+| `docs/` | Approved discovery, V1 Product/UX/Java/REST and technical implementation baselines, plus pending runtime/external evidence |
 | [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | Backend tests, executable JAR packaging and documentation validation |
 
 Start at the [documentation index](docs/README.md). The
@@ -446,7 +447,7 @@ Start at the [documentation index](docs/README.md). The
 [architecture review](observability/architecture-review.md) records dated evidence
 and deployment gates. Implemented schema decisions are explained in the
 [migration README](backend/src/main/resources/db/migration/README.md); other design
-proposals retain their existing approval status.
+mechanisms follow the scoped statuses in the current decision register; no foundation test establishes financial workflow correctness.
 
 Before starting a business module, read [AGENTS.md](AGENTS.md), the approved use
 cases/rules through the docs index, the [module collaboration guide](docs/03-design/module-contracts-and-boundaries.md)

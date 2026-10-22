@@ -1,15 +1,17 @@
 # 09 - FinFast V1 Product Requirements Document
 
+> **APPROVED — V1 PRODUCT AND DELIVERY REQUIREMENTS BASELINE (2026-10-22):** Tiến (Tech Lead) explicitly approves the existing FR-001..013, UX-001..005 and NFR-001..006, the documented browser checks and unchanged §9 benchmark as the V1 implementation baseline. [Approval record](../6-governance/25-design-decision-register.md#2026-10-22--v1-product-ux-and-rest-contract-freeze). This extends the earlier engineering-only freeze; it does not fabricate a separate project-owner signature or grant runtime/release acceptance. EV-001/002 remain PENDING VERIFICATION; EV-003 remains AWAITING MEASUREMENT.
+
 > **Product:** FinFast Core Banking Platform\
 > **Release:** FinFast V1 Core Banking Foundation\
-> **Status:** Draft for project-owner review\
+> **Status:** APPROVED — V1 PRODUCT AND DELIVERY REQUIREMENTS BASELINE (2026-10-22)\
 > **Version:** 0.1 | **Created:** 2026-10-17\
-> **Decision authority:** Project owner\
+> **Implementation-baseline approval authority:** Tiến — Tech Lead, 2026-10-22; project-owner authority for future banking-policy changes and final release acceptance remains separate\
 > **Source baseline:** Approved discovery decisions dated 2026-10-16, including the current working copies of documents 01-08
 
 ## 1. Purpose and source of truth
 
-This PRD defines what FinFast V1 must deliver, how users experience it, and what evidence establishes acceptance. It turns the discovery baseline into identifiable functional, experience, and non-functional requirements. It does not claim product approval, completed implementation, or passing runtime tests.
+This PRD defines what FinFast V1 must deliver, how users experience it, and what evidence establishes acceptance. It turns the discovery baseline into identifiable functional, experience, and non-functional requirements. Tiến approves this documented V1 scope for implementation; that approval does not assert completed implementation, passing runtime tests or final release acceptance.
 
 | Source | Requirements input |
 |---|---|
@@ -24,12 +26,9 @@ This PRD defines what FinFast V1 must deliver, how users experience it, and what
 
 The existing UC, BR, AC, CONS, A, OQ, DEC, BP, and EV identifiers retain their meanings. The use cases, rules, and acceptance scenarios remain canonical in their linked documents. New FR, UX, and NFR identifiers organize delivery requirements without replacing those identifiers. A policy change requires an explicit project-owner decision and updates to affected source requirements.
 
-The source documents settle all recorded banking-policy questions. Viewport checks, browser interaction details, and the exact benchmark workload below are **PRD elaborations proposed for review**. They make acceptance reproducible and do not represent additional approvals in the discovery baseline.
+The source documents settle the recorded banking-policy questions. The later 2026-10-22 Product/UX/REST freeze approves the existing V1 requirements and browser elaborations, including 360x800, 768x1024 and 1440x900 CSS pixels, desktop 200% zoom and keyboard checks. These are approved test specifications, not browser passes or WCAG certification. The exact §9 benchmark method remains approved under TD-013, with measurements pending. The later authorization does not retroactively enlarge the original discovery approval.
 
-Two source details need explicit interpretation:
-
-- The vision's A-007 row currently omits the initialization event name. This PRD uses `GENESIS`, as specified by A-007 in the assumptions register, DEC-003, BP-06, and BR-LED-05.
-- The current vision confirms course justification for extended load testing/autoscaling. OQ-006 anticipates possible technology requirements in later versions and names no mandated cloud. These are carried into the delivery follow-up in section 12; they do not introduce a mandatory V1 technology or change financial scope.
+Historical provenance: the original 2026-10-17 PRD draft interpreted an omitted GENESIS term in vision A-007 and an unsupported parenthetical about course scaling. The engineering freeze corrected those source statements. Current meaning remains one controlled `GENESIS`; actual course/scaling obligations still require EV-001 evidence. OQ-006 names no mandated cloud. Neither correction adds a V1 technology or changes financial scope.
 
 ## 2. Product definition and goals
 
@@ -276,9 +275,9 @@ These are semantic categories, not prescribed HTTP statuses or a new persisted t
 |---|---|---|
 | UX-001 | Customer Web provides registration/login/logout, overview/balance, transfer, paginated history, and receipt navigation; required flows identify funds as simulated | AC-037, AC-038, and corresponding functional scenarios |
 | UX-002 | Admin/Back-office provides Customer Account listing, reasoned allocation, reasoned freeze/unfreeze, and distinct transaction/audit inspection with clear role separation | AC-030, AC-038 and Admin scenarios |
-| UX-003 | Forms provide labels, meaningful validation, keyboard operation, visible focus, and readable amounts/statuses. Loading, empty, denied, frozen, business-rejected, uncertain, and committed states have clear messages without private disclosure | Proposed usability checks within AC-038; authorization and rejection scenarios |
+| UX-003 | Forms provide labels, meaningful validation, keyboard operation, visible focus, and readable amounts/statuses. Loading, empty, denied, frozen, business-rejected, uncertain, and committed states have clear messages without private disclosure | Approved usability checks within AC-038; execution pending; authorization and rejection scenarios |
 | UX-004 | Repeated submits and retry/recovery controls retain the same intent/key until resolved. Do not display success on submission alone or offer a replacement intent as the way to resolve an unknown outcome. Show committed reference after resolution and refresh affected owned views | AC-005, AC-011, AC-013, AC-014, AC-015, AC-033, AC-038 |
-| UX-005 | Required journeys are usable on narrow and desktop viewports, without clipped controls, overlapping text, or loss of access to transaction/audit facts. Proposed checks: 360x800, 768x1024, and 1440x900 CSS pixels, plus a desktop 200% zoom/keyboard pass; document tested browsers | AC-038; proposed verification detail, no formal accessibility certification claimed |
+| UX-005 | Required journeys are usable on narrow and desktop viewports, without clipped controls, overlapping text, or loss of access to transaction/audit facts. Approved V1 checks: 360x800, 768x1024, and 1440x900 CSS pixels, plus a desktop 200% zoom/keyboard pass; document tested browsers | AC-038; approved verification specification, execution pending, no formal accessibility certification claimed |
 
 ### 8.2 Non-functional requirements
 
@@ -295,7 +294,7 @@ Exact password/session parameters, numeric representation, concurrency mechanism
 
 ## 9. Performance acceptance protocol
 
-The discovery target is transfer-request **p95 <= 2 seconds at 10 requests/second for 5 minutes**. The following reproducible workload is a proposed PRD elaboration for EV-003, not an observed result or production SLA.
+The discovery target is transfer-request **p95 <= 2 seconds at 10 requests/second for 5 minutes**. The following reproducible workload is the TD-013 APPROVED method for EV-003 (2026-10-22 freeze), not an observed result or production SLA.
 
 ### 9.1 Environment and setup
 
@@ -316,7 +315,7 @@ The discovery target is transfer-request **p95 <= 2 seconds at 10 requests/secon
 
 The benchmark report must include offered/achieved request rate, submitted intents, request attempts, completed new movements, final rejections, conflicts, technical errors, timeouts, non-final replies, unresolved intents, latency distribution, p95, environment details, and recovery outcomes.
 
-For the proposed baseline, a clean performance pass requires sustaining the workload, all 3,000 eligible intents completing once, no unexpected rejected/technical/timeout/non-final primary responses, completed-request p95 <= 2 seconds, and zero invariant violations. Faster rejection responses cannot establish successful-transfer performance. Separately reconcile every Account, check two entries per ordinary movement, verify one GENESIS, and verify total supply after warm-up and the measured run.
+For the approved benchmark method, a clean performance pass requires sustaining the workload, all 3,000 eligible intents completing once, no unexpected rejected/technical/timeout/non-final primary responses, completed-request p95 <= 2 seconds, and zero invariant violations. Faster rejection responses cannot establish successful-transfer performance. Separately reconcile every Account, check two entries per ordinary movement, verify one GENESIS, and verify total supply after warm-up and the measured run.
 
 Record deviations and their causes against EV-003 for owner review. A missed provisional latency target cannot be relabeled as achieved; an environment limit cannot justify a financial-invariant violation. Extended course-driven load/autoscaling evidence is a separate follow-on workload whose exact criteria depend on EV-001.
 
@@ -428,11 +427,11 @@ Before claiming V1 acceptance, the release record must show:
 
 ### 12.1 Evidence dependencies
 
-Responsibilities below are suggested and unassigned. Status is inherited from discovery; this PRD does not assert completion.
+The [backlog readiness matrix](10-product-backlog.md#member-implementation-readiness--2026-10-22) records named task assignments; the roles below describe evidence responsibility. Evidence status remains inherited from discovery; approval of this PRD does not assert completion.
 
 | Item | Current status / remaining evidence | Responsibility | Gate |
 |---|---|---|---|
-| EV-001 - Course/deployment requirements | PENDING VERIFICATION of the actual rubric and exact acceptance obligations. Current source edits confirm scaling justification and say no cloud is mandated; capture the rubric, later technology expectations, and scope/phase implications | Project owner / delivery lead | Before architecture/deployment plan finalization and follow-on course milestone definition |
+| EV-001 - Course/deployment requirements | PENDING VERIFICATION of the actual rubric and exact acceptance obligations. No course mandate or provider selection has been verified; capture the rubric, any later technology expectations, and scope/phase implications | Project owner / delivery lead | Before architecture/deployment plan finalization and follow-on course milestone definition |
 | EV-002 - Cloud feasibility and resources | PENDING VERIFICATION of provider choice, budget, resources, persistence, HTTPS, and reproducible deployment feasibility | Deployment responsibility | Before resource selection and benchmark execution |
 | EV-003 - Performance evidence | AWAITING MEASUREMENT against the provisional target; agree/run section 9 and record results/deviations | Testing / deployment responsibilities | Before performance-acceptance or demo-completion claims |
 
@@ -450,7 +449,7 @@ If verified course requirements conflict with V1 scope or the initial architectu
 | Initialization, persistence, and audit lifecycle | Once-only controlled GENESIS, restart durability, dataset recreation boundary, required durable append-only auditability | Setup, deployment, and retention behavior |
 | Deployment and test plan | Verified rubric/resources, Core/channel separation, documented workload/measurement boundary, reproducible evidence | Deployment finalization and release verification |
 
-These are pending implementation decisions within approved policy. A-001 through A-014 remain ACCEPTED; OQ-001 through OQ-013 remain CLOSED. This PRD does not reopen them or invent new banking actors/products.
+The corresponding TD-001..016 engineering choices are now selected in the [decision register](../6-governance/25-design-decision-register.md); implementation and proof remain pending within approved policy. Provider/resources still require EV-001/002, and existing V1 browser/product elaborations are now approved for implementation; their executed acceptance remains pending. A-001 through A-014 remain ACCEPTED; OQ-001 through OQ-013 remain CLOSED. This PRD does not reopen them or invent new banking actors/products.
 
 ### 12.3 Material risks
 
@@ -464,6 +463,6 @@ These are pending implementation decisions within approved policy. A-001 through
 | UI encourages a new intent after timeout | Accidental repeated payment | Retain original key, distinguish uncertainty from rejection, UX-004 and AC-011 |
 | Benchmark dominated by rejections or inadequate load | False performance acceptance | Funded deterministic workload, offered/achieved rates, separate outcome counts and completed latency, EV-003 |
 | Course requirements arrive after design | Rework or incomplete course delivery | Verify EV-001 early, schedule justified scaling work, record explicit scope/architecture decisions |
-| Scope or evidence claims exceed the demo | Unreviewed banking features or false readiness | Preserve exclusions, synthetic data, draft/measurement status, and release evidence gates |
+| Scope or evidence claims exceed the demo | Unreviewed banking features or false readiness | Preserve exclusions, synthetic data, scoped approval/measurement status, and release evidence gates |
 
-**Review outcome:** Pending project-owner review of this PRD. Discovery approval is inherited only for the recorded baseline; implementation, deployment, performance, and release acceptance remain unverified.
+**Review outcome — 2026-10-22:** Tiến explicitly APPROVED this existing V1 product/delivery requirements baseline for implementation. No additional stakeholder signature is implied. Implementation, runtime/security/deployment verification and measured performance remain outstanding; final release acceptance is NOT YET GRANTED. Future business-policy changes and final release acceptance retain their distinct project-owner authority.

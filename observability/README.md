@@ -1,5 +1,7 @@
 # Optional local observability
 
+> Engineering freeze — 2026-10-22: [TD-012/014](../docs/6-governance/25-design-decision-register.md#engineering-decisions-and-scoped-statuses) select a minimal reference topology and contention-measurement policy. This optional local telemetry stack does not select a cloud provider, establish production readiness or provide banking correctness/benchmark evidence.
+
 Six optional telemetry services support logs, traces, metrics and local alerts.
 See [metrics, dashboards and alert validation](metrics-and-alerts.md) for the metrics
 contract, operational thresholds and database-monitoring limitations.
