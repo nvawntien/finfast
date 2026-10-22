@@ -104,3 +104,30 @@ jobs:
         run: python scripts/check_docs.py
       - name: Validate documentation Compose configuration
         run: docker compose -f compose.docs.yaml config --quiet
+
+  docker-build:
+    name: docker-build
+    needs: [backend-package, backend-tests]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+      - name: Build backend Docker image
+        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: false
+          tags: |
+            finfast-backend:${{ github.sha }}
+            finfast-backend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Validate Compose configurations
+        run: |
+          docker compose --env-file .env.example config --quiet
+          docker compose --env-file .env.example -f docker-compose.yml config --quiet
