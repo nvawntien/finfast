@@ -1,6 +1,8 @@
 # 14 — V1 Customer/Admin Experience, Wireframes and E2E Journeys
 
-> Status: **PROPOSED presentation design**, not approved screenshots. Must preserve FR-001..013 and UX-001..005; canonical browser acceptance: AC-038. Customer and Admin may share one frontend if strict role separation exists. No native mobile app or new feature is implied.
+> **Approval — 2026-10-22:** Tiến approves the existing information architecture, S01–S10 capabilities/states, WEB-01..08 execution specifications and PRD viewport/zoom/keyboard checks as the V1 implementation baseline. [Approval record](../6-governance/25-design-decision-register.md#2026-10-22--v1-product-ux-and-rest-contract-freeze). Follow TD-001/003/004/006/008 and the frozen OpenAPI. Browser execution remains NOT YET VERIFIED; no WCAG certification is claimed.
+
+> Status: **APPROVED — V1 UX FLOW AND ACCEPTANCE DESIGN BASELINE**. Preserve FR-001..013, UX-001..005 and canonical AC-038. Customer and Admin may share one frontend with strict role separation. No native mobile app or additional banking feature is authorized.
 
 ## Information architecture
 
@@ -37,6 +39,8 @@ flowchart LR
 | S10 Admin inspection | Transactions/ledger vs audits in separate views | GENESIS explicitly initialized, no rejected requests as finance; limited data | FR-013, UX-002 |
 
 ## Low-fidelity layouts (not final design system)
+
+These ASCII wireframes are **LOW-FIDELITY REFERENCES**, not pixel-perfect mandatory layouts. Frontend owner Sĩ may choose styling, colors, typography, layout composition, component library, animations and responsive presentation details without further architecture approval, within the approved task/dependency process. Preserve every screen capability, required state/action, safe financial recovery, server-enforced authorization, responsive/accessibility checks and frozen REST contract. No framework or UI dependency is mandated here.
 
 ```text
 +--------------------- FINFAST | CUSTOMER ----------------------+
@@ -78,7 +82,9 @@ flowchart LR
 6. Display `FROZEN` as read-only access with explanation; do not imply user credentials were revoked.
 7. Announce validation and outcome text clearly; support keyboard-only actions, visible focus and responsive layout without horizontal content loss.
 
-## Browser E2E journey scripts (proposed execution IDs, canonical AC references preserved)
+## Browser E2E journey scripts (approved execution specifications, canonical AC references preserved)
+
+WEB-01..08 are APPROVED test specifications and retain the canonical AC mappings below. Their execution/results are NOT YET VERIFIED; approval does not mark any scenario PASS.
 
 | Test | Steps | Expected outcome | Canonical ACs |
 |---|---|---|---|

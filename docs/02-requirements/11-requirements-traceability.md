@@ -1,6 +1,10 @@
 # 11 — Requirement-to-Delivery Traceability Matrix
 
-> **Generated mapping** from [PRD §10](09-product-requirements.md), [04 canonical AC](../01-discovery/04-use-cases.md), [06 canonical BR](../01-discovery/06-business-rules.md), and the proposed [backlog 10](10-product-backlog.md). This is **design-time coverage**, not evidence of executed tests. FR/UC/AC/BR/CONS original identifiers remain unchanged.
+## Engineering authority and evidence update — 2026-10-22
+
+[TD-001..016](../6-governance/25-design-decision-register.md#engineering-decisions-and-scoped-statuses) and the [assigned readiness matrix](10-product-backlog.md#member-implementation-readiness--2026-10-22) now guide implementation. The [Product/UX/REST approval](../6-governance/25-design-decision-register.md#2026-10-22--v1-product-ux-and-rest-contract-freeze) also approves PRD 09, derived specification 12, UX 14 and the existing external API. The tables below retain canonical mappings and NOT RUN evidence; approved specification is not executed acceptance. TD-001/002/005/010/015 support FR-005 (AC-003/008/010/022/023/031), TD-003 supports FR-006, TD-004/014 support FR-007/008, TD-006/007 support FR-001/002 and NFR-003, TD-009 supports FR-010, TD-011 supports FR-011/012, and TD-012/013 retain EV-001..003 evidence gates. BK-003 is merged; BK-010 Phase 1 is a separate branch with FIX-001 outstanding. Provider integration/read-capability exceptions remain explicit in the decision register; no row is marked passed by this synchronization.
+
+> **Generated mapping** from [PRD §10](09-product-requirements.md), [04 canonical AC](../01-discovery/04-use-cases.md), [06 canonical BR](../01-discovery/06-business-rules.md), and [backlog 10](10-product-backlog.md). This is **design-time coverage**, not evidence of executed tests. FR/UC/AC/BR/CONS original identifiers remain unchanged.
 
 ## Functional requirement to use case/acceptance/issue
 

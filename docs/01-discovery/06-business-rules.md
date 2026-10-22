@@ -173,11 +173,11 @@ GENESIS is a controlled operational prerequisite of UC-ADM-02, with its recorded
 | BR-SIM-01 | UC-TRF-01, UC-ADM-02 | AC-037 |
 | BR-SIM-02 | UC-AUTH-01, UC-ADM-01 | AC-027, AC-037 |
 
-## 9. Pending design decisions (not business rules)
+## 9. Engineering follow-through (not business rules)
 
 The approved direction is Java/Spring Boot, PostgreSQL, a domain-oriented Modular Monolith, channel-independent Core, and secure server-managed browser sessions with protected HttpOnly cookies over HTTPS. No Kafka, Redis, Kubernetes, or microservices are mandatory. These are architecture constraints, not BR entries.
 
-Remaining design work must preserve the approved baseline:
+The following were pending when discovery was approved on 2026-10-16. The later [2026-10-22 engineering freeze](../6-governance/25-design-decision-register.md#v1-engineering-design-freeze--2026-10-22) now selects numeric, locking, balance, session and history mechanisms; implementation/evidence remain separate, and provider/resources remain externally gated. This dated routing update does not amend any BR/CONS or claim an original discovery approval of those mechanisms:
 
 - PostgreSQL lock strategy, isolation level, and whether balances are computed or materialized.
 - Exact safe numeric representation/bounds, credential/session configuration, and history continuation/tie-break mechanism.

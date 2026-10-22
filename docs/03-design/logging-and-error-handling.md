@@ -1,8 +1,10 @@
 # Logging, HTTP errors and tracing
 
+> Financial implementation status — 2026-10-22: [TD-002/003/008/011](../6-governance/25-design-decision-register.md#engineering-decisions-and-scoped-statuses) now select transaction/recovery/result/audit mechanisms. Existing telemetry/common handlers are not financial providers. Required success audits remain PostgreSQL facts in the operation transaction; logs/traces never establish commit or durable rejection. Preserve the accepted-intent versus protocol-error distinction in the [money guide](shared-error-money-contracts.md#http-and-database-boundaries).
+
 Implemented technical foundation for Java 21 / Spring Boot 4.1.1. The generic HTTP
 codes below are technical decisions for this step, not approval of new banking
-behavior or implementation of the proposed financial endpoints in [API design](17-api-contracts.md).
+behavior or implementation of the specified but absent financial endpoints in [API design](17-api-contracts.md).
 
 ## Clean business code, centralized observability
 

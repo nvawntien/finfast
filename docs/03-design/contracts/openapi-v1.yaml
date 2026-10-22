@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
-  title: FinFast V1 Core Banking API — proposed contract
-  version: 0.1.0-proposal
-  description: Design-stage single source of truth, NOT an approved deployed interface. Financial semantics are defined in canonical FinFast discovery docs 01–08 and PRD 09. Only simulated funds; VND integers serialized as decimal strings. Endpoints are proposed and subject to design review.
+  title: FinFast V1 Core Banking API — approved contract
+  version: 0.1.0
+  description: APPROVED — FROZEN V1 EXTERNAL REST API CONTRACT. Tiến, Tech Lead, approved this existing interface as the V1 implementation baseline on 2026-10-22. Financial semantics remain defined by approved discovery docs 01–08 and PRD 09. Only simulated funds; VND integers serialized as decimal strings. Approval does not establish implemented endpoints, deployment or passing runtime tests. Implementations must conform; intentional breaking changes require explicit contract amendment, compatibility analysis and affected-owner coordination. Known adapter integration exceptions remain recorded in API 17 and the decision register.
 servers:
 - url: https://finfast.example.invalid
   description: PLACEHOLDER — no cloud provider or host chosen

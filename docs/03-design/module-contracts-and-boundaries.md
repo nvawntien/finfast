@@ -1,13 +1,14 @@
 # Module contracts and boundaries
 
+> Consolidated baseline — 2026-10-22: [Product/UX/REST approval](../6-governance/25-design-decision-register.md#2026-10-22--v1-product-ux-and-rest-contract-freeze) now freezes PRD 09, derived specification 12, UX 14 and external API 17/YAML alongside the approved Java contracts and TD designs. Java APIs and HTTP contracts are separate authorities; no signatures/capabilities/edges change. Implement conforming assigned tasks without routine reapproval; use scoped amendments for actual contract/security/correctness conflicts and preserve recorded integration exceptions.
+
 This is the canonical entry point for inter-module Java collaboration. BK-003 adds
 real compile-time interfaces and immutable boundary values under
 `backend/src/main/java/com/finfast/<provider>/api/`. The contracts and architecture
 checks are **IMPLEMENTED in source**. On **2026-10-22**, Tiến (Tech Lead) explicitly
 **APPROVED the current Java signatures, TD-015 ownership/transaction responsibilities
 and TD-016 dependency/capability policy** in the BK-003 final-review instruction.
-They become the mandatory shared V1 integration baseline when BK-003 merges into
-`develop`; that merge is pending. No individual owner endorsement is inferred.
+BK-003 PR #10 merged into `develop` on 2026-10-22 at `8a04ca0`; this is already the mandatory shared V1 integration baseline. No individual owner endorsement is inferred.
 No provider
 implementation, Spring Bean, banking workflow or new HTTP endpoint is supplied.
 An interface permits compilation and mocking; it does not make runtime injection
@@ -20,9 +21,7 @@ Approved [use cases](../01-discovery/04-use-cases.md) and
 [Architecture 15](15-system-architecture.md#32-allowed-module-dependencies-arc-06)
 is the source of the approved nine-module/18-edge dependency graph. ARC-01/02/06
 and DOC-02 refine that direction; the [decision register](../6-governance/25-design-decision-register.md#bk-003-approval-record-and-remaining-authority)
-records approval scope and authority. Algorithms, SQL locking/isolation/retries,
-canonical encoder, cursor, concrete transaction annotation placement, bootstrap
-mechanism and performance remain governed by their separate unresolved decisions.
+records the original approval scope and authority. The later [V1 freeze](../6-governance/25-design-decision-register.md#v1-engineering-design-freeze--2026-10-22) selects algorithms, isolation/locks/retries, canonicalization, HMAC cursor, concrete transaction guards and operator-driven setup under TD-001..014. Performance and runtime correctness remain unverified; pure API Javadocs retaining historical “proposal” wording do not override that later design authority.
 
 ## Ownership and approved dependencies
 
@@ -112,7 +111,7 @@ interfaces. Constructor injection and normal MVC binding need no Generic Handler
 
 ## Compatibility audit and review matrix
 
-Audit baseline: `develop` / this feature branch at
+Historical pre-merge compatibility audit baseline (retained as evidence of that audit, not current branch status): `develop` / the BK-003 feature branch at
 `a4eb9fff7523a5a51689176a85ed4a60514152b9`. Live read-only branch inspection found
 `develop` there and `main` at `5af4b1c388d095dc971a2eca1e52be4b00754603`, with identical
 trees. GitHub exposed only those two live branches and no open PRs. All available
@@ -126,15 +125,15 @@ evidence that implementation has not started.
 
 | Provider | Owner | Consumers | Existing Java API before BK-003? | Approved contract / deferred work | Compatibility / implementation follow-up |
 |---|---|---|---|---|---|
-| Accounts | Hải | Customer, Ledger, Transfers, Administration, History, Bootstrap | None found; documented proposals only | Queries, Customer/Treasury provisioning, guarded posting, status changes | Additive to visible baseline; implement approved signatures and review concrete guards with Tiến/Trung |
-| Ledger | Tiến | Transfers, Administration, History, Bootstrap | None found | Transfer/allocation/GENESIS capabilities, pending results, Customer projections | Implement approved capability split with Minh/Hải/Trung; Admin-wide queries and cursor algorithm deferred |
-| Idempotency | Minh | Transfers, Administration | None found | Scoped inspect/record/find and typed final/non-final results | Review canonical intent encoder/response mapping and coordination with Tiến; no lock algorithm selected |
+| Accounts | Hải | Customer, Ledger, Transfers, Administration, History, Bootstrap | None found; documented proposals only | Queries, Customer/Treasury provisioning, guarded posting, status changes | Additive to visible baseline; implement approved signatures and selected TD-002 guards with Tiến/Trung; verify real proxies |
+| Ledger | Tiến | Transfers, Administration, History, Bootstrap | None found | Transfer/allocation/GENESIS capabilities, pending results, Customer projections | Implement approved capability split with Minh/Hải/Trung; TD-004 cursor algorithm selected, implementation pending; Admin-wide read capability absent |
+| Idempotency | Minh | Transfers, Administration | None found | Scoped inspect/record/find and typed final/non-final results | Implement selected TD-003 canonical v1/advisory coordination and existing response mapping with Tiến; proof tests pending |
 | Identity | Hưng | Transfers, Administration, History, Bootstrap | None found | Current trusted actors, protected configured-Admin provisioning | Review actor resolution and credential-source/transaction contract with Trung |
 | Customer | Hưng | Identity, Administration | None found | Registration provisioning and minimal profile reads | Review with Hải; registration projection intentionally avoids an Identity → Accounts dependency |
 | Transfers | Minh | HTTP use cases | None found | No exported API; consumes providers above | Orchestration, retries and performance remain BK-012/022/023 work |
 | Administration | Tiến | HTTP use cases; Trung supports Admin reads | None found | No exported API; consumes providers and owns audit | Funding/status/audit implementations remain separate work |
 | History | Hải | HTTP use cases | None found | No exported API; consumes participant-scoped Ledger projections | Authorization and real stable traversal need implementation/tests |
-| Bootstrap | Trung | Restricted operator/setup entry | None found | No exported API; consumes protected provider capabilities | TD-009 entry/credential mechanism and restart/race behavior remain unapproved |
+| Bootstrap | Trung | Restricted operator/setup entry | None found | No exported API; consumes protected provider capabilities | TD-009 protected operator entry selected; private credential wiring and restart/race tests remain implementation work |
 
 All additions are **APPROVED compile-time contracts**, without recorded individual
 owner endorsements. Compare this matrix with each member's preserved local work.
@@ -226,7 +225,7 @@ declares `Decision inspect(Scope scope, CanonicalIntent intent)`,
   document, not an arbitrary payload map or hash. Its producer must validate JSON
   and preserve all intent fields, invalid numeric tokens, omitted/empty note and
   exact reason before constructing typed posting DTOs. The encoder, version-v1
-  vectors, comparison implementation and fingerprint remain TD-003 review work.
+  vectors, comparison implementation and fingerprint follow the selected TD-003/16 §7 protocol; tests remain required.
 - `Decision` is Execute, Replay(FinalOutcome), Conflict or NotFinal
   (PROCESSING/UNKNOWN). Only a coordinated fresh authoritative inspection may
   authorize Execute. PROCESSING needs exact-scope evidence; unrelated contention
@@ -243,15 +242,14 @@ scope until completion, compare full intent as well as any digest, retain final
 results for dataset lifetime and never replace a reserved key. Lookup absence is
 UNKNOWN, not permission to execute or proof funds did not move. Technical failure
 escapes for rollback; never continue an aborted DB transaction. Retry outside the
-proxy in a fresh transaction with the original scope. No advisory-lock algorithm,
-hash mapping, separately committed PROCESSING row or retry budget is selected.
+proxy in a fresh transaction with the original scope. BK-003 itself selected no advisory algorithm/hash/retry budget; the later TD-002/003 freeze now selects them. A separately committed PROCESSING row remains excluded.
 
 ## Transactions and posting permissions
 
 Follow [data design §5](16-domain-model-and-data-design.md#5-transaction-boundaries-and-outcomes-arc-02).
 **Approved TD-015 responsibilities:** the initiating application owns the outer
 transaction; restricted mutation collaborators must join an existing transaction.
-Concrete `REQUIRED`/`MANDATORY` annotation placement remains a proposed realization.
+The later TD-002 freeze selects concrete outer `REQUIRED` and restricted mutation `MANDATORY` guards; no annotations are added to these pure public APIs.
 Do not independently commit balances, entries, final
 outcomes or required success audits with `REQUIRES_NEW`. HTTP success follows actual
 proxy commit confirmation, not a method-body return or an earlier SQL write.
@@ -272,12 +270,10 @@ exception is introduced. These static checks do not implement runtime security.
 | Administration status / Tiến + Hải | AccountStatusCommands; internal audit writer | Account protection shared with posting; status + audit or neither; same status UNCHANGED |
 | Protected setup / Trung | AdminProvisioning; TreasuryProvisioning + GenesisPosting → PostingAccounts | Atomic Treasury/GENESIS/dataset linkage, exactly once; verify restart, no reseed |
 
-The proposed realization is outer concrete application `REQUIRED`, restricted
-mutation/coordination collaborators guarded by an existing transaction (for example
+The later TD-002 selected realization is outer concrete application `REQUIRED`, restricted
+mutation/coordination collaborators guarded by an existing transaction (normally concrete
 `MANDATORY`) on their concrete public implementation methods. **No transaction
-annotations, proxies or Bean wiring are installed on these pure APIs.** Exact
-placement/isolation/checked-exception rollback policy still requires owner review
-and real proxy tests. Interface annotations alone or self-invocation cannot serve
+annotations, proxies or Bean wiring are installed on these pure APIs.** Implement the selected READ COMMITTED and explicit checked-technical-failure rollback policy on the actual concrete boundary; real proxy tests must verify interception. Interface annotations alone or self-invocation cannot serve
 as that evidence; see [Spring interception](https://docs.spring.io/spring-framework/reference/data-access/transaction/declarative/annotations.html)
 and [rollback rules](https://docs.spring.io/spring-framework/reference/data-access/transaction/declarative/rolling-back.html).
 
@@ -294,20 +290,19 @@ mint/GENESIS APIs exist. Real concurrency/rollback/authorization evidence is def
 
 ## Approval scope and remaining implementation decisions
 
-| Item | Approved scope / work still required before provider integration | Responsible contributors |
+| Item | Current authority / implementation obligation | Responsible contributors |
 |---|---|---|
-| R-01 / TD-015 | Ownership, capability split, signatures and current GenesisPosting-only initialization guard APPROVED; concrete transaction guards, helper-delegation amendments and runtime proofs still require review/tests | Tiến + Hải + Minh + Trung |
-| R-02 / TD-003 | Inspect/record/find signatures and typed final/non-final values APPROVED; canonical JSON/version vectors including invalid inputs, HTTP response mapping and coordination algorithm still require review | Minh + Tiến, with Sĩ for HTTP recovery semantics |
-| R-03 / TD-002 | Lock ordering/comparator/isolation and bounded technical retry/deadline; no advisory algorithm ratified | Minh + Hải + Tiến |
-| R-04 / TD-004 | Customer projection signatures APPROVED; commit-consistent traversal, cursor encoding/integrity and counter measurements open; Admin read projection deferred until concrete consumer | Tiến + Hải + Trung |
-| R-05 / TD-009 | Admin/Treasury/GENESIS interface signatures APPROVED; credential source, protected entry and concurrent/restart verification open; no new configuration prescribed | Hưng + Trung + Tiến |
-| R-06 / TD-016 | Current nine-module/18-edge graph, API/private policy and structural/capability enforcement APPROVED; actual provider integration/runtime tests open; amendments need Tiến's approval; no Spring Modulith added | Tiến + affected owners |
-| R-07 / TD-008 | Internal result shapes APPROVED; business error catalogs and exact external HTTP mapping remain separate review work | Tiến + provider owners + Sĩ |
+| R-01 / TD-002/015 | Ownership/capability split and concrete REQUIRED/MANDATORY guard design approved; implement/test real proxy and checked-failure rollback; helper-delegation capability amendments still require narrow review | Tiến + Hải + Minh + Trung |
+| R-02 / TD-003 | Canonical v1, stable scope advisory encoding, final-only outcome protocol and existing HTTP result direction approved; golden vectors/PostgreSQL crash/replay tests pending | Minh + Tiến; Sĩ browser recovery |
+| R-03 / TD-002 | READ COMMITTED, unsigned UUID sequential lock order and initial 3-attempt/25–75 ms/2 s policy approved; code and real contention evidence pending | Minh + Hải + Tiến |
+| R-04 / TD-004 | Counter/high-water/keyset/HMAC-SHA256 cursor selected; Customer labels require a reviewed Account-ID metadata capability, Admin read projections remain absent | Tiến + Hải + Trung |
+| R-05 / TD-009 | Explicit protected operator setup selected, no startup reseed; private credentials/command wiring, concurrent initialization and restart proof pending | Hưng + Trung + Tiến |
+| R-06 / TD-016 | Existing nine-module/18-edge graph and enforcement remain approved; providers/runtime integration pending; new capabilities/edges need Tiến's amendment | Tiến + affected owners |
+| R-07 / TD-008 | Existing OpenAPI preserved, stable protocol/final/rejection/non-final distinctions selected; endpoint-specific catalog/response mapping must fit that contract and pass real HTTP tests | Tiến + provider owners + Sĩ |
 
-No confirmed breaking conflict was found in visible work. Tiến has final authority
-over cross-module contracts; consultation with contributors is not an additional
-prerequisite for recording his explicit approval. Unresolved implementation choices
-retain their own status; green structural tests do not resolve them.
+These choices do not await routine reapproval after the freeze merges. Only a genuine incompatibility, security defect, financial correctness failure or necessary breaking API triggers amendment. Individual owner endorsement is not implied. [Explicit integration exceptions](../6-governance/25-design-decision-register.md#explicit-exceptions-and-implementation-findings) block only the affected projection paths. Unit fakes support independent work while providers are absent; they cannot establish PostgreSQL correctness.
+
+For allocation audit, Administration can resolve the immutable recipient identity via existing `AccountQueries.findCustomerByNumber`; a missing target produces the appropriate rejection, and final eligibility is still revalidated under Accounts locks. Canonical allocation uses the trusted singleton `TREASURY` source marker, not an unavailable Treasury UUID query. Ledger alone controls the actual Treasury movement.
 
 ## Shared contracts and observability
 
@@ -406,7 +401,7 @@ from the repository root. No special Maven profile is needed for architecture ch
 ## How to Start a Business Module
 
 1. Read assigned use cases/business rules and their approval status.
-2. Check ownership and the approved dependency matrix; retain separate algorithm review gates.
+2. Check ownership, the approved dependency matrix and the current engineering freeze; selected algorithms require implementation/proof rather than routine reapproval.
 3. Review the relevant [OpenAPI](contracts/openapi-v1.yaml) and endpoint status.
 4. Compare the approved source and compatibility matrix with preserved local work;
    use Tiến's mismatch/change-control process for any difference.
@@ -441,7 +436,7 @@ integration tests that inject a capability still require a real implementation o
 a correctly scoped test replacement; never install a no-op production @Service.
 Mocks prove consumer behavior only, not PostgreSQL atomicity or financial ACs.
 
-After BK-003 merges, each owner updates their own feature branch from latest
+BK-003 has merged. Once the documentation freeze merges, each owner updates their own feature branch from latest
 `develop` using the team's agreed merge/rebase workflow, inspects these contracts,
 adapts their implementation and scoped test doubles, runs `verify`/docs checks,
 then requests review. This task does not update anyone's branch. For a contract

@@ -1,5 +1,7 @@
 # Metrics, dashboard and operational alerts
 
+> Evidence scope — 2026-10-22: local metric/alert fixtures below are not EV-003 or financial invariants. [TD-013/014](../docs/6-governance/25-design-decision-register.md#engineering-decisions-and-scoped-statuses) retain the exact PRD benchmark and separate Account/scope/counter wait diagnostics. No instrumentation, thresholds or production business APIs are added by the documentation freeze.
+
 Use the existing [setup workflow](README.md). Grafana stays at
 **http://localhost:3300**; frontend host port 3000 is reserved and Swagger UI uses 8081.
 `make observability-up` starts all six telemetry services. `make observed-up` enables
