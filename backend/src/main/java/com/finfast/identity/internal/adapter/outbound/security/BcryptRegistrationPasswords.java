@@ -2,7 +2,7 @@ package com.finfast.identity.internal.adapter.outbound.security;
 
 import com.finfast.common.error.ApplicationException;
 import com.finfast.identity.internal.application.port.outbound.RegistrationPasswords;
-import com.finfast.identity.internal.application.usecase.RegistrationError;
+import com.finfast.identity.internal.domain.exception.RegistrationError;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import java.nio.charset.StandardCharsets;

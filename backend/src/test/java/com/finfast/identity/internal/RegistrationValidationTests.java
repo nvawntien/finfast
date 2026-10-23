@@ -6,7 +6,8 @@ import com.finfast.identity.internal.adapter.outbound.security.BcryptRegistratio
 import com.finfast.identity.internal.application.port.outbound.RegistrationPasswords;
 import com.finfast.identity.internal.application.port.outbound.RegistrationUsers;
 import com.finfast.identity.internal.application.usecase.RegisterCustomer;
-import com.finfast.identity.internal.application.usecase.RegistrationCommand;
+import com.finfast.identity.internal.application.dto.RegistrationCommand;
+import com.finfast.identity.internal.application.port.inbound.CustomerRegistration;
 import jakarta.validation.Validation;
 import jakarta.validation.ValidatorFactory;
 import org.junit.jupiter.api.AfterAll;
@@ -60,7 +61,7 @@ class RegistrationValidationTests {
         var passwords = mock(RegistrationPasswords.class);
         var customers = mock(CustomerProvisioning.class);
         var manager = mock(PlatformTransactionManager.class);
-        var service = new RegisterCustomer(users, passwords, customers, VALIDATION.getValidator(), manager);
+        CustomerRegistration service = new RegisterCustomer(users, passwords, customers, VALIDATION.getValidator(), manager);
         assertThatThrownBy(() -> service.register(input)).isInstanceOf(ApplicationException.class)
                 .hasMessage("Registration fields are invalid.");
         verifyNoInteractions(users, passwords, customers, manager);

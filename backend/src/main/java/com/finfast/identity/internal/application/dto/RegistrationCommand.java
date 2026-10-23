@@ -1,6 +1,7 @@
-package com.finfast.identity.internal.application.usecase;
+package com.finfast.identity.internal.application.dto;
 
 import com.finfast.common.error.ApplicationException;
+import com.finfast.identity.internal.domain.exception.RegistrationError;
 import jakarta.validation.Validator;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

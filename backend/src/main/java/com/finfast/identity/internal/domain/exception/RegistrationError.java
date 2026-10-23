@@ -1,4 +1,4 @@
-package com.finfast.identity.internal.application.usecase;
+package com.finfast.identity.internal.domain.exception;
 
 import com.finfast.common.error.ErrorCode;
 

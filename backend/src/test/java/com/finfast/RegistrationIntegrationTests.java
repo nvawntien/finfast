@@ -12,7 +12,8 @@ import com.finfast.identity.internal.adapter.outbound.persistence.JdbcRegistrati
 import com.finfast.identity.internal.adapter.outbound.security.BcryptRegistrationPasswords;
 import com.finfast.identity.internal.application.port.outbound.RegistrationUsers;
 import com.finfast.identity.internal.application.usecase.RegisterCustomer;
-import com.finfast.identity.internal.application.usecase.RegistrationCommand;
+import com.finfast.identity.internal.application.dto.RegistrationCommand;
+import com.finfast.identity.internal.application.port.inbound.CustomerRegistration;
 import jakarta.validation.Validation;
 import jakarta.validation.ValidatorFactory;
 import org.junit.jupiter.api.AfterEach;
@@ -83,11 +84,11 @@ class RegistrationIntegrationTests extends PostgresTestSupport {
         };
     }
 
-    private RegisterCustomer registration(AccountProvisioning accounts) {
+    private CustomerRegistration registration(AccountProvisioning accounts) {
         return service(users, new ProvisionCustomer(profiles, accounts), manager);
     }
 
-    private RegisterCustomer service(RegistrationUsers store, CustomerProvisioning customers, PlatformTransactionManager transactions) {
+    private CustomerRegistration service(RegistrationUsers store, CustomerProvisioning customers, PlatformTransactionManager transactions) {
         return new RegisterCustomer(store, new BcryptRegistrationPasswords(4), customers, validation.getValidator(), transactions);
     }
 

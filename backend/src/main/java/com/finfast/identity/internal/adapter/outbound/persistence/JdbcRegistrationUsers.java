@@ -2,7 +2,7 @@ package com.finfast.identity.internal.adapter.outbound.persistence;
 
 import com.finfast.common.error.ApplicationException;
 import com.finfast.identity.internal.application.port.outbound.RegistrationUsers;
-import com.finfast.identity.internal.application.usecase.RegistrationError;
+import com.finfast.identity.internal.domain.exception.RegistrationError;
 import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceUtils;
