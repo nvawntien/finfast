@@ -1,0 +1,15 @@
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--color-background); color: var(--color-text); font-family: var(--font-sans); font-size: 1rem; line-height: 1.6; }
+a { color: var(--color-secondary); text-underline-offset: 0.2em; }
+a, button { touch-action: manipulation; }
+:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 4px; }
+h1, h2, p { margin-top: 0; }
+h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); line-height: 1.2; letter-spacing: -0.035em; text-wrap: balance; }
+h2 { font-size: 1.125rem; line-height: 1.4; }
+p { max-width: 68ch; }
+svg { flex-shrink: 0; }
+main { min-width: 0; overflow-wrap: anywhere; }
+main:focus { outline: 3px solid var(--color-focus); outline-offset: -3px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+}

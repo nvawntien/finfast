@@ -1,0 +1,8 @@
+.navigation { min-width: 0; }
+.label { color: var(--color-muted); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em; padding-inline: var(--space-3); margin-bottom: var(--space-4); }
+.navigation ul { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.link { display: flex; align-items: center; gap: var(--space-3); min-height: 48px; padding: var(--space-3); border-radius: var(--radius-sm); text-decoration: none; color: var(--color-muted); font-weight: 600; transition: background-color var(--motion-feedback); }
+.link:hover { background: var(--color-selected); color: var(--color-secondary); }
+.active { background: var(--color-selected); color: var(--color-secondary); box-shadow: inset 3px 0 var(--color-secondary); }
+@media (min-width: 64rem) { .navigation ul { flex-direction: column; } }
+@media (max-width: 30rem) { .navigation li { flex: 1 1 0; } .link { flex-direction: column; gap: var(--space-1); padding: var(--space-2); font-size: 0.875rem; text-align: center; } }

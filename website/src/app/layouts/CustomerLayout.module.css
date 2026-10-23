@@ -1,0 +1,21 @@
+.shell { min-height: 100dvh; }
+.header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-4); padding: var(--space-4) clamp(1rem, 4vw, 3rem); background: var(--color-surface); border-bottom: 1px solid var(--color-border); }
+.brand { display: flex; align-items: center; text-decoration: none; color: var(--color-primary); font-size: 1.5rem; font-weight: 750; letter-spacing: -0.05em; }
+.mark { display: grid; place-items: center; width: 36px; height: 36px; margin-right: var(--space-3); border-radius: var(--radius-sm); background: var(--color-primary); color: var(--color-on-primary); font-size: 1.25rem; }
+.brandDot { color: var(--color-secondary); }
+.access { display: flex; flex-wrap: wrap; gap: var(--space-4); }
+.access a { display: inline-flex; align-items: center; min-height: 44px; font-size: 0.875rem; font-weight: 600; }
+.body { max-width: 90rem; margin-inline: auto; }
+.sidebar { padding: var(--space-6) var(--space-4); }
+.sidebarNote { display: none; color: var(--color-muted); font-size: 0.875rem; }
+.main { padding: 0 var(--space-4) var(--space-6); }
+.footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2); margin-top: var(--space-12); padding-top: var(--space-6); border-top: 1px solid var(--color-border); color: var(--color-muted); font-size: 0.75rem; }
+.skip { position: absolute; top: -10rem; left: 1rem; padding: var(--space-3) var(--space-4); background: var(--color-primary); color: var(--color-on-primary); z-index: 10; }
+.skip:focus { top: 1rem; outline-color: var(--color-on-primary); }
+@media (min-width: 48rem) { .main { padding-inline: var(--space-8); } .sidebar { padding-inline: var(--space-8); } }
+@media (min-width: 64rem) {
+  .body { display: grid; grid-template-columns: 16rem minmax(0, 1fr); }
+  .sidebar { padding: var(--space-8) var(--space-6); border-right: 1px solid var(--color-border); }
+  .sidebarNote { display: block; margin: var(--space-12) var(--space-3) 0; }
+  .main { padding: var(--space-8); max-width: var(--content-width); }
+}
