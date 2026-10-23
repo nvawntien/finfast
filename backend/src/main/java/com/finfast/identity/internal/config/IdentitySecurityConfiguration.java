@@ -10,7 +10,8 @@ import com.finfast.identity.internal.adapter.inbound.security.HeaderCsrfTokenReq
 import com.finfast.identity.internal.adapter.outbound.persistence.JdbcLoginCredentials;
 import com.finfast.identity.internal.application.port.outbound.LoginCredentials;
 import com.finfast.identity.internal.application.usecase.AuthenticateUser;
-import com.finfast.identity.internal.application.usecase.SessionPrincipal;
+import com.finfast.identity.internal.application.dto.SessionPrincipal;
+import com.finfast.identity.internal.application.port.inbound.UserAuthentication;
 import jakarta.servlet.Filter;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -48,12 +49,12 @@ public class IdentitySecurityConfiguration {
         return new BCryptPasswordEncoder(strength);
     }
     @Bean LoginCredentials loginCredentials(JdbcTemplate jdbc) { return new JdbcLoginCredentials(jdbc); }
-    @Bean AuthenticateUser authenticateUser(LoginCredentials credentials, CustomerQueries customers, PasswordEncoder encoder) {
+    @Bean UserAuthentication authenticateUser(LoginCredentials credentials, CustomerQueries customers, PasswordEncoder encoder) {
         return new AuthenticateUser(credentials, customers, encoder);
     }
     @Bean CurrentIdentity currentIdentity() { return new SessionCurrentIdentity(); }
 
-    @Bean SecurityFilterChain identitySecurity(HttpSecurity http, AuthenticateUser authenticate,
+    @Bean SecurityFilterChain identitySecurity(HttpSecurity http, UserAuthentication authenticate,
             @Value("${finfast.auth.require-https:true}") boolean requireHttps) throws Exception {
         var contexts = new DelegatingSecurityContextRepository(new RequestAttributeSecurityContextRepository(), new HttpSessionSecurityContextRepository());
         var csrf = new HttpSessionCsrfTokenRepository();

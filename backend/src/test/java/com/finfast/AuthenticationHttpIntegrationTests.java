@@ -1,6 +1,7 @@
 package com.finfast;
 
 import com.finfast.identity.api.CurrentIdentity;
+import com.finfast.identity.internal.application.dto.Credential;
 import com.finfast.identity.internal.adapter.outbound.persistence.JdbcLoginCredentials;
 import com.finfast.identity.internal.application.port.outbound.LoginCredentials;
 import jakarta.servlet.http.HttpServletRequest;

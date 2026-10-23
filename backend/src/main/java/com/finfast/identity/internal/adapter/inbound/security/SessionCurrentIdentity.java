@@ -1,7 +1,7 @@
 package com.finfast.identity.internal.adapter.inbound.security;
 
 import com.finfast.identity.api.CurrentIdentity;
-import com.finfast.identity.internal.application.usecase.SessionPrincipal;
+import com.finfast.identity.internal.application.dto.SessionPrincipal;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.InsufficientAuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;

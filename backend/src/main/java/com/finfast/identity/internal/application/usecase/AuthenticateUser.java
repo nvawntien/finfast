@@ -1,6 +1,9 @@
 package com.finfast.identity.internal.application.usecase;
 
 import com.finfast.customer.api.CustomerQueries;
+import com.finfast.identity.internal.application.dto.Credential;
+import com.finfast.identity.internal.application.dto.SessionPrincipal;
+import com.finfast.identity.internal.application.port.inbound.UserAuthentication;
 import com.finfast.identity.internal.application.port.outbound.LoginCredentials;
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -11,7 +14,7 @@ import java.util.Locale;
 import java.util.UUID;
 
 /** Verifies Identity credentials before querying Customer through its approved API. */
-public final class AuthenticateUser {
+public final class AuthenticateUser implements UserAuthentication {
     private final LoginCredentials credentials;
     private final CustomerQueries customers;
     private final PasswordEncoder encoder;
@@ -24,6 +27,7 @@ public final class AuthenticateUser {
         dummyHash = encoder.encode(UUID.randomUUID().toString());
     }
 
+    @Override
     public SessionPrincipal authenticate(String email, String password) {
         if (!valid(email, 254) || !valid(password, 72) || password.getBytes(StandardCharsets.UTF_8).length > 72) {
             throw denied();
@@ -32,7 +36,7 @@ public final class AuthenticateUser {
         if (!valid(normalized, 254)) { throw denied(); }
         try {
             var stored = credentials.find(normalized);
-            String hash = stored.map(LoginCredentials.Credential::passwordHash).orElse(dummyHash);
+            String hash = stored.map(Credential::passwordHash).orElse(dummyHash);
             boolean matches = encoder.matches(password, hash);
             if (stored.isEmpty() || !matches) { throw denied(); }
             var user = stored.orElseThrow();

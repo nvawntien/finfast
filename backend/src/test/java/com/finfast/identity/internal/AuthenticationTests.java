@@ -5,7 +5,9 @@ import com.finfast.identity.internal.adapter.inbound.http.AuthTransportFilter;
 import com.finfast.identity.internal.adapter.inbound.security.SessionCurrentIdentity;
 import com.finfast.identity.internal.application.port.outbound.LoginCredentials;
 import com.finfast.identity.internal.application.usecase.AuthenticateUser;
-import com.finfast.identity.internal.application.usecase.SessionPrincipal;
+import com.finfast.identity.internal.application.dto.SessionPrincipal;
+import com.finfast.identity.internal.application.dto.Credential;
+import com.finfast.identity.internal.application.port.inbound.UserAuthentication;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -38,9 +40,9 @@ class AuthenticationTests {
     private final UUID user = UUID.randomUUID();
     private final UUID customer = UUID.randomUUID();
 
-    private AuthenticateUser service() { return new AuthenticateUser(credentials, customers, encoder); }
+    private UserAuthentication service() { return new AuthenticateUser(credentials, customers, encoder); }
     private void stored(String role, String password) {
-        when(credentials.find("alice@example.test")).thenReturn(Optional.of(new LoginCredentials.Credential(user, role, encoder.encode(password))));
+        when(credentials.find("alice@example.test")).thenReturn(Optional.of(new Credential(user, role, encoder.encode(password))));
         when(customers.findByUserId(user)).thenReturn(Optional.of(new CustomerQueries.Profile(customer, user, "Synthetic Alice")));
     }
     @AfterEach void clearContext() { SecurityContextHolder.clearContext(); }
@@ -97,9 +99,9 @@ class AuthenticationTests {
     }
     @Test void upgradesOnlyMatchingOldHashAfterAuthentication() {
         String old = encoder.encode("synthetic-password");
-        when(credentials.find(anyString())).thenReturn(Optional.of(new LoginCredentials.Credential(user, "ADMIN", old)));
+        when(credentials.find(anyString())).thenReturn(Optional.of(new Credential(user, "ADMIN", old)));
         when(credentials.upgradeHash(eq(user), eq(old), anyString())).thenReturn(true);
-        var service = new AuthenticateUser(credentials, customers, new BCryptPasswordEncoder(5));
+        UserAuthentication service = new AuthenticateUser(credentials, customers, new BCryptPasswordEncoder(5));
         service.authenticate("alice@example.test", "synthetic-password");
         verify(credentials).upgradeHash(eq(user), eq(old), argThat(hash -> hash.startsWith("$2a$05$") && encoder.matches("synthetic-password", hash)));
         when(credentials.upgradeHash(eq(user), eq(old), anyString())).thenReturn(false);

@@ -1,6 +1,7 @@
 package com.finfast.identity.internal.adapter.outbound.persistence;
 
 import com.finfast.identity.internal.application.port.outbound.LoginCredentials;
+import com.finfast.identity.internal.application.dto.Credential;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.Optional;

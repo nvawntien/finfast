@@ -1,4 +1,4 @@
-package com.finfast.identity.internal.application.usecase;
+package com.finfast.identity.internal.application.dto;
 
 import java.io.Serializable;
 import java.util.Objects;

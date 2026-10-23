@@ -1,7 +1,7 @@
 package com.finfast.identity.internal.adapter.inbound.http;
 
 import com.finfast.common.error.ErrorResponse;
-import com.finfast.identity.internal.application.usecase.SessionPrincipal;
+import com.finfast.identity.internal.application.dto.SessionPrincipal;
 import jakarta.servlet.http.HttpServletResponse;
 import tools.jackson.databind.json.JsonMapper;
 
