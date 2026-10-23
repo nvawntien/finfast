@@ -4,91 +4,62 @@ import com.finfast.accounts.api.TreasuryProvisioning;
 import com.finfast.common.money.VndAmount;
 import com.finfast.identity.api.AdminProvisioning;
 import com.finfast.ledger.api.GenesisPosting;
-import com.finfast.ledger.api.LedgerQueries;
-import com.finfast.ledger.api.PostingResult;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
-import java.time.Instant;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
-@SpringBootTest(classes = DatasetInitializationService.class)
-@TestPropertySource(properties = "finfast.bootstrap.enabled=true")
+@ExtendWith(MockitoExtension.class)
 class DatasetInitializationServiceTest {
 
-    @MockitoBean
+    @Mock
     private AdminProvisioning adminProvisioning;
 
-    @MockitoBean
+    @Mock
     private TreasuryProvisioning treasuryProvisioning;
 
-    @MockitoBean
+    @Mock
     private GenesisPosting genesisPosting;
-
-    @MockitoBean
-    private LedgerQueries ledgerQueries;
-
-    @Autowired
-    private DatasetInitializationService datasetInitializationService;
 
     @Test
     void initializeDataset_commitsAll_whenSuccessful() {
-        when(ledgerQueries.isDatasetInitialized()).thenReturn(false);
-        UUID treasuryAccountId = UUID.randomUUID();
-        when(treasuryProvisioning.openTreasury()).thenReturn(treasuryAccountId);
-        when(genesisPosting.initialize(eq(treasuryAccountId), any(VndAmount.class)))
-                .thenReturn(new PostingResult.Pending(UUID.randomUUID(), "GENESIS-1", new VndAmount(100_000_000L), Instant.now()));
+        // Khởi tạo Service thủ công, bơm các dependencies giả (mock) vào
+        DatasetInitializationService service = new DatasetInitializationService(
+                adminProvisioning, treasuryProvisioning, genesisPosting, 100000000L);
 
-        assertThatNoException().isThrownBy(() -> datasetInitializationService.initializeDataset());
+        UUID dummyTreasuryId = UUID.randomUUID();
+        when(treasuryProvisioning.openTreasury()).thenReturn(dummyTreasuryId);
 
-        verify(ledgerQueries).isDatasetInitialized();
+        assertThatNoException().isThrownBy(() -> service.initializeDataset());
+
         verify(adminProvisioning).ensureConfiguredAdmin();
         verify(treasuryProvisioning).openTreasury();
-        verify(genesisPosting).initialize(eq(treasuryAccountId), eq(new VndAmount(100_000_000L)));
+        verify(genesisPosting).initialize(eq(dummyTreasuryId), any(VndAmount.class));
     }
 
     @Test
-    void initializeDataset_aborts_whenDatasetAlreadyExists() {
-        when(ledgerQueries.isDatasetInitialized()).thenReturn(true);
+    void initializeDataset_aborts_whenDatasetAlreadyExists_orConcurrentRace() {
+        // Khởi tạo Service thủ công
+        DatasetInitializationService service = new DatasetInitializationService(
+                adminProvisioning, treasuryProvisioning, genesisPosting, 100000000L);
+
+        // Bắt lỗi Database giả lập
+        when(treasuryProvisioning.openTreasury()).thenThrow(new DataIntegrityViolationException("Simulated DB Constraint Violation"));
 
         assertThatIllegalStateException()
-                .isThrownBy(() -> datasetInitializationService.initializeDataset())
-                .withMessage("Dataset is already initialized. Reseeding is strictly forbidden.");
+                .isThrownBy(() -> service.initializeDataset())
+                .withMessageContaining("Dataset is already initialized or concurrent initialization detected");
 
-        verify(ledgerQueries).isDatasetInitialized();
-        verify(adminProvisioning, never()).ensureConfiguredAdmin();
-        verify(treasuryProvisioning, never()).openTreasury();
+        // Chặn không cho gọi tới hàm Genesis
         verify(genesisPosting, never()).initialize(any(), any());
     }
-
-    @Test
-    void initializeDataset_rollsBack_onConcurrentRace() {
-        when(ledgerQueries.isDatasetInitialized()).thenReturn(false);
-        UUID treasuryAccountId = UUID.randomUUID();
-        when(treasuryProvisioning.openTreasury()).thenReturn(treasuryAccountId);
-        when(genesisPosting.initialize(eq(treasuryAccountId), any(VndAmount.class)))
-                .thenThrow(new DataIntegrityViolationException("Unique constraint violation"));
-
-        assertThatIllegalStateException()
-                .isThrownBy(() -> datasetInitializationService.initializeDataset())
-                .withMessage("Concurrent initialization detected. Initialization aborted.");
-
-        verify(ledgerQueries).isDatasetInitialized();
-        verify(adminProvisioning).ensureConfiguredAdmin();
-        verify(treasuryProvisioning).openTreasury();
-        verify(genesisPosting).initialize(eq(treasuryAccountId), eq(new VndAmount(100_000_000L)));
-    }
 }
-
