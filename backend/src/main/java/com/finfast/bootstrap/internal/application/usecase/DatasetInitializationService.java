@@ -1,6 +1,7 @@
 package com.finfast.bootstrap.internal.application.usecase;
 
 import com.finfast.accounts.api.TreasuryProvisioning;
+import com.finfast.bootstrap.internal.application.port.inbound.InitializeDatasetUseCase;
 import com.finfast.common.money.VndAmount;
 import com.finfast.identity.api.AdminProvisioning;
 import com.finfast.ledger.api.GenesisPosting;
@@ -16,7 +17,7 @@ import java.util.UUID;
 
 @Service
 @ConditionalOnProperty(name = "finfast.bootstrap.enabled", havingValue = "true", matchIfMissing = false)
-public class DatasetInitializationService {
+public class DatasetInitializationService implements InitializeDatasetUseCase {
 
     private final AdminProvisioning adminProvisioning;
     private final TreasuryProvisioning treasuryProvisioning;
@@ -39,6 +40,7 @@ public class DatasetInitializationService {
         this.initialSupplyValue = initialSupplyValue;
     }
 
+    @Override
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public void initializeDataset() {
         try {

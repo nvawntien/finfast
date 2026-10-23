@@ -1,6 +1,6 @@
 package com.finfast.bootstrap.internal.adapter.inbound.http;
 
-import com.finfast.bootstrap.internal.application.usecase.DatasetInitializationService;
+import com.finfast.bootstrap.internal.application.port.inbound.InitializeDatasetUseCase;
 import com.finfast.identity.api.CurrentIdentity;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -16,20 +16,19 @@ import java.util.Objects;
 @ConditionalOnBean(CurrentIdentity.class)
 public class BootstrapController {
 
-    private final DatasetInitializationService datasetInitializationService;
+    private final InitializeDatasetUseCase initializeDatasetUseCase;
     private final CurrentIdentity currentIdentity;
 
-    public BootstrapController(DatasetInitializationService datasetInitializationService,
+    public BootstrapController(InitializeDatasetUseCase initializeDatasetUseCase,
                                CurrentIdentity currentIdentity) {
-        this.datasetInitializationService = Objects.requireNonNull(datasetInitializationService, "datasetInitializationService");
+        this.initializeDatasetUseCase = Objects.requireNonNull(initializeDatasetUseCase, "initializeDatasetUseCase");
         this.currentIdentity = Objects.requireNonNull(currentIdentity, "currentIdentity");
     }
 
     @PostMapping("/api/v1/operator/bootstrap")
     public ResponseEntity<Map<String, String>> bootstrap() {
         currentIdentity.requireAdmin();
-        datasetInitializationService.initializeDataset();
+        initializeDatasetUseCase.initializeDataset();
         return ResponseEntity.ok(Map.of("message", "Dataset initialized successfully with GENESIS"));
     }
 }
-
