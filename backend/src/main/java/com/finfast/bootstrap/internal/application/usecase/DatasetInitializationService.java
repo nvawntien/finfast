@@ -4,43 +4,55 @@ import com.finfast.accounts.api.TreasuryProvisioning;
 import com.finfast.common.money.VndAmount;
 import com.finfast.identity.api.AdminProvisioning;
 import com.finfast.ledger.api.GenesisPosting;
-import com.finfast.ledger.api.PostingResult;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 import java.util.Objects;
 import java.util.UUID;
 
-@ConditionalOnProperty(name = "finfast.bootstrap.enabled", havingValue = "true", matchIfMissing = false)
 @Service
+@ConditionalOnProperty(name = "finfast.bootstrap.enabled", havingValue = "true", matchIfMissing = false)
 public class DatasetInitializationService {
-
-    private static final Logger log = LoggerFactory.getLogger(DatasetInitializationService.class);
 
     private final AdminProvisioning adminProvisioning;
     private final TreasuryProvisioning treasuryProvisioning;
     private final GenesisPosting genesisPosting;
+    private final long initialSupplyValue;
 
-    public DatasetInitializationService(AdminProvisioning adminProvisioning,
-                                        TreasuryProvisioning treasuryProvisioning,
-                                        GenesisPosting genesisPosting) {
+    public DatasetInitializationService(
+            AdminProvisioning adminProvisioning,
+            TreasuryProvisioning treasuryProvisioning,
+            GenesisPosting genesisPosting,
+            @Value("${finfast.bootstrap.initial-supply:100000000}") long initialSupplyValue) {
+        
         this.adminProvisioning = Objects.requireNonNull(adminProvisioning, "adminProvisioning");
         this.treasuryProvisioning = Objects.requireNonNull(treasuryProvisioning, "treasuryProvisioning");
         this.genesisPosting = Objects.requireNonNull(genesisPosting, "genesisPosting");
+        
+        if (initialSupplyValue <= 0) {
+            throw new IllegalArgumentException("Initial supply must be strictly positive");
+        }
+        this.initialSupplyValue = initialSupplyValue;
     }
 
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public void initializeDataset() {
-        log.info("Starting dataset initialization...");
+        // 1. Protect the operator setup (Identity module)
         adminProvisioning.ensureConfiguredAdmin();
+
+        // 2. Open Treasury account (Accounts module)
         UUID treasuryAccountId = treasuryProvisioning.openTreasury();
-        VndAmount initialSupply = new VndAmount(100000000L);
-        PostingResult.Pending genesis = genesisPosting.initialize(treasuryAccountId, initialSupply);
-        log.info("Dataset initialized successfully with GENESIS");
+
+        // 3. Prepare intent
+        VndAmount initialSupply = new VndAmount(this.initialSupplyValue);
+
+        // 4. Initialize GENESIS (Ledger module).
+        // Note: Verification of existing dataset (uniqueness race, concurrent initialization)
+        // is delegated to the database constraints and the Ledger module's internal logic as per architecture bounds.
+        // We do not hold the Pending result as it's not used further in this transaction boundary.
+        genesisPosting.initialize(treasuryAccountId, initialSupply);
     }
 }
-
