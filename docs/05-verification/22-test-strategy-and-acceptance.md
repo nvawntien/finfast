@@ -137,6 +137,40 @@ Committed incomplete ordinary/GENESIS rows allowed by V1/V2 produce deterministi
 
 This is partial evidence for BR-LED-02..06, BR-ADM-02, AC-003/008/010/022/023/031 and CONS-15/16; no canonical scenario is marked fully complete. Cross-table SQL remains strictly test-scoped under the existing production-read exception. Real Accounts/Treasury, protected Bootstrap/restart, durable Idempotency outcomes/replay, required Administration audit, authorized reads, HTTP/security and performance acceptance remain pending with their owners. A production-wide reader still needs a scoped capability amendment with Hải/Tiến. **Phase 6 is NOT STARTED; BK-010 is not Done.**
 
+## BK-013 Phase 2 JDBC audit persistence execution — 2026-10-23
+
+**IMPLEMENTED AND VERIFIED — isolated Administration persistence only.** Starting branch `feat/BK-013-admin-allocation`, HEAD `aa4e4ade6316e9c59090a66bca22c587d2deddea`, clean working tree. Phase 2 was explicitly authorized. The existing Phase 1 model, outbound port and 38 pure tests remain byte-for-byte unchanged. See [BK-013 tracking](../02-requirements/10-product-backlog.md#bk-013-phase-2--jdbc-admin-audit-persistence) for scope and remaining owners.
+
+The valid pre-change baseline and subsequent tests used Temurin Java 21.0.13+9, Spring Boot 4.1.1 and the existing pinned PostgreSQL 16.15 Testcontainer. An initial invocation under default host Java 26 failed with 759 tests, zero failures, 438 errors and zero skips because the sandbox denied Docker/network socket access. This was environment failure, not accepted baseline evidence. Selecting Java 21 and executing with Docker/socket access resolved it before any source changes; no test, dependency or infrastructure configuration was weakened.
+
+Executed from `backend/` with `JAVA_HOME=/tmp/finfast-jdk21` and that JDK's `bin` prepended to `PATH`:
+
+```sh
+./mvnw --batch-mode --no-transfer-progress clean verify
+./mvnw --batch-mode --no-transfer-progress -Dtest=AdminAuditPersistenceIntegrationTests,AdminAuditEventTests,ProductionArchitectureTests,RuleVerificationTests,CapabilityVerificationTests,ModuleContractValueTests test
+./mvnw --batch-mode --no-transfer-progress verify
+```
+
+| Executed check | Actual result | Evidence boundary |
+|---|---|---|
+| Java 21 pre-change full baseline | PASS — 759 tests across 36 suites, zero failures/errors/skips | Re-established Phase 1 and all existing tests before source edits |
+| Focused Phase 2/domain/architecture/contract run | PASS — 155 tests across 6 suites, zero failures/errors/skips | 44 new audit invocations, 38 unchanged domain cases and 73 existing architecture/contract checks |
+| Final full Maven `verify` | PASS — 803 tests across 37 suites, zero failures/errors/skips | All existing and new tests, followed by executable JAR packaging |
+
+[AdminAuditPersistenceIntegrationTests](../../backend/src/test/java/com/finfast/AdminAuditPersistenceIntegrationTests.java) and its [test support](../../backend/src/test/java/com/finfast/AdminAuditPersistenceTestSupport.java) reuse `PostgresTestSupport`, `IsolatedTestDatabase` and `DatabaseFixtures`. Each invocation applies unchanged V1/V2 in a fresh disposable database inside the existing container. Synthetic ADMIN, Customer Account and DEMO_ALLOCATION transaction prerequisites are table fixtures, not a completed funding workflow. No developer datasource, Compose volume, real dataset or live teammate implementation is used.
+
+Eight complete-row cases verify supplied UUIDs, fixed action/outcome, NULL statuses, exact ordinary/whitespace/combining/supplementary Unicode reasons and 500-code-point boundaries, including trailing spaces. Five timestamp cases round-trip exact microseconds, sub-microsecond truncation without rounding, a pre-epoch instant and the finite driver lower boundary, with a non-UTC session zone. Inputs remain immutable. Three Java/driver-unrepresentable cases fail rather than becoming infinity; a PostgreSQL out-of-range timestamp propagates SQLSTATE 22008. The lower-bound guard prevents the pinned [pgJDBC encoder's negative-infinity substitution](https://github.com/pgjdbc/pgjdbc/blob/REL42.7.13/pgjdbc/src/main/java/org/postgresql/jdbc/TimestampUtils.java). No current/database time is substituted.
+
+Duplicate UUID/transaction references propagate 23505; all three missing FKs propagate 23503. Test-only SQL verifies four impossible allocation shapes (23514) and an oversized nonspace reason (22001), without bypassing production domain validation. Phase 1 already rejects oversized reasons including trailing spaces before SQL. Two additional cases stub only JdbcTemplate's affected-row count to verify explicit failure for zero/two rows; these are defensive-branch checks, not PostgreSQL transaction evidence.
+
+Actual Spring proxies enforce MANDATORY before target invocation. The local resource guard separately rejects unproxied writes without a transaction, a thread transaction flag without a bound resource, a different DataSource, a bound autocommit connection, Spring/JDBC read-only modes and REPEATABLE READ/SERIALIZABLE writes. Successful writes run at actual READ COMMITTED on the caller's bound connection. A reader with a distinct PostgreSQL backend PID cannot see the inserted audit until outer commit. Explicit outer rollback, a configured checked `IOException`, and a later SQL division-by-zero fault remove the audit. Duplicate audit failure removes prior caller marker/audit writes; catching the proxied persistence error still produces `UnexpectedRollbackException` and no surviving writes. The adapter never starts or commits a transaction.
+
+Repository-root checks passed: `python3 scripts/check_backend_jar.py` (executable JAR without compiled tests/test libraries), `/tmp/finfast-docs-venv/bin/python scripts/check_docs.py` (24 Markdown files, 325 local links, 88 OpenAPI references; no duplicate YAML keys), `/tmp/finfast-docs-venv/bin/python -m openapi_spec_validator docs/03-design/contracts/openapi-v1.yaml` and `git diff --check`. The isolated documentation environment uses the unchanged `scripts/requirements-docs.txt` pins. New untracked Java files were also checked directly for trailing whitespace, tabs and final newlines, without staging.
+
+A separate second pass inspected every new/modified file and confirmed exact insert-only mapping, immutable input, failure propagation, transaction safeguards and unchanged module ownership. All pre-existing Java sources/tests, migrations, POM and OpenAPI remained byte-identical to HEAD. Changes remain unstaged and uncommitted; no forbidden Git operation was executed.
+
+This contributes partial persistence evidence toward AC-008/010/019 and CONS-13 only. FKs prove existence, not authenticated Admin authority, ACTIVE Customer eligibility or a correct Treasury posting workflow. Real Accounts/Ledger/Idempotency orchestration, final durable outcomes, replay/recovery, HTTP/commit-confirmed success and protected setup remain unverified here. **BK-013 is not Done; Phase 3 and later are NOT STARTED and remain separately authorized work.** No full AC-008/010/013/019/032 acceptance is claimed.
+
 > **Remaining financial workflow execution plan** grounded in [04 — 38 canonical AC scenarios](../01-discovery/04-use-cases.md), [06 — 19 CONS risk views](../01-discovery/06-business-rules.md), and [09 PRD §§9–11](../02-requirements/09-product-requirements.md). The canonical Given/When/Then in 04 remains normative. `T-*` is a test execution grouping, not new business acceptance criteria. **No complete banking acceptance or performance result is asserted by the scoped checks above.** Documentation checks are distinct from these runtime evidence gates.
 
 ## Test levels and environments
