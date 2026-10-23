@@ -224,6 +224,8 @@ required by this baseline.
   Follow the [module collaboration guide](module-contracts-and-boundaries.md) and
   real PostgreSQL/transaction gates in [22](../05-verification/22-test-strategy-and-acceptance.md).
 
+**APPROVED — V1, 2026-10-23: TD-016-AM-01..04** authorize exactly Bootstrap → Ledger GENESIS inspection; Ledger → Accounts identity; Administration → Accounts Customer listing; Administration → Ledger financial inspection. All are existing graph directions: nine modules and 18 edges remain unchanged. AM-05 TreasuryInspection is NOT SELECTED — V1 and has no source/permission entry. `LedgerQueries` remains History-only and all unrelated posting/provisioning restrictions remain intact. [Approved inventory](module-contracts-and-boundaries.md#approved-read-capabilities--td-016-am-0104), [final decision](../6-governance/25-design-decision-register.md#final-v1-capability-decision--2026-10-23). Approval is separate from production provider wiring and feature acceptance.
+
 ## 4. Approved security design (implementation and evidence pending)
 
 - **Auth:** HTTPS only; server-side session storage with protected HttpOnly cookie, Secure under HTTPS and explicit SameSite (initial Lax where the actual frontend/Core topology permits); renew session ID after authentication, use explicit expiry and logout invalidation. `SameSite` alone is insufficient CSRF defense.

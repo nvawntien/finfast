@@ -211,6 +211,14 @@ Technical/persistence failures must escape the transactional boundary with rollb
 
 The durable-commit premise also needs explicit PostgreSQL configuration: retain `fsync=on`, `full_page_writes=on` and synchronous local WAL flush (`synchronous_commit=on` for this selected single-database design), with persistent storage for financial facts, outcomes and required audits. Do not disable durability to make a benchmark pass. Record and verify the actual configuration during restart/crash tests; confirming a transaction on a configuration that can lose acknowledged commits does not satisfy the promised final outcome. This is an implementation safeguard for existing durability requirements, not a production HA commitment. See [PostgreSQL WAL and commit settings](https://www.postgresql.org/docs/16/runtime-config-wal.html).
 
+### Committed inspection boundary — TD-016-AM-01
+
+**APPROVED — V1 by Tiến, 2026-10-23.** `JdbcGenesisDatasetInspection` starts/joins a read-only REPEATABLE READ transaction through its concrete Spring proxy and checks the actual bound resource, read-only mode, isolation and disabled autocommit. SELECTs access Ledger-owned tables only and reconstruct existing validated facts. Unproxied calls without a compatible transaction, write/aborted setup transactions and incompatible resources/isolation fail. No REQUIRES_NEW, financial commit, Account SQL, automatic Bean or write is added.
+
+Empty requires no dataset/financial/entry facts. A result verifies GENESIS position 1, finite timestamp/currency/reference, one matching positive Treasury entry, supply/linkage and contiguous committed position/counter agreement. Incomplete/orphan/inconsistent Ledger state fails technically. Ordinary entry correctness and Account balances are not fully reconciled here.
+
+After failed setup, Bootstrap unwinds the transaction before a fresh inspection; it may inspect a committed winner only after loser rollback. Existing V1/V2 guards protect singleton Treasury, type/system ownership/ACTIVE/VND/nonnegative balance, immutable Account identity, dataset FKs/insertion linkage and immutable initial supply. AM-05 TreasuryInspection is NOT SELECTED — V1: no additional Accounts read is required for this scoped initialization evidence. Real Accounts provisioning, outer transaction integration, protected Admin setup, concurrent recovery and restart tests remain necessary. Never compare current Treasury balance directly to initial supply after allocations, or treat valid Treasury/GENESIS existence as full financial reconciliation. Full balance/supply/ordinary-entry reconciliation and operator acceptance remain separate; no production reconciliation API is introduced.
+
 ### 5.2 Success and final rejection flows
 
 ```mermaid

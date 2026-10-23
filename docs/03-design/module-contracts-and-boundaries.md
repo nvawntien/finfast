@@ -244,6 +244,19 @@ UNKNOWN, not permission to execute or proof funds did not move. Technical failur
 escapes for rollback; never continue an aborted DB transaction. Retry outside the
 proxy in a fresh transaction with the original scope. BK-003 itself selected no advisory algorithm/hash/retry budget; the later TD-002/003 freeze now selects them. A separately committed PROCESSING row remains excluded.
 
+### Approved read capabilities — TD-016-AM-01..04
+
+**APPROVED — V1, 2026-10-23.** Tiến's explicit final capability instruction approves AM-01..04 and their exact consumers; AM-05 is NOT SELECTED for V1 and its source/permissions are removed. Existing signatures and unrelated restrictions remain unchanged. The initial audit branch was clean at fetched `develop` `31d2425131766306ccf6a815ca057349bee77bff`. At that baseline, only Ledger had concrete business providers (three posting services/internal JDBC adapters, explicitly composed in tests); Identity, Customer, Accounts, Idempotency and LedgerQueries were interface-only, and Transfers, Administration, History and Bootstrap had no production source. Test Accounts collaborators/reconciliation SQL and separate BK-013 work are not merged production providers. Contract approval does not establish provider implementation, owner integration or feature acceptance.
+
+| Approved source / owner | Exact method and immutable values | Authorized consumer and boundary |
+|---|---|---|
+| `ledger.api.GenesisDatasetInspection` / Tiến | `Optional<InitializedDataset> findCommitted()`; `(treasuryAccountId, genesisTransactionId, genesisReference, initialSupply, recordedAt)` | Bootstrap only; committed Ledger GENESIS/linkage/counter, not Accounts/full reconciliation. Empty only when Ledger dataset/transaction/entry facts are absent; corruption fails technically |
+| `accounts.api.AccountIdentityQueries` / Hải | `Optional<Identity> findById(UUID accountId)`; `(accountId, number, Kind, Optional<customerId>)`, Kind CUSTOMER/TREASURY | Ledger only; UUID-based identity for labels, owner-bound cursors and Admin financial Account Numbers. Customer owner iff CUSTOMER; no balance/status/display name. No Treasury number disclosure through Customer projections |
+| `accounts.api.AdminAccountQueries` / Hải | `Listing listCustomers()`; copied `List<CustomerAccount>`, sorted by exact Account Number using Java String ordering | Administration only; complete committed Customer-only listing, no truncation. ADMIN authorization in Administration; display names via existing CustomerQueries. No new pagination/filtering |
+| `ledger.api.AdminFinancialTransactionQueries` / Tiến | `Transactions listCommitted()`; copied transactions `(transactionId, reference, Type, amount, recordedAt, entries)`, entries `(AccountNumber, signed deltaVnd)`; Type includes GENESIS | Administration only; committed financial facts, implicit VND. Ledger resolves Account Numbers via AM-02; UUID supports audit correlation. No audit/outcome rows |
+
+AM-01 has a real JDBC reader with explicit transaction-proxy wiring; AM-02/03 Accounts providers and AM-04 Ledger financial projection remain pending. Legitimate absence is Optional/empty copied listing; SQL/inconsistent state propagates technically. DTOs prove neither authorization nor commit. Pure interfaces have no framework annotations or default implementations. Existing schema Treasury/dataset guards plus Ledger-owned inspection support V1 without a separate TreasuryInspection capability; real setup/recovery/reconciliation remain required. [Final decision](../6-governance/25-design-decision-register.md#final-v1-capability-decision--2026-10-23); [read semantics](16-domain-model-and-data-design.md#committed-inspection-boundary--td-016-am-01).
+
 ## Transactions and posting permissions
 
 Follow [data design §5](16-domain-model-and-data-design.md#5-transaction-boundaries-and-outcomes-arc-02).
