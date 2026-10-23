@@ -15,6 +15,8 @@
 Start at [docs/README.md](docs/README.md); read only documents relevant to the task.
 Verify implementation against source/configuration: historical implementation notes may be outdated.
 
+Default to editing existing canonical documents. Do not create new documentation files, review reports or amendment documents for ordinary implementation changes without explicit Tech Lead approval.
+
 | Topic | Source |
 |---|---|
 | Approved V1 scope | [Vision and scope](docs/01-discovery/01-product-vision-and-scope.md) |

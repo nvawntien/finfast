@@ -119,6 +119,11 @@ final class ModuleArchitectureRules {
                 Map.entry("ledger.api.AllocationPosting", Set.of("administration")),
                 Map.entry("ledger.api.GenesisPosting", Set.of("bootstrap")),
                 Map.entry("ledger.api.LedgerQueries", Set.of("history")),
+                // TD-016-AM-01..04: APPROVED — V1 by Tiến, 2026-10-23.
+                Map.entry("ledger.api.GenesisDatasetInspection", Set.of("bootstrap")),
+                Map.entry("accounts.api.AccountIdentityQueries", Set.of("ledger")),
+                Map.entry("accounts.api.AdminAccountQueries", Set.of("administration")),
+                Map.entry("ledger.api.AdminFinancialTransactionQueries", Set.of("administration")),
                 Map.entry("identity.api.AdminProvisioning", Set.of("bootstrap")),
                 Map.entry("customer.api.CustomerProvisioning", Set.of("identity")),
                 Map.entry("customer.api.CustomerQueries", Set.of("identity", "administration")));

@@ -227,6 +227,58 @@ The list above covers **AC-001 through AC-038 exactly once as primary grouped ow
 - Final rejection: validate insufficient funds before writes, commit rejection normally, add funds using a different authorized intent, then replay the first key and confirm its original rejection. Failure to persist that rejection must remain a technical/non-final result (AC-015/033).
 - Independent transaction regression: detect accidental REQUIRES_NEW for any required effect; no committed audit, outcome, entry or balance survives a rolled-back parent. Verify restricted mutation APIs fail when called without an enclosing transaction (AC-010/019/022/023).
 
+### TD-016 candidate read capability execution — 2026-10-23
+
+**Historical pre-decision execution:** these runs verified the five candidate contracts before Tiến's final V1 decision. They remain evidence of that earlier working tree, not the final four-capability test count. Dedicated branch `arch/td-016-cross-module-capability-amendments`, initial clean HEAD/fetched develop `31d2425131766306ccf6a815ca057349bee77bff`. Temurin 21.0.13+9, Boot 4.1.1 and existing PostgreSQL 16.15 Testcontainers/Flyway V1/V2; disposable isolated databases only. No developer DB/Compose volume was used.
+
+From `backend/`, with `JAVA_HOME=/tmp/finfast-architecture-jdk21` and its `bin` prepended to `PATH`, executed:
+
+```sh
+./mvnw --batch-mode --no-transfer-progress clean verify
+./mvnw --batch-mode --no-transfer-progress -Dtest=ReadCapabilityContractTests,ReadCapabilityVerificationTests,ProductionArchitectureTests,RuleVerificationTests,CapabilityVerificationTests,ModuleContractValueTests test
+./mvnw --batch-mode --no-transfer-progress -Dtest=GenesisDatasetInspectionIntegrationTests test
+./mvnw --batch-mode --no-transfer-progress -Dtest=ReadCapabilityContractTests,ReadCapabilityVerificationTests,GenesisDatasetInspectionIntegrationTests,ProductionArchitectureTests,RuleVerificationTests,CapabilityVerificationTests,ModuleContractValueTests test
+./mvnw --batch-mode --no-transfer-progress verify
+```
+
+| Execution | Actual result |
+|---|---|
+| Pre-source-change full baseline | PASS — 721 tests / 35 suites |
+| Initial contract/architecture run | PASS — 157 tests / 6 suites |
+| Initial PostgreSQL inspection run | PASS — 22 tests / 1 suite |
+| Final focused run after Unicode/bound-autocommit review additions | PASS — 182 tests / 7 suites: 39 new contract, 47 new capability, 23 PostgreSQL and 73 existing architecture/contract cases |
+| Final full Maven verify and executable packaging | PASS — 830 tests / 38 suites |
+
+Every run above had zero failures/errors/skips. Contract cases cover immutable copied collections, nulls, exact/Unicode references and bounds, Customer/Treasury ownership shape, positive/MAX money and signed GENESIS/ordinary entry shapes. The 45-case nine-module/five-capability matrix tests interfaces and nested values; two additional cases reject foreign provider implementation and retain History-only LedgerQueries restrictions. Existing positive/negative architecture fixtures, graph/cycle/layer/pure-API protections remain unchanged.
+
+Real Spring/JDBC inspection tests verify fresh absence, exact committed GENESIS/reference/MAX supply, repeated reads, context recreation against the same disposable DB, later ordinary posting, pending setup invisibility, commit/rollback, a held read-only REPEATABLE READ snapshot across concurrent commit, and fresh reads after failed setup. Orphan facts, missing/negative/wrong/extra GENESIS entries, wrong linkage/supply/position/counter/gaps and infinity fail technically without repair. Guards reject unproxied/unbound/mismatched/autocommit resources and read-write/wrong-isolation callers; PostgreSQL itself rejects an attempted write in the read-only snapshot (25006). Bounded futures coordinate independent transaction threads; no mocks prove visibility/rollback.
+
+Root checks passed: `python3 scripts/check_backend_jar.py`, `/tmp/finfast-capability-docs-venv/bin/python scripts/check_docs.py`, `/tmp/finfast-capability-docs-venv/bin/python -m openapi_spec_validator docs/03-design/contracts/openapi-v1.yaml` and `git diff --check`. The temporary documentation environment uses unchanged pinned requirements. Untracked Java whitespace and a complete Markdown inventory were checked separately: zero newly added documentation files, with all original historical evidence retained. All existing production source/APIs, OpenAPI, migrations and build/configuration remain byte-identical to HEAD; only additive capability entries change existing test enforcement.
+
+At that checkpoint, Accounts metadata/listing/Treasury and Admin financial providers were absent and signatures/permissions awaited review. Tiến's subsequent final decision approves AM-01..04 and does not select AM-05, as recorded below. Actual owner integration, role/ownership security, protected setup/recovery and process/deployment restart remain unverified. Context recreation is not process restart; Ledger inspection is not full Accounts/balance/ordinary-entry reconciliation. No BK-009/014/015/016/018 or full AC is Done; production wiring remains absent.
+
+### TD-016 final V1 capability execution — 2026-10-23
+
+**After Tiến's explicit final decision:** AM-01..04 are APPROVED — V1; AM-05 is NOT SELECTED — V1. Removed only its session-created interface/fixture and dedicated permission/test references. Retained the real GENESIS reader and its 23 PostgreSQL tests; reader logic and those tests are unchanged. Customer listings now copy and deterministically sort every row by exact Account Number, with input-preservation/order/immutability coverage. No provider stub or additional workflow was introduced.
+
+Executed from `backend/` with the same Java 21 environment:
+
+```sh
+./mvnw --batch-mode --no-transfer-progress -Dtest=ReadCapabilityContractTests,ReadCapabilityVerificationTests,GenesisDatasetInspectionIntegrationTests,ProductionArchitectureTests,RuleVerificationTests,CapabilityVerificationTests,ModuleContractValueTests test
+./mvnw --batch-mode --no-transfer-progress clean verify
+```
+
+| Final-decision execution | Actual result |
+|---|---|
+| Focused contracts, architecture and PostgreSQL | PASS — 174 tests / 7 suites: 40 contract, 38 capability, 23 PostgreSQL and 73 existing architecture/contract cases |
+| Full clean verification and executable packaging | PASS — 822 tests / 38 suites; zero failures, errors or skips |
+| Capability permissions | Four capabilities × nine modules; interfaces and nested values checked. Only provider/exact consumer allowed; foreign implementation and History-only LedgerQueries misuse rejected |
+| Artifact inspection | Four approved interface classes present; no TreasuryInspection in clean target or executable JAR; no packaged test classes/libraries |
+
+The retained PostgreSQL 16.15 tests use disposable isolated databases and real Spring proxies/connections for committed visibility, rollback, stable read-only REPEATABLE READ snapshots and incompatible-resource rejection. They prove Ledger-owned GENESIS/linkage/counter consistency, not Accounts balances, complete reconciliation, process restart or actual Bootstrap recovery. Accounts AM-02/03 and Ledger AM-04 providers and their owner integrations remain pending; no related backlog item or full acceptance criterion is Done.
+
+Root artifact, documentation, OpenAPI and whitespace checks passed using the same commands/environment recorded above. Original production APIs, financial writers, migrations, OpenAPI, Docker and CI remain unchanged. Existing canonical documentation and AGENTS.md were updated in place; zero new documentation files remain. The earlier 830-test execution is preserved as historical evidence, separate from this final 822-test result.
+
 ## PostgreSQL idempotency proof-of-concept (ARC-04)
 
 **REQUIRED proof of the selected TD-003 design before financial integration acceptance; NOT RUN by this freeze.** Run on an isolated real PostgreSQL dataset with the intended major version, READ COMMITTED and multiple independent connections. Use a minimal scope/outcome and paired-balance/posting fixture to exercise [16 §7](../03-design/16-domain-model-and-data-design.md#7-idempotency-and-recovery-arc-04); do not install a production feature or public fault API. Record full-scope uniqueness, canonicalization/hash version, lock/timeouts, durability settings (`fsync`, `full_page_writes`, `synchronous_commit`, persistent storage) and every transaction's begin/lock/commit events. Synchronize schedules with barriers and observed database waits, not sleeps alone.
