@@ -118,7 +118,7 @@ final class ModuleArchitectureRules {
                 Map.entry("ledger.api.FinancialPosting", Set.of("transfers")),
                 Map.entry("ledger.api.AllocationPosting", Set.of("administration")),
                 Map.entry("ledger.api.GenesisPosting", Set.of("bootstrap")),
-                Map.entry("ledger.api.LedgerQueries", Set.of("history", "bootstrap")),
+                Map.entry("ledger.api.LedgerQueries", Set.of("history")),
                 Map.entry("identity.api.AdminProvisioning", Set.of("bootstrap")),
                 Map.entry("customer.api.CustomerProvisioning", Set.of("identity")),
                 Map.entry("customer.api.CustomerQueries", Set.of("identity", "administration")));
