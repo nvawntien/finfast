@@ -43,6 +43,39 @@ class ProductionArchitectureTests {
     static final ArchRule application_isolation = ModuleArchitectureRules.applicationIsolation(ROOT);
 
     @ArchTest
+    static final ArchRule inbound_port_interfaces = ModuleArchitectureRules.inboundPortsAreInterfaces(ROOT);
+
+    @ArchTest
+    static final ArchRule inbound_port_dependencies = ModuleArchitectureRules.inboundPortsDoNotDependOnImplementationsOrInfrastructure(ROOT);
+
+    @ArchTest
+    static final ArchRule inbound_adapter_contract_dependencies = ModuleArchitectureRules.inboundAdaptersDoNotDependOnApplicationImplementations(ROOT);
+
+    @ArchTest
+    static final ArchRule application_dto_dependencies = ModuleArchitectureRules.applicationDtosDoNotDependOnControlOrInfrastructure(ROOT);
+
+    @ArchTest
+    static final ArchRule internal_responsibility_packages = ModuleArchitectureRules.internalPackageResponsibilities(ROOT);
+
+    @ArchTest
+    static final ArchRule outbound_port_interfaces = ModuleArchitectureRules.outboundPortsAreInterfaces(ROOT);
+
+    @ArchTest
+    static final ArchRule outbound_port_dependencies = ModuleArchitectureRules.outboundPortsDoNotDependOnImplementationsOrInfrastructure(ROOT);
+
+    @ArchTest
+    static final ArchRule inbound_adapters_use_application_boundary = ModuleArchitectureRules.inboundAdaptersDoNotBypassUseCases(ROOT);
+
+    @ArchTest
+    static final ArchRule outbound_adapters_depend_inward = ModuleArchitectureRules.outboundAdaptersDoNotInvokeApplicationEntries(ROOT);
+
+    @ArchTest
+    static final ArchRule constructor_injection = ModuleArchitectureRules.constructorInjection(ROOT);
+
+    @ArchTest
+    static final ArchRule inbound_adapters_do_not_own_transactions = ModuleArchitectureRules.inboundAdaptersDoNotOwnTransactions(ROOT);
+
+    @ArchTest
     static final ArchRule thin_controllers = ModuleArchitectureRules.thinControllers(ROOT);
 
     @ArchTest
