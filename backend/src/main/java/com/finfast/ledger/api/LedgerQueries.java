@@ -16,6 +16,10 @@ import java.util.UUID;
  * TD-004 review work. No Admin-wide/raw-entry projection is frozen in BK-003.
  */
 public interface LedgerQueries {
+    default boolean isDatasetInitialized() {
+        return false;
+    }
+
     Page history(UUID participantAccountId, PageRequest request);
 
     Optional<Receipt> receipt(UUID participantAccountId, String reference);
