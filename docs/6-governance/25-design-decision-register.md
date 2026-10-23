@@ -10,6 +10,12 @@ The separately authorized [BK-010 implementation evidence](#bk-010-fix-001-and-p
 - Java 21 / Spring Boot 4.1.1 / Maven Wrapper / PostgreSQL 16 / Flyway; one deployable modular monolith, pragmatic Hexagonal Architecture, constructor injection and one logical database per environment.
 - Existing BK-003 public source signatures, provider ownership, nine-module/18-edge graph and capability checks. No foreign `internal` access, new API, dependency or schema is authorized by this documentation change.
 
+## Architecture convention
+
+The permanent, system-wide engineering rules are defined in [architecture 15 §3](../03-design/15-system-architecture.md#33-java-project-and-module-structure-doc-02) and [AGENTS.md](../../AGENTS.md#architecture). They cover module boundaries, Domain/Application/Adapter/Configuration responsibilities, ports, DTOs, injection, transactions, financial persistence and verification across all nine modules and all implementation phases. This register records contract authority and historical evidence; it is not a second coding-convention specification.
+
+The convention preserves public Java/REST contracts, schema, the nine-module/eighteen-edge graph, TD-016-AM-01..04 and financial semantics. Structure/enforcement changes do not establish provider integration, production transaction composition or BK-013 acceptance. Actual test execution and remaining limitations are recorded in [22](../05-verification/22-test-strategy-and-acceptance.md).
+
 ## Confirmed architecture direction — Tech Lead agreement
 
 The initial Java/Spring Boot/PostgreSQL modular monolith, in-process APIs, server-managed protected sessions and PostgreSQL ACID direction remains agreed. Historical BK-003 approval selected Java contracts and TD-015/016 only. The later freeze below explicitly selects the other mechanisms; it does not retrospectively enlarge the earlier approval.
