@@ -1,6 +1,7 @@
 package com.finfast.accounts.internal.adapter.outbound.persistence;
 
 import com.finfast.accounts.api.CustomerAccount;
+import com.finfast.accounts.internal.application.dto.AccountStatusSnapshot;
 import com.finfast.accounts.internal.application.port.outbound.AccountStatusRepository;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -21,7 +22,7 @@ public class JdbcAccountStatusRepository implements AccountStatusRepository {
     }
 
     @Override
-    public Optional<LockedAccount> lockById(UUID accountId) {
+    public Optional<AccountStatusSnapshot> lockById(UUID accountId) {
         Objects.requireNonNull(accountId, "accountId");
         AccountsJdbcTransaction.requireWrite(jdbc);
         return jdbc.query("""
@@ -29,7 +30,7 @@ public class JdbcAccountStatusRepository implements AccountStatusRepository {
                 FROM public.account
                 WHERE id = ?
                 FOR UPDATE
-                """, (row, index) -> new LockedAccount(
+                """, (row, index) -> new AccountStatusSnapshot(
                 row.getObject("id", UUID.class),
                 "TREASURY".equals(row.getString("account_type")),
                 CustomerAccount.Status.valueOf(row.getString("status"))), accountId).stream().findFirst();
