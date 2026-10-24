@@ -1,20 +1,8 @@
 # Module contracts and boundaries
 
-> Consolidated baseline — 2026-10-22: [Product/UX/REST approval](../6-governance/25-design-decision-register.md#2026-10-22--v1-product-ux-and-rest-contract-freeze) now freezes PRD 09, derived specification 12, UX 14 and external API 17/YAML alongside the approved Java contracts and TD designs. Java APIs and HTTP contracts are separate authorities; no signatures/capabilities/edges change. Implement conforming assigned tasks without routine reapproval; use scoped amendments for actual contract/security/correctness conflicts and preserve recorded integration exceptions.
+This is the canonical entry point for inter-module Java collaboration. Exact public contracts live under `backend/src/main/java/com/finfast/<provider>/api/`; implementations remain inside their provider's `internal` tree. Follow the complete [architecture convention](15-system-architecture.md#33-java-project-and-module-structure-doc-02) for all modules and implementation phases: one Java/Spring Boot modular monolith, DDD responsibilities, Hexagonal dependency directions, constructor injection and one logical PostgreSQL database per environment.
 
-This is the canonical entry point for inter-module Java collaboration. BK-003 adds
-real compile-time interfaces and immutable boundary values under
-`backend/src/main/java/com/finfast/<provider>/api/`. The contracts and architecture
-checks are **IMPLEMENTED in source**. On **2026-10-22**, Tiến (Tech Lead) explicitly
-**APPROVED the current Java signatures, TD-015 ownership/transaction responsibilities
-and TD-016 dependency/capability policy** in the BK-003 final-review instruction.
-BK-003 PR #10 merged into `develop` on 2026-10-22 at `8a04ca0`; this is already the mandatory shared V1 integration baseline. No individual owner endorsement is inferred.
-No provider
-implementation, Spring Bean, banking workflow or new HTTP endpoint is supplied.
-An interface permits compilation and mocking; it does not make runtime injection
-or financial integration ready. The agreed direction remains one Java/Spring Boot
-modular monolith, pragmatic Hexagonal Architecture, constructor injection and one
-PostgreSQL database/transaction manager.
+Java APIs and the frozen REST/OpenAPI contract are separate authorities. An interface permits compilation and mocking; it does not establish provider wiring or financial integration. Existing implementations and executed evidence are recorded in the [backlog](../02-requirements/10-product-backlog.md) and [test strategy](../05-verification/22-test-strategy-and-acceptance.md). Contract approvals and historical scope remain in the [decision register](../6-governance/25-design-decision-register.md#bk-003-approval-record-and-remaining-authority).
 
 Approved [use cases](../01-discovery/04-use-cases.md) and
 [business rules](../01-discovery/06-business-rules.md) determine required behavior.
@@ -91,7 +79,7 @@ For example, the implemented `accounts.api.AccountQueries` returns immutable
 Other modules still
 need both an approved dependency edge and an approved provider `api` contract.
 
-These imports now resolve; production implementations remain absent.
+These imports demonstrate contract usage; they do not establish provider integration.
 
 ```java
 import com.finfast.ledger.api.LedgerQueries;
@@ -101,13 +89,11 @@ import com.finfast.ledger.api.LedgerQueries;
 // import com.finfast.ledger.internal.adapter.outbound.persistence.LedgerRepository;
 ```
 
-Domain code uses Java and appropriate pure contracts, without Spring, HTTP/Servlet,
-JDBC or application/adapter/config dependencies. Application code can use pragmatic
-Spring transactions and its domain/ports, but not HTTP, JDBC or concrete adapters.
-Controllers bind/validate requests, obtain trusted authorization context and call
-use cases; checks prohibit direct JDBC/persistence access, not arbitrary method
-lengths. Adapters implement module-owned ports where useful; avoid redundant
-interfaces. Constructor injection and normal MVC binding need no Generic Handler.
+The [mandatory architecture convention](15-system-architecture.md#33-java-project-and-module-structure-doc-02) defines the complete internal responsibility tree. Domain code protects invariants without application, adapter, configuration or framework dependencies. Application code orchestrates through its domain, outbound ports and approved module APIs; concrete transactional entries may use Spring transaction support but never HTTP/JDBC, persistence implementations or configuration.
+
+Feature-facing entries implement internal `application/port/inbound` contracts with commands/results in `application/dto`, unless an approved public module API already serves as the inbound contract. Do not duplicate Ledger's posting APIs. Helpers belong in `application/service` when needed. Ports never depend on concrete use cases/infrastructure and grant no cross-module capability. Outbound adapters implement owned outbound ports or approved provider APIs; configuration composes them through constructor injection. No field/setter injection or service-locator shortcut is permitted.
+
+Controllers translate transport data and invoke inbound contracts through configured proxies; they must not depend on concrete application implementations or directly orchestrate domain/persistence workflows. Adapters retain module-local SQL/locking ownership. Required financial effects join the caller's transaction, and HTTP success follows confirmed outer commit. The required entry interface does not require redundant interfaces for helpers, DTOs or domain types. Apply responsibility checks to every implementation without introducing empty packages or changing another module's frozen contract.
 
 ## Compatibility audit and review matrix
 
@@ -244,6 +230,19 @@ UNKNOWN, not permission to execute or proof funds did not move. Technical failur
 escapes for rollback; never continue an aborted DB transaction. Retry outside the
 proxy in a fresh transaction with the original scope. BK-003 itself selected no advisory algorithm/hash/retry budget; the later TD-002/003 freeze now selects them. A separately committed PROCESSING row remains excluded.
 
+### Approved read capabilities — TD-016-AM-01..04
+
+**APPROVED — V1, 2026-10-23.** Tiến's explicit final capability instruction approves AM-01..04 and their exact consumers; AM-05 is NOT SELECTED for V1 and its source/permissions are removed. Existing signatures and unrelated restrictions remain unchanged. The initial audit branch was clean at fetched `develop` `31d2425131766306ccf6a815ca057349bee77bff`. At that baseline, only Ledger had concrete business providers (three posting services/internal JDBC adapters, explicitly composed in tests); Identity, Customer, Accounts, Idempotency and LedgerQueries were interface-only, and Transfers, Administration, History and Bootstrap had no production source. Test Accounts collaborators/reconciliation SQL and separate BK-013 work are not merged production providers. Contract approval does not establish provider implementation, owner integration or feature acceptance.
+
+| Approved source / owner | Exact method and immutable values | Authorized consumer and boundary |
+|---|---|---|
+| `ledger.api.GenesisDatasetInspection` / Tiến | `Optional<InitializedDataset> findCommitted()`; `(treasuryAccountId, genesisTransactionId, genesisReference, initialSupply, recordedAt)` | Bootstrap only; committed Ledger GENESIS/linkage/counter, not Accounts/full reconciliation. Empty only when Ledger dataset/transaction/entry facts are absent; corruption fails technically |
+| `accounts.api.AccountIdentityQueries` / Hải | `Optional<Identity> findById(UUID accountId)`; `(accountId, number, Kind, Optional<customerId>)`, Kind CUSTOMER/TREASURY | Ledger only; UUID-based identity for labels, owner-bound cursors and Admin financial Account Numbers. Customer owner iff CUSTOMER; no balance/status/display name. No Treasury number disclosure through Customer projections |
+| `accounts.api.AdminAccountQueries` / Hải | `Listing listCustomers()`; copied `List<CustomerAccount>`, sorted by exact Account Number using Java String ordering | Administration only; complete committed Customer-only listing, no truncation. ADMIN authorization in Administration; display names via existing CustomerQueries. No new pagination/filtering |
+| `ledger.api.AdminFinancialTransactionQueries` / Tiến | `Transactions listCommitted()`; copied transactions `(transactionId, reference, Type, amount, recordedAt, entries)`, entries `(AccountNumber, signed deltaVnd)`; Type includes GENESIS | Administration only; committed financial facts, implicit VND. Ledger resolves Account Numbers via AM-02; UUID supports audit correlation. No audit/outcome rows |
+
+AM-01 has a real JDBC reader with explicit transaction-proxy wiring; AM-02/03 Accounts providers and AM-04 Ledger financial projection remain pending. Legitimate absence is Optional/empty copied listing; SQL/inconsistent state propagates technically. DTOs prove neither authorization nor commit. Pure interfaces have no framework annotations or default implementations. Existing schema Treasury/dataset guards plus Ledger-owned inspection support V1 without a separate TreasuryInspection capability; real setup/recovery/reconciliation remain required. [Final decision](../6-governance/25-design-decision-register.md#final-v1-capability-decision--2026-10-23); [read semantics](16-domain-model-and-data-design.md#committed-inspection-boundary--td-016-am-01).
+
 ## Transactions and posting permissions
 
 Follow [data design §5](16-domain-model-and-data-design.md#5-transaction-boundaries-and-outcomes-arc-02).
@@ -339,19 +338,12 @@ Java 21 and the existing Maven Wrapper remain unchanged. No Spring Modulith is a
 
 `ProductionArchitectureTests` imports compiled `com.finfast` production code with
 `DoNotIncludeTests`, verifies the source location, and checks recognized packages.
-The eleven rules cover module package structure, public-API isolation from its own
-internals, approved edges plus provider API access, business cycles, domain and
-application isolation, controller JDBC/persistence isolation, clean business code
-and the common-to-business dependency prohibition, plus pure public APIs and the
-approved restricted-capability policy.
+The rules cover module/internal package responsibilities, API isolation, approved edges and restricted capabilities, cycles, domain/application isolation, thin inbound adapters, inward outbound adapters, port purity/interfaces, DTO dependency direction, constructor injection, clean business code and common-to-business isolation. Production scans inspect actual implementations/contracts; absent packages remain absent and provide no runtime evidence.
 
-Production scans now exercise the actual public contracts. Internal domain,
-application and adapter selections can still be empty; no provider exists yet.
-This is not proof about future business implementations.
 `RuleVerificationTests` explicitly imports test-only `finfast.architecture.fixtures`
 outside Spring's application scan and applies the same rules using that root.
 Positive evidence covers own internals, legal public APIs, pure shared contracts,
-controller-to-use-case calls and application `@Transactional` usage. Negative
+the controller persistence rule and application `@Transactional` usage. The complete adapter convention additionally requires invocation through inbound contracts. Negative
 evidence covers foreign repositories/entities, non-API access, a reversed edge,
 a two-module cycle, HTTP/Servlet/JDBC/Spring/adapter leakage, direct controller
 persistence, domain/application observability and shared-to-business coupling.
@@ -374,6 +366,8 @@ module's provider capability. `ModuleContractValueTests` checks opaque key/scope
 semantics, absent/empty note preservation, immutable page collections, page bounds,
 positive completion values and separate final/non-final type families. These are
 contract/value/structural tests, not mocked or real financial posting evidence.
+
+[ApplicationBoundaryVerificationTests](../../backend/src/test/java/com/finfast/architecture/ApplicationBoundaryVerificationTests.java) verifies the current Administration inbound entry/DTO/transaction structure and the existing Ledger public-capability entry contracts. [HexagonalConventionVerificationTests](../../backend/src/test/java/com/finfast/architecture/HexagonalConventionVerificationTests.java) adds positive/negative proof for internal responsibilities, domain framework/configuration/application isolation, outbound interfaces/purity, adapter directions and constructor injection. These reusable rules select all nine modules. Feature-entry intent, SQL table ownership, service-locator behavior and runtime transaction correctness cannot be inferred completely from imports; review them explicitly and add focused behavior/PostgreSQL tests. Helpers are not subject to a blanket interface requirement.
 
 The Treasury rule recognizes a direct caller implementing `GenesisPosting`; it is
 not a runtime privilege or proof of a secure GENESIS implementation. A legitimate

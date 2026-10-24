@@ -12,6 +12,7 @@ import com.tngtech.archunit.library.dependencies.SliceIdentifier;
 
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
@@ -119,6 +120,11 @@ final class ModuleArchitectureRules {
                 Map.entry("ledger.api.AllocationPosting", Set.of("administration")),
                 Map.entry("ledger.api.GenesisPosting", Set.of("bootstrap")),
                 Map.entry("ledger.api.LedgerQueries", Set.of("history")),
+                // TD-016-AM-01..04: APPROVED — V1 by Tiến, 2026-10-23.
+                Map.entry("ledger.api.GenesisDatasetInspection", Set.of("bootstrap")),
+                Map.entry("accounts.api.AccountIdentityQueries", Set.of("ledger")),
+                Map.entry("accounts.api.AdminAccountQueries", Set.of("administration")),
+                Map.entry("ledger.api.AdminFinancialTransactionQueries", Set.of("administration")),
                 Map.entry("identity.api.AdminProvisioning", Set.of("bootstrap")),
                 Map.entry("customer.api.CustomerProvisioning", Set.of("identity")),
                 Map.entry("customer.api.CustomerQueries", Set.of("identity", "administration")));
@@ -169,8 +175,10 @@ final class ModuleArchitectureRules {
 
     static ArchRule domainIsolation(String root) {
         return noClasses().that(layer(root, "domain")).should().dependOnClassesThat(
-                predicate("HTTP, Spring, JDBC, application/adapter/config or technical common infrastructure", target ->
+                predicate("framework, HTTP/JDBC, application/adapter/config or technical common infrastructure", target ->
                         inPackage(target, "org.springframework") || isHttpOrDatabase(target)
+                                || isPersistenceFramework(target) || inPackage(target, "jakarta.validation")
+                                || inPackage(target, "com.fasterxml") || inPackage(target, "tools.jackson")
                                 || inBusinessLayer(target, root, "application")
                                 || inBusinessLayer(target, root, "adapter")
                                 || inBusinessLayer(target, root, "config") || isTechnicalCommon(target)))
@@ -179,9 +187,128 @@ final class ModuleArchitectureRules {
 
     static ArchRule applicationIsolation(String root) {
         return noClasses().that(layer(root, "application")).should().dependOnClassesThat(
-                predicate("HTTP/JDBC or concrete adapter/config implementation", target -> isHttpOrDatabase(target)
+                predicate("HTTP/JDBC, persistence frameworks or concrete adapter/config implementation", target -> isHttpOrDatabase(target)
+                        || isPersistenceFramework(target)
                         || inBusinessLayer(target, root, "adapter") || inBusinessLayer(target, root, "config")))
                 .allowEmptyShould(true);
+    }
+
+    /** Internal entry ports are contracts; approved module api contracts are checked separately. */
+    static ArchRule inboundPortsAreInterfaces(String root) {
+        return classes().that(layer(root, "application.port.inbound")).should().beInterfaces()
+                .allowEmptyShould(true);
+    }
+
+    static ArchRule inboundPortsDoNotDependOnImplementationsOrInfrastructure(String root) {
+        return noClasses().that(layer(root, "application.port.inbound")).should().dependOnClassesThat(
+                predicate("application implementations, outbound ports or infrastructure", target ->
+                        inBusinessLayer(target, root, "application.usecase")
+                                || inBusinessLayer(target, root, "application.service")
+                                || inBusinessLayer(target, root, "application.port.outbound")
+                                || inBusinessLayer(target, root, "adapter")
+                                || inBusinessLayer(target, root, "config")
+                                || inPackage(target, "org.springframework") || isHttpOrDatabase(target)
+                                || inPackage(target, "jakarta.persistence") || inPackage(target, "jakarta.validation")
+                                || inPackage(target, "com.fasterxml") || inPackage(target, "tools.jackson")
+                                || isTechnicalCommon(target))).allowEmptyShould(true);
+    }
+
+    static ArchRule inboundAdaptersDoNotDependOnApplicationImplementations(String root) {
+        return noClasses().that(inboundAdapters(root))
+                .should().dependOnClassesThat(predicate("concrete application usecase or service packages", target ->
+                        inBusinessLayer(target, root, "application.usecase")
+                                || inBusinessLayer(target, root, "application.service"))).allowEmptyShould(true);
+    }
+
+    static ArchRule applicationDtosDoNotDependOnControlOrInfrastructure(String root) {
+        return noClasses().that(layer(root, "application.dto")).should().dependOnClassesThat(
+                predicate("application control, adapters or configuration", target ->
+                        inBusinessLayer(target, root, "application.usecase")
+                                || inBusinessLayer(target, root, "application.service")
+                                || inBusinessLayer(target, root, "application.port")
+                                || inBusinessLayer(target, root, "adapter")
+                                || inBusinessLayer(target, root, "config"))).allowEmptyShould(true);
+    }
+
+    static ArchRule internalPackageResponsibilities(String root) {
+        return classes().that(predicate("business internal classes", type -> moduleOf(type, root) != null
+                        && inPackage(type, root + "." + moduleOf(type, root) + ".internal")))
+                .should(new ArchCondition<>("reside in a defined internal responsibility package") {
+                    @Override
+                    public void check(JavaClass type, ConditionEvents events) {
+                        String moduleRoot = root + "." + moduleOf(type, root) + ".internal.";
+                        boolean recognized = Stream.of("domain.entity", "domain.valueobject", "domain.service",
+                                        "domain.exception", "application.dto", "application.port.inbound",
+                                        "application.port.outbound", "application.usecase", "application.service",
+                                        "adapter.inbound", "adapter.outbound", "config")
+                                .anyMatch(area -> inPackage(type, moduleRoot + area));
+                        if (!recognized) {
+                            events.add(SimpleConditionEvent.violated(type, type.getName()
+                                    + ": undefined internal responsibility package"));
+                        }
+                    }
+                }).allowEmptyShould(true);
+    }
+
+    static ArchRule outboundPortsAreInterfaces(String root) {
+        return classes().that(layer(root, "application.port.outbound")).should().beInterfaces()
+                .allowEmptyShould(true);
+    }
+
+    static ArchRule outboundPortsDoNotDependOnImplementationsOrInfrastructure(String root) {
+        return noClasses().that(layer(root, "application.port.outbound")).should().dependOnClassesThat(
+                predicate("application entry implementations, inbound ports or infrastructure", target ->
+                        inBusinessLayer(target, root, "application.usecase")
+                                || inBusinessLayer(target, root, "application.service")
+                                || inBusinessLayer(target, root, "application.port.inbound")
+                                || inBusinessLayer(target, root, "adapter")
+                                || inBusinessLayer(target, root, "config")
+                                || inPackage(target, "org.springframework") || isHttpOrDatabase(target)
+                                || isPersistenceFramework(target) || inPackage(target, "jakarta.validation")
+                                || inPackage(target, "com.fasterxml") || inPackage(target, "tools.jackson")
+                                || isTechnicalCommon(target))).allowEmptyShould(true);
+    }
+
+    static ArchRule inboundAdaptersDoNotBypassUseCases(String root) {
+        return noClasses().that(inboundAdapters(root)).should().dependOnClassesThat(
+                predicate("domain entities/services, outbound ports/adapters or configuration", target ->
+                        inBusinessLayer(target, root, "domain.entity")
+                                || inBusinessLayer(target, root, "domain.service")
+                                || inBusinessLayer(target, root, "application.port.outbound")
+                                || inBusinessLayer(target, root, "adapter.outbound")
+                                || inBusinessLayer(target, root, "config"))).allowEmptyShould(true);
+    }
+
+    static ArchRule outboundAdaptersDoNotInvokeApplicationEntries(String root) {
+        return noClasses().that(layer(root, "adapter.outbound")).should().dependOnClassesThat(
+                predicate("application entries or inbound adapters", target ->
+                        inBusinessLayer(target, root, "application.usecase")
+                                || inBusinessLayer(target, root, "application.port.inbound")
+                                || inBusinessLayer(target, root, "adapter.inbound"))).allowEmptyShould(true);
+    }
+
+    static ArchRule inboundAdaptersDoNotOwnTransactions(String root) {
+        return noClasses().that(inboundAdapters(root)).should().dependOnClassesThat(
+                predicate("Spring transaction infrastructure", target -> inPackage(target, "org.springframework.transaction")))
+                .allowEmptyShould(true);
+    }
+
+    static ArchRule constructorInjection(String root) {
+        return classes().that(businessClasses(root)).should(new ArchCondition<>(
+                "use constructor injection instead of field or method injection") {
+            @Override
+            public void check(JavaClass type, ConditionEvents events) {
+                Stream.concat(type.getFields().stream(), type.getMethods().stream()).forEach(member -> {
+                    if (Set.of("org.springframework.beans.factory.annotation.Autowired",
+                                    "jakarta.inject.Inject", "javax.inject.Inject",
+                                    "jakarta.annotation.Resource", "javax.annotation.Resource")
+                            .stream().anyMatch(member::isAnnotatedWith)) {
+                        events.add(SimpleConditionEvent.violated(member, member.getFullName()
+                                + ": field/method dependency injection is forbidden; use constructor injection"));
+                    }
+                });
+            }
+        }).allowEmptyShould(true);
     }
 
     static ArchRule thinControllers(String root) {
@@ -239,6 +366,18 @@ final class ModuleArchitectureRules {
     private static boolean isDatabase(JavaClass type) {
         return inPackage(type, "org.springframework.jdbc") || inPackage(type, "java.sql")
                 || inPackage(type, "javax.sql");
+    }
+
+    private static boolean isPersistenceFramework(JavaClass type) {
+        return inPackage(type, "jakarta.persistence") || inPackage(type, "javax.persistence")
+                || inPackage(type, "org.hibernate") || inPackage(type, "org.springframework.data");
+    }
+
+    private static DescribedPredicate<JavaClass> inboundAdapters(String root) {
+        return predicate("business inbound adapters", type -> moduleOf(type, root) != null
+                && (inBusinessLayer(type, root, "adapter.inbound")
+                || type.isAnnotatedWith("org.springframework.web.bind.annotation.RestController")
+                || type.isAnnotatedWith("org.springframework.stereotype.Controller")));
     }
 
     private static boolean isTechnicalCommon(JavaClass type) {
