@@ -15,6 +15,8 @@
 Start at [docs/README.md](docs/README.md); read only documents relevant to the task.
 Verify implementation against source/configuration: historical implementation notes may be outdated.
 
+Default to editing existing canonical documents. Do not create new documentation files, review reports or amendment documents for ordinary implementation changes without explicit Tech Lead approval.
+
 | Topic | Source |
 |---|---|
 | Approved V1 scope | [Vision and scope](docs/01-discovery/01-product-vision-and-scope.md) |
@@ -36,12 +38,17 @@ Verify implementation against source/configuration: historical implementation no
 
 ## Architecture
 
-- Organize by domain using DDD-inspired modules, pragmatic Hexagonal Architecture and constructor injection.
-- Use explicit in-process module APIs; never access another module's internal repositories or entities.
-- Keep controllers thin and use-case orchestration in application code.
-- Derive module names and ownership from reviewed architecture; create packages only when behavior needs them.
-- Avoid unnecessary interfaces and abstractions; verify existing dependencies before introducing tools.
-- Do not add microservices, gateways, brokers or extra services without explicit authorization.
+**MANDATORY FINFAST ARCHITECTURE:** Apply the complete [architecture convention](docs/03-design/15-system-architecture.md#33-java-project-and-module-structure-doc-02) to every existing and future feature in all nine business modules. Check package responsibilities, contract ownership, dependency direction and transaction ownership before writing code. Implement only packages needed by real behavior; do not create empty folders, placeholder providers or generic frameworks.
+
+- **Modular monolith:** one Spring Boot deployable and one logical PostgreSQL database per environment. Preserve the nine-module/eighteen-edge allowlist and capability restrictions. Cross-module calls use only approved provider `api` contracts; never foreign `internal` types, repositories or SQL. Public APIs are framework-free and cannot depend on their own internals. `common` cannot depend on business modules or become a home for business workflows.
+- **Domain:** `internal/domain/{entity,valueobject,service,exception}` owns business concepts and local invariants. Keep it independent of application, adapters, configuration, Spring, HTTP, JDBC, JPA and persistence frameworks. Use immutable financial facts and checked integral-VND arithmetic. Introduce domain services/exceptions only for real domain responsibilities; distinguish expected rejections from technical failures.
+- **Application:** every feature-facing use-case entry exposes an interface under `internal/application/port/inbound`, unless it implements an approved public module API serving that purpose. Concrete implementations belong under `internal/application/usecase` and implement that contract. Commands/results belong in `internal/application/dto` unless owned by a public API; application helpers belong in `internal/application/service`. Keep orchestration here, preserve domain invariants and use outbound ports or approved module APIs for dependencies. Application code must not depend on HTTP, SQL, persistence implementations or configuration.
+- **Ports and DTOs:** inbound contracts never depend on concrete use cases, helpers, outbound ports or infrastructure. Outbound interfaces under `application/port/outbound` express application needs independently of adapters. DTOs carry data without depending on control/adapter/configuration classes. A required inbound contract is not an unnecessary abstraction; do not create redundant interfaces for helpers, DTOs, enums, entities or value objects.
+- **Adapters:** inbound adapters, including thin HTTP controllers, translate/validate transport data and invoke inbound contracts through configured proxies. They must not depend on concrete use cases, access persistence directly or orchestrate domain/financial workflows. Outbound adapters implement module-owned outbound ports or approved provider APIs, own module-local SQL/mapping/locking and propagate technical failures. They must not invoke application entries or inbound adapters. Never duplicate domain invariants as alternative financial authority.
+- **Configuration and injection:** `internal/config` composes concrete implementations, adapters and framework resources. Use constructor injection; no field/setter dependency injection or service-locator shortcuts. Keep composition out of domain/application code. Do not add infrastructure dependencies without checking the existing build.
+- **Transactions:** retain concrete transactional entry annotations and actual Spring proxy interception. Outer financial orchestration uses REQUIRED, READ COMMITTED and rollback for checked/unchecked technical failures; restricted mutation collaborators require the same caller-owned transaction. All required balance, Ledger, final-outcome and success-audit effects share one DataSource/transaction manager and commit atomically. No self-invocation bypass, REQUIRES_NEW financial effects, manual/independent commits or asynchronous required persistence. Pending/method-body return is not commit confirmation; never report success before confirmed outer commit or convert technical/uncertain commit failure into final business rejection.
+- **Verification:** preserve and run module/capability/layer architecture tests, including negative fixtures for added restrictions. Verify new entry-contract relationships explicitly. Use real PostgreSQL and actual transaction proxies for financial rollback/commit evidence; mocks and structural checks do not establish durable outcomes, concurrency safety or release acceptance. Keep documentation, source responsibilities and tests consistent without changing frozen contracts, schema or unrelated implementations.
+- Do not add microservices, gateways, brokers, separate module databases or extra services without explicit authorization.
 
 ## Module API collaboration (BK-003)
 

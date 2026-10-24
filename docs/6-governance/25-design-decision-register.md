@@ -2,11 +2,19 @@
 
 This is the canonical V1 engineering decision register. Approved discovery (A-001..014, closed OQ-001..013, DEC-001..008) and financial policy remain unchanged. **APPROVED describes authority and scope; IMPLEMENTED describes visible code; VERIFIED requires executed evidence.** An approved algorithm is not a passing financial workflow. The later 2026-10-22 Product/UX/REST record below approves the existing PRD/browser/REST implementation baselines; implementation evidence, external gates and final release acceptance remain separate.
 
+The separately authorized [BK-010 implementation evidence](#bk-010-fix-001-and-phase-2-implementation-evidence--2026-10-22) closes FIX-001 and records Phase 2 infrastructure verification. Earlier dated freeze findings below remain historical; they do not override this later scoped status or imply completion of banking workflows.
+
 ## Approved baseline to preserve
 
 - One Customer Account, integral VND, ACTIVE/FROZEN, finite Treasury GENESIS, synchronous atomic movements, controlled Admin actions and committed-only history.
 - Java 21 / Spring Boot 4.1.1 / Maven Wrapper / PostgreSQL 16 / Flyway; one deployable modular monolith, pragmatic Hexagonal Architecture, constructor injection and one logical database per environment.
 - Existing BK-003 public source signatures, provider ownership, nine-module/18-edge graph and capability checks. No foreign `internal` access, new API, dependency or schema is authorized by this documentation change.
+
+## Architecture convention
+
+The permanent, system-wide engineering rules are defined in [architecture 15 §3](../03-design/15-system-architecture.md#33-java-project-and-module-structure-doc-02) and [AGENTS.md](../../AGENTS.md#architecture). They cover module boundaries, Domain/Application/Adapter/Configuration responsibilities, ports, DTOs, injection, transactions, financial persistence and verification across all nine modules and all implementation phases. This register records contract authority and historical evidence; it is not a second coding-convention specification.
+
+The convention preserves public Java/REST contracts, schema, the nine-module/eighteen-edge graph, TD-016-AM-01..04 and financial semantics. Structure/enforcement changes do not establish provider integration, production transaction composition or BK-013 acceptance. Actual test execution and remaining limitations are recorded in [22](../05-verification/22-test-strategy-and-acceptance.md).
 
 ## Confirmed architecture direction — Tech Lead agreement
 
@@ -92,6 +100,24 @@ Detailed protocols and stable encoding obligations: [16 §§5–9](../03-design/
 Current deployment privilege limitation: `compose.yaml` supplies the same `POSTGRES_USER` to PostgreSQL initialization and the application DataSource, and `backend/src/main/resources/application.yml` supplies no separate Flyway credentials. Thus the local baseline does not establish runtime/migration role separation; a database owner/superuser can defeat append-only defenses. Retain V2 and verify least privileges during the separately authorized deployment implementation; no role/configuration is changed here.
 
 These are concrete integration/validation obligations, not permission to introduce speculative provider Beans, new public interfaces or migrations. None demonstrates that the selected transaction/idempotency/counter protocol is unsafe; the affected projection integrations remain blocked until their capability amendments exist.
+
+### Final V1 capability decision — 2026-10-23
+
+**Authority/provenance:** Tiến, Tech Lead, explicitly finalized AM-01..05 in the supplied *FinFast V1 — FINAL Tech Lead Capability Decision and Implementation* instruction dated **2026-10-23**. The prior audit's five PROPOSED candidates are superseded by the four approvals and one non-selection below; no earlier approval date or individual member endorsement is inferred. Approval covers these exact contracts/consumers only, not provider completion, merge or feature acceptance. Existing BK-003 signatures, TD-015 ownership, nine modules/18 edges and frozen REST remain unchanged. [Approved inventory](../03-design/module-contracts-and-boundaries.md#approved-read-capabilities--td-016-am-0104).
+
+| ID | Final status | Requirement / resolution | Provider owner → exact consumer | FR/BK/AC | Remaining implementation |
+|---|---|---|---|---|---|
+| TD-016-AM-01 | APPROVED — V1 | GenesisPosting returns Pending, not committed setup inspection; retain dedicated GenesisDatasetInspection.findCommitted | Ledger/Tiến → Bootstrap | FR-010, BK-009, AC-020/021 | Real Ledger-only JDBC reader retained; actual provisioning/operator/recovery integration pending |
+| TD-016-AM-02 | APPROVED — V1 | Resolve Account UUID identity/number/owner for labels/cursors through AccountIdentityQueries.findById | Accounts/Hải → Ledger | FR-007/008/013, BK-014/015/018, AC-012/024/025/031 | Provider pending; no Ledger-to-Customer/Identity edge or foreign Account SQL |
+| TD-016-AM-03 | APPROVED — V1 | AdminAccountQueries.listCustomers returns immutable, complete Customer-only rows in deterministic Account Number order | Accounts/Hải → Administration | FR-009, BK-016, AC-024/030 | Provider pending; reuse CustomerAccount/CustomerQueries. Frozen items-only response gains no paging/filtering/truncation |
+| TD-016-AM-04 | APPROVED — V1 | AdminFinancialTransactionQueries.listCommitted includes GENESIS/ordinary signed facts separately from History | Ledger/Tiến → Administration | FR-013, BK-018, AC-020/030/031 | Provider awaits Accounts AM-02; UUID supports audit/reference correlation |
+| TD-016-AM-05 | NOT SELECTED — V1 | Remove TreasuryInspection source, permission and dedicated fixtures; no replacement capability | No V1 consumer permission | FR-010, BK-009, AC-020/021 | Existing schema guards and Ledger inspection suffice for scoped initialization evidence; real setup/reconciliation remain required |
+
+AM-01..04 resolve confirmed capability gaps; AM-05 was considered but adds insufficient V1 assurance. The partial unique index limits Treasury to one; dataset FKs/insertion guards require the linked Treasury and GENESIS, while Account constraints protect type/system ownership/ACTIVE/VND/nonnegative balance and immutable identity. Dataset identity/initial supply are immutable. These guarantees do not establish full balance/supply reconciliation; never compare current Treasury balance to initial GENESIS supply after allocations. Future evidence of an unavoidable additional read requires a separate scoped amendment, not a renamed TreasuryInspection.
+
+Historical audit-time GitHub evidence: [PR 22](https://github.com/nvawntien/finfast/pull/22), `dc11b4f`, was closed/unmerged and proposed the rejected default-false method/capability widening. At that inspection, [PR 23](https://github.com/nvawntien/finfast/pull/23), `022dc58`, was open and removed that method while service/tests still called it (D); Bootstrap's History-only dependency remained unauthorized. Mock-only commit/rollback claims require real DB evidence (D); the normal operator bootstrap REST endpoint conflicts with protected setup (F). [PR 17](https://github.com/nvawntien/finfast/pull/17), `fe59690`, was open. No unmerged/unpushed provider was assumed available or PR modified/merged; these snapshots do not assert current remote state.
+
+The four contracts are now the approved V1 implementation baseline in this working tree; merge/publication remain separate operator actions. Tiến owns Ledger reader/financial projection and Administration integration, Hải Accounts metadata/listing and real provisioning, Hưng Identity/Customer/security, and Trung protected Bootstrap recovery/Admin read contributions. Real provider/transaction/concurrency/restart/security evidence remains pending. Existing registration/posting/status/idempotency APIs suffice; audit listing stays Administration-local, reconciliation test-scoped, and canonical allocation uses the trusted TREASURY marker. API-ERR-01/raw input/security obligations remain separate; no handler/OpenAPI/security change is authorized here. No backlog item or canonical acceptance scenario becomes Done.
 
 ## Apache Fineract reference review — 2026-10-22
 
@@ -245,3 +271,13 @@ The freeze review covered all **29 tracked Markdown files**, the existing OpenAP
 | Observability (3) | README, architecture-review, metrics-and-alerts | Existing local evidence/configuration retained; current pure API source status, topology approval versus deployment/benchmark proof clarified |
 
 This register records the approval authority; the inventory above records historical coverage only. See its [explicit exceptions](#explicit-exceptions-and-implementation-findings) before affected History/Admin integrations. No missing standalone ADR/runbook is claimed to exist, and no acceptance checkbox is completed by this audit.
+
+## BK-010 FIX-001 and Phase 2 implementation evidence — 2026-10-22
+
+Tiến separately authorized FIX-001 and Phase 2 implementation after the documentation freeze. This records execution against existing TD-002/004/015/016, not a new design decision or an amendment to any approved Java/REST contract, dependency edge or V1/V2 migration.
+
+**FIX-001 — IMPLEMENTED AND VERIFIED:** the immutable Ledger domain now rejects reference U+0000; all three construction paths have NUL regressions and exact valid/64-code-point boundary coverage. The pre-Phase-2 pure/architecture/contract checkpoint passed 130 tests. The earlier exception rows record the finding at freeze time; FIX-001 is no longer outstanding in this working tree.
+
+**Phase 2 — IMPLEMENTED AND VERIFIED, infrastructure scope only:** Ledger-owned JDBC storage/reconstruction and transactional singleton posting-position allocation join an existing outer transaction. Actual Spring proxies, partial-write rollback, counter bounds, lock waiting, commit serialization and rollback reuse were verified on isolated PostgreSQL 16.15. The completed full Maven `verify` passed 568 tests with zero failures/errors/skips. See [test strategy execution evidence](../05-verification/22-test-strategy-and-acceptance.md#bk-010-fix-001-and-phase-2-execution--2026-10-22) for exact commands, initial failures/fixes and evidence limits, and [data design implementation notes](../03-design/16-domain-model-and-data-design.md#11-phase-2-internal-jdbc-infrastructure) for adapter responsibilities and future Spring wiring.
+
+These primitives are not public posting providers or commit acknowledgements. No Accounts balances, Idempotency outcomes, Admin audit or production GENESIS workflow were implemented. Phase 3–6 remain NOT STARTED. Tiến must coordinate future GenesisPosting wiring with Hải's real Treasury/Accounts capability and Trung's Bootstrap outer setup; Minh's durable outcomes/Transfers and Administration success audit remain later integration obligations. Missing History/Receipt metadata, Admin projections, production reconciliation access, API-ERR-01 and external/security/deployment/performance evidence retain their existing owners and impacts. No full AC/CONS, BK-010 completion or final release acceptance is granted by this implementation record.

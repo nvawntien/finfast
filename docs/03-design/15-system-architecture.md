@@ -1,10 +1,8 @@
 # 15 — System Context, Containers, Modules and Security Boundaries
 
-> Product/UX/REST implementation authority — 2026-10-22: [Tiến's consolidated approval](../6-governance/25-design-decision-register.md#2026-10-22--v1-product-ux-and-rest-contract-freeze) freezes the existing PRD/functional/UX and external YAML baselines in addition to the engineering/Java baseline. It changes no module, edge, capability, financial invariant or selected algorithm. Follow them without routine design reapproval; retained integration exceptions and runtime/external evidence remain open.
+The mandatory convention in §3 applies across the system. The [module contracts](module-contracts-and-boundaries.md) define exact Java capabilities; [data design](16-domain-model-and-data-design.md) defines financial/transaction protocols; [API design and OpenAPI](17-api-contracts.md) define the frozen external interface. The [decision register](../6-governance/25-design-decision-register.md) records authority and historical decisions separately from these engineering rules. Implementation evidence and release acceptance remain separate.
 
-The [member readiness matrix](../02-requirements/10-product-backlog.md#member-implementation-readiness--2026-10-22) assigns work without transferring module ownership. TD-012 approves the reference topology only; EV-001/002 still gate provider/resources. Session/CSRF/BCrypt defaults are design selections, not security test evidence.
-
-> **APPROVED V1 ENGINEERING BASELINE — 2026-10-22:** Java 21/Spring Boot 4.1.1/PostgreSQL 16, one modular monolith, pragmatic Hexagonal Architecture, constructor DI and in-process APIs. BK-003 signatures, TD-015 ownership and TD-016 nine-module/18-edge policy merged at `8a04ca0`. The later [engineering freeze](../6-governance/25-design-decision-register.md#v1-engineering-design-freeze--2026-10-22) selects TD-001..014 in scoped design/method/topology approvals. Foundation code/contracts exist; provider workflows, security integration and deployment evidence remain absent or unverified on that baseline.
+Java 21, Spring Boot 4.1.1, Maven Wrapper and PostgreSQL 16 with Flyway form one deployable modular monolith. Deployment resources remain subject to EV-001/002; session/CSRF/BCrypt design selections require actual security verification.
 
 The Modular Monolith sets deployment and logical module boundaries. DDD gives each module ownership of its domain concepts and invariants. Pragmatic Hexagonal Architecture keeps business logic separate from HTTP and persistence adapters without requiring an interface for every class. One six-person team can work within these boundaries while financial operations still share one database transaction. No mandatory microservices, Kafka, Kubernetes, Redis, event sourcing, distributed transactions or separate module databases are introduced. Provider and infrastructure sizing await EV-001/002.
 
@@ -47,22 +45,15 @@ flowchart TB
 
 ## 3. Module ownership and the controlled posting path
 
-The [canonical module guide](module-contracts-and-boundaries.md) distinguishes the
-implemented BK-003 interfaces/DTOs from future provider behavior and records
-explicit owners from the task request. Tiến owns Ledger/Administration, Minh
-Transfers/Idempotency, Hưng Identity/Customer, Hải Accounts/History, Trung
-Bootstrap/Admin reads and Sĩ frontend. Tiến approved the signatures; individual
-owner endorsements are not inferred. Accounts owns balances/statuses; Ledger coordinates paired movements
-and immutable facts. Transfers/Administration own their complete application
-transactions, including final outcomes and required audit. No provider exists yet.
+The [canonical module guide](module-contracts-and-boundaries.md) defines exact capabilities and ownership. Accounts owns balances/statuses; Ledger coordinates paired movements and immutable facts. Transfers/Administration own their complete application transactions, including final outcomes and required audit. Public contracts, concrete implementations, provider wiring and verified integration are separate evidence levels.
 
-| Module | Owns | Approved contract / permitted consumers; future provider responsibilities |
+| Module | Owns | Contract / permitted consumers and provider responsibilities |
 |---|---|---|
 | `identity` | User credentials, role policy, server sessions; registration orchestration | Authentication/authorization context for protected use cases; protected Admin provisioning for Bootstrap |
 | `customer` | Customer profile and User linkage | Registration provisioning for Identity; limited customer metadata for Administration; calls Accounts to open one zero-balance Customer Account |
 | `accounts` | Account identity, type, status, materialized balance and balance/status invariants | `AccountQueries` for authorized readers; `AccountProvisioning` for Customer; separate `TreasuryProvisioning` for Bootstrap; `AccountStatusCommands` for Administration; restricted `PostingAccounts` for Ledger only |
 | `transfers` | Customer transfer intent validation and orchestration | Customer transfer application entry; calls Ledger's `FinancialPosting` and Idempotency's `RequestOutcomes` |
-| `ledger` | Financial Transactions, signed entries, immutable references, posting semantics, reconciliation and dataset posting order | `FinancialPosting` for Transfers, separate `AllocationPosting` for Administration, `GenesisPosting` for Bootstrap; current `LedgerQueries` exposes History projections only; Admin projections deferred |
+| `ledger` | Financial Transactions, signed entries, immutable references, posting semantics, reconciliation and dataset posting order | `FinancialPosting` for Transfers, separate `AllocationPosting` for Administration, `GenesisPosting` for Bootstrap; History-only `LedgerQueries`; Administration financial inspection through `AdminFinancialTransactionQueries` |
 | `idempotency` | Durable full scoped identity, canonical intent, final result, coordination and recovery | `RequestOutcomes` for Transfers/Administration; authorized lookup accepts server-established initiator context, never an arbitrary user ID from the client |
 | `administration` | Treasury allocation, account status orchestration, required Admin Audit Events | Authorized Admin use cases; calls Ledger for funding and Accounts for status; owns audit persistence inside the same transaction |
 | `history` | Read-only history and receipt projections | Authorized reads through Accounts/Ledger APIs; no financial or account mutation |
@@ -89,7 +80,7 @@ flowchart TD
 
 BK-003 represents ordinary posting as separate `FinancialPosting` transfer and
 `AllocationPosting` allocation interfaces; this split and TD-015 ownership are
-approved. Their still-unimplemented provider behavior must validate typed
+approved. Their provider implementations must validate typed
 authorized intent and Account roles, request protected paired changes through
 `PostingAccounts`, then create a reference and two equal-and-opposite entries.
 Accounts rechecks current ACTIVE status, ownership, funds and safe bounds before
@@ -103,7 +94,7 @@ Transfers may invoke only the internal-transfer operation; Administration only d
 
 ### 3.2 Allowed module dependencies (ARC-06)
 
-An arrow means an allowed Java dependency on the target's explicit public API, never its internals. This is the **APPROVED TD-016 acyclic allowlist: nine modules, 18 edges**; not every use case needs every arrow. Additional public capabilities/directions require prior Tech Lead approval.
+An arrow means an allowed Java dependency on the target's explicit public API, never its internals. This is the **TD-016 acyclic allowlist: nine modules, 18 edges**; not every use case needs every arrow. Additional public capabilities/directions require prior Tech Lead approval.
 
 ```mermaid
 flowchart LR
@@ -131,15 +122,14 @@ Identity registration orchestrates Customer provisioning and the zero-balance Ac
 
 ### 3.3 Java project and module structure (DOC-02)
 
-One Spring Boot application, organized by domain first. BK-003 adds only `api`
-contracts for identity/customer/accounts/ledger/idempotency. Transfers,
-administration, history and bootstrap are future consumer modules with no empty
-production packages. The map below is the target set, not a claim of implemented
-providers. Shared contracts/technical infrastructure remain in `com.finfast.common`:
+This is the mandatory engineering convention for every existing and future FinFast feature across all nine business modules and implementation phases. Modular Monolith boundaries, DDD responsibilities and Hexagonal dependency directions apply together. A directory diagram assigns responsibilities; it does not require empty packages or imply that every provider is implemented. Check responsibilities, contract ownership and transaction boundaries before writing code.
+
+One Spring Boot application is organized by domain first:
 
 ```text
-src/main/java/com/finfast/
+com.finfast/
 ├── FinfastApplication.java
+├── common/
 ├── identity/
 ├── customer/
 ├── accounts/
@@ -151,12 +141,12 @@ src/main/java/com/finfast/
 └── bootstrap/
 ```
 
-Representative business module (illustrative; create only packages needed by actual behavior):
+Each business module uses the following responsibility-based structure. Create only packages containing real implementation; no placeholder classes, empty package scaffolding or generic use-case frameworks.
 
 ```text
 module/
 ├── api/
-│   └── PublicModuleFacade.java
+│   └── ApprovedPublicModuleCapability.java
 └── internal/
     ├── domain/
     │   ├── entity/
@@ -168,7 +158,8 @@ module/
     │   ├── port/
     │   │   ├── inbound/
     │   │   └── outbound/
-    │   └── usecase/
+    │   ├── usecase/
+    │   └── service/
     ├── adapter/
     │   ├── inbound/
     │   │   └── http/
@@ -177,25 +168,62 @@ module/
     └── config/
 ```
 
-| Area | Responsibility and dependency rule |
-|---|---|
-| `api` | Small cross-module facade/contracts and immutable boundary DTOs; no JPA entities or repositories. Separate named API groups may distinguish queries, posting and bootstrap privileges. |
-| `internal/domain` | Entities, value objects and invariants; keep independent of Spring MVC, JPA and infrastructure where practical. Domain services exist only for domain behavior that does not belong on one entity/value. |
-| `internal/application` | Use-case orchestration, transaction entry, application DTOs and meaningful ports. Calls domain logic and allowed module APIs; does not depend on HTTP/persistence implementations. |
-| `application/port/inbound` | Optional use-case contract when a meaningful entry boundary is needed; avoid facade/port/use-case interfaces that merely duplicate each other. |
-| `application/port/outbound` | Application-required persistence/infrastructure capabilities; implemented by adapters. |
-| `adapter/inbound/http` | Thin controllers map HTTP input, authenticated context and result DTOs. They do not coordinate financial writes or decide transaction commit. |
-| `adapter/outbound/persistence` | Implements ports, maps persistence entities and obtains PostgreSQL locks; owns module-local repositories. |
-| `internal/config` | Spring wiring and adapter configuration via constructor injection; composition stays outside the domain. |
+#### Module boundaries and public APIs
 
-Use in-process calls between modules, not HTTP/gRPC, separate databases or distributed transactions. Spring wires implementations by constructor injection. Sharing a transaction does not permit sharing internal repository/entity classes. Application transaction annotations may couple orchestration to Spring; avoiding that practical coupling with numerous wrapper interfaces is not a V1 goal.
+Cross-module dependencies must follow both the nine-module/eighteen-edge graph in §3.2 and the narrower capability permissions in the [module contracts](module-contracts-and-boundaries.md). Calls are in process; modules share one logical PostgreSQL database, without cross-module HTTP/gRPC or distributed transactions. Sharing a database/transaction never permits access to another module's internal repositories, entities or tables.
+
+`api` owns only approved public capabilities and immutable boundary values. Public contracts must remain framework-free and must not reference their own `internal` types. Public Java visibility does not authorize cross-module use. Internal ports are private to their owning module; adding one grants no public capability or dependency edge. `common` contains suitable pure shared contracts and technical infrastructure, cannot depend on business modules and must not accumulate business workflows or generic repositories.
+
+#### Domain responsibilities
+
+`internal/domain` owns entities, value objects, domain services, genuinely necessary domain exceptions, business validation and local invariant protection. Domain code must not depend on application, adapters, configuration, Spring, HTTP/Servlet, JDBC, JPA or persistence/serialization frameworks. It must not execute SQL/HTTP or orchestrate infrastructure. Foreign module internals remain forbidden. Domain objects should be immutable where appropriate; financial facts must preserve their approved immutability.
+
+Put behavior on its owning entity/value when suitable. Introduce a domain service only for actual domain behavior that does not belong on one object. Do not invent a service or exception to fill a folder. Expected business rejections, invariant violations and technical failures retain the distinct meanings defined by module contracts.
+
+#### Application contracts and orchestration
+
+| Package | Mandatory responsibility |
+|---|---|
+| `application/port/inbound` | Explicit interfaces for feature-facing use-case entries. Contracts depend on application DTOs, domain/pure shared values or approved API values, never concrete use cases, helpers, outbound ports or infrastructure. |
+| `application/usecase` | Concrete use-case implementations implement their inbound contract, orchestrate business operations and establish the approved transaction boundary. A small package-private error catalog local to one use case may stay alongside it. |
+| `application/dto` | Immutable commands/results separate from concrete implementations; preserve ownership of existing approved public API values. DTOs must not depend on control classes, ports, adapters or configuration. |
+| `application/port/outbound` | Interfaces expressing capabilities the application needs, such as module-local persistence. They must not depend on concrete adapters, use-case implementations/helpers, inbound ports, configuration or infrastructure frameworks. |
+| `application/service` | Application-specific helpers/coordination needed by actual use cases, such as canonical input production. Helpers do not become alternative feature entry points or bypass domain invariants. |
+
+An approved public module API can already serve as the inbound contract. Ledger's `FinancialPosting`, `AllocationPosting` and `GenesisPosting` implementations must not acquire duplicate internal inbound interfaces. A required use-case contract is intentional; it does not require an interface for every DTO, helper, enum, entity or value object. Ports must not point back to concrete implementations.
+
+Application orchestration calls domain behavior, approved module APIs and outbound ports. It must not depend on HTTP, SQL/JDBC, concrete persistence adapters or configuration. Keep domain invariants in their owning module; do not duplicate Account eligibility/balance authority or financial posting construction in consumers. Commands and canonical intent preserve exact validated data according to their contracts; transport parsing does not establish financial eligibility.
+
+#### Inbound adapters
+
+`adapter/inbound` translates external interactions into application invocations. HTTP controllers under `adapter/inbound/http` bind/validate transport input, map errors/results to the frozen REST contract and invoke inbound interfaces through configured proxies. Controllers must remain thin, must not depend on concrete use-case/helper implementations and must not call outbound ports, repositories or persistence adapters. They must not manipulate domain objects to orchestrate business workflows, change balances, construct financial facts or own financial transactions.
+
+Transport authentication/CSRF checks do not replace trusted authorization and resource checks at the application boundary. Never accept client-provided actor identity as authority. HTTP serialization must follow successful outer proxy completion; a Pending value or a method-body return cannot certify commit. Preserve all operation-specific result/error distinctions in [17](17-api-contracts.md).
+
+#### Outbound adapters and persistence
+
+`adapter/outbound` implements module-owned outbound ports or approved provider APIs. Persistence adapters under `adapter/outbound/persistence` own module-local SQL, mappings, repositories and approved locking/transaction guards. They depend inward on contracts and domain values, must not invoke use-case entries/inbound adapters, and must not expose persistence models through public APIs. No direct foreign-table SQL, generic balance setters or alternative financial mutation authority is permitted.
+
+Adapters must propagate technical persistence failures. Required financial/audit writes join the existing transaction; adapters must not commit independently, swallow failed writes or turn technical failure into durable business rejection. Preserve Flyway migrations and immutable Ledger safeguards. Schema amendments follow their separate review process.
+
+#### Configuration and constructor injection
+
+`internal/config` is the composition boundary for Spring beans, adapters, resources and proxy configuration. Use constructor injection throughout module implementations; no field/setter dependency injection or service-locator shortcuts. Domain/application code must not depend on configuration. Do not manufacture production providers when collaborators are unavailable; test-scoped collaborators remain test-only. Create no new framework abstraction or dependency solely to satisfy the package diagram.
+
+#### Transaction ownership and financial integrity
+
+Concrete transactional entries retain Spring annotations; pure ports/public APIs have none. An externally invoked outer financial use case uses `Propagation.REQUIRED`, PostgreSQL `Isolation.READ_COMMITTED` and `rollbackFor = Exception.class`. Restricted mutation/coordination implementations require the caller's transaction, normally through concrete MANDATORY guards. Read/inspection entries retain their approved read-only/isolation contract, including GENESIS inspection; the financial write rule does not override those contracts.
+
+Use actual Spring interception through the injected contract, without self-invocation bypass. All required effects share one PostgreSQL DataSource and transaction manager: balances, immutable paired Ledger facts, final idempotency outcome and required success audit commit together. No REQUIRES_NEW financial effects, manual/independent commits, asynchronous required writes or best-effort success audit. Preserve checked integral VND, finite supply, current locked Account eligibility, authorization-before-replay and exact scoped idempotency.
+
+Technical failures must escape for rollback; a final business rejection is recorded only through the approved contract with no financial effects. Never treat PROCESSING/UNKNOWN or uncertain commit as final rejection. A caller must not expose success until the outer commit is confirmed. Pre-commit rollback safeguards and transaction-manager composition require real verification; rollback configuration cannot guarantee reversal after a commit has already succeeded. Recovery after uncertain commit uses the original idempotency scope/key. [Data design §5–7](16-domain-model-and-data-design.md#5-transaction-boundaries-and-outcomes-arc-02) defines the exact protocols.
 
 ### 3.4 Enforcing the boundaries (ARC-06)
 
-**Implemented tooling:** TEST-scope ArchUnit 1.5.1 with
+**Architecture checks:** TEST-scope ArchUnit 1.5.1 with
 `archunit-junit6`, matching Boot 4.1.1's managed Jupiter 6.0.3. These checks execute
 through ordinary Maven tests; the §3.2 allowlist and current structural/capability
-enforcement are **APPROVED under TD-016**. Spring Modulith is not installed or
+enforcement implement TD-016. Spring Modulith is not installed or
 required by this baseline.
 
 - Only the nine named business modules are cycle nodes. `common`, the root launch
@@ -223,6 +251,11 @@ required by this baseline.
   cannot prove runtime authorization, transaction guards, atomicity or SQL ownership.
   Follow the [module collaboration guide](module-contracts-and-boundaries.md) and
   real PostgreSQL/transaction gates in [22](../05-verification/22-test-strategy-and-acceptance.md).
+
+- Reusable structural rules protect internal responsibility packages, inbound/outbound interfaces and port purity, DTO dependency direction, constructor injection and adapter dependency direction. Inbound adapters cannot own Spring transactions. Inbound adapters cannot depend on concrete application implementations, domain entities/services, outbound ports/adapters or configuration; pure value mapping does not authorize business orchestration. Outbound adapters cannot invoke application entries/inbound adapters. Domain/application checks exclude persistence frameworks as well as HTTP/JDBC. [ApplicationBoundaryVerificationTests](../../backend/src/test/java/com/finfast/architecture/ApplicationBoundaryVerificationTests.java) verifies current entry/DTO/transaction declarations and Ledger's existing public contracts. [HexagonalConventionVerificationTests](../../backend/src/test/java/com/finfast/architecture/HexagonalConventionVerificationTests.java) proves permitted structure and representative forbidden directions, including generic leaks and field/setter injection.
+- Every implementation must pass the complete applicable rules, not just the rule exercised by an illustrative fixture. Feature-facing entry intent cannot be inferred reliably for every helper; verify each entry's interface relationship explicitly rather than requiring every application class to implement an interface. Dependency checks cannot establish SQL table ownership, detect every service-locator shortcut, prove runtime authorization, or confirm transaction-manager composition, commit/rollback and durability. Require code review and focused real PostgreSQL/proxy/failure/concurrency tests for those obligations. Mocks establish collaborator behavior only; they do not establish durable idempotency or acceptance.
+
+**TD-016-AM-01..04** permit exactly Bootstrap → Ledger GENESIS inspection; Ledger → Accounts identity; Administration → Accounts Customer listing; Administration → Ledger financial inspection. All are existing graph directions: nine modules and 18 edges remain unchanged. AM-05 TreasuryInspection is NOT SELECTED — V1 and has no source/permission entry. `LedgerQueries` remains History-only and all unrelated posting/provisioning restrictions remain intact. [Approved inventory](module-contracts-and-boundaries.md#approved-read-capabilities--td-016-am-0104), [final decision](../6-governance/25-design-decision-register.md#final-v1-capability-decision--2026-10-23). Capability permission is separate from production provider wiring and feature acceptance.
 
 ## 4. Approved security design (implementation and evidence pending)
 
@@ -253,4 +286,4 @@ required by this baseline.
 
 ## 7. Architectural trade-offs
 
-Why monolith initially? Strong financial transaction boundary, one small team, no independent scaling or ownership requirement across Accounts/Transfer/Ledger in V1. This is an **approved initial direction**, not a commitment against later decomposition. Approved TD-015/016 ownership/boundaries and the later scoped TD-001..014 selections are tracked in the [decision register](../6-governance/25-design-decision-register.md). Standalone ADR-001 is planned and is not an existing deliverable. Optional notifications are a P1 extension and never block financial commit.
+One modular monolith keeps the financial transaction boundary local for one small team. V1 has no independent module scaling requirement. Ownership, capability restrictions and selected financial protocols remain mandatory; future decomposition requires a separately reviewed architecture change. The [decision register](../6-governance/25-design-decision-register.md) retains their authority and history. Optional notifications are a P1 extension and never block financial commit.
