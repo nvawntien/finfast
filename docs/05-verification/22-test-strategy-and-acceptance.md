@@ -340,6 +340,19 @@ The first `make help` attempt ran from backend/ and failed because its Makefile 
 | Tiến and provider owners: transaction composition | **BLOCKED** — production wiring absent. Same DataSource/manager and actual outer proxies, safe pre-commit/rollback-failure handling, during-commit classification and authoritative uncertain-commit recovery; rollbackOnCommitFailure alone is insufficient |
 | Phase 5 and acceptance | **NOT STARTED** — depends on the above integrations and separately authorized HTTP/CSRF/raw-input/outcome mapping, restart/network-loss/E2E and full financial AC evidence |
 
+## BK-017 Freeze/unfreeze verification — 2026-10-24
+
+**PARTIAL IMPLEMENTATION EVIDENCE — Accounts status provider and Administration orchestration.** The focused PostgreSQL/Testcontainers suite uses isolated PostgreSQL 16 databases, the real JDBC transaction manager and actual Spring proxies. It verifies ACTIVE→FROZEN and FROZEN→ACTIVE, complete status audit action/outcome/before/after fields, same-state `UNCHANGED` without an audit row, Treasury exclusion, blank-reason rejection, audit-trigger rollback, and rejection of missing/read-only/unproxied caller transactions.
+
+Executed from `backend/`:
+
+```sh
+./mvnw --batch-mode --no-transfer-progress -Dtest=AccountStatusIntegrationTests,AdminAuditEventTests,ApplicationBoundaryVerificationTests test
+./mvnw --batch-mode --no-transfer-progress clean test-compile
+```
+
+The evidence covers the approved internal contracts and database transaction semantics only. There is no production `CurrentIdentity` implementation or complete runtime Bean composition for Accounts/Administration on this baseline, so no HTTP authentication, endpoint, deployment-secret or end-to-end acceptance is claimed. No OpenAPI, migration, BK-015 Receipts or public Java contract was changed. BK-017 remains incomplete until the responsible Identity/Accounts/runtime owners provide and integrate those real dependencies.
+
 ## BK-018 Ledger AM-04 verification — 2026-10-24
 
 **Ledger provider implemented; real Accounts and Administration integration pending.** Started on clean `feat/BK-018-ledger-financial-queries` at `d0e75a8edb3191397398cb6d8f955b9a60df1e42`. Verification uses Temurin Java 21.0.12.1+1, the existing Maven Wrapper/Boot dependencies and pinned PostgreSQL 16.15 Testcontainers image, with unchanged Flyway V1/V2 in disposable isolated databases. The host default is Java 26; a cached Temurin JDK was extracted into `/tmp/finfast-am04-java21` for these invocations. No developer database or persistent Compose volume is used.
