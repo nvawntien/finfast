@@ -140,9 +140,9 @@ describe('memory-only session lifecycle', () => {
     const old = deferred<Session>(); const session = vi.fn(() => old.promise);
     const store = createSessionStore({ ...service, session, logout: async () => { throw new ApiError('network'); } });
     const listener = vi.fn(); const unsubscribe = store.subscribe(listener);
-    const pending = store.refresh(); void store.refresh(); expect(session).toHaveBeenCalledTimes(1);
-    old.resolve(decodeSession(mockIdentity)); await pending; expect(listener).toHaveBeenCalledTimes(1);
-    unsubscribe(); await store.logout(); expect(listener).toHaveBeenCalledTimes(1);
+    const pending = store.refresh(); void store.refresh(); await Promise.resolve(); expect(session).toHaveBeenCalledTimes(1);
+    old.resolve(decodeSession(mockIdentity)); await pending; expect(listener).toHaveBeenCalledTimes(2);
+    unsubscribe(); await store.logout(); expect(listener).toHaveBeenCalledTimes(2);
     expect(store.getSnapshot()).toEqual({ status: 'error', logoutUncertain: true });
   });
   it('accepts logout 401 as already anonymous', async () => {

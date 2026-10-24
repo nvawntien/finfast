@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import { mockIdentity } from '../../src/mocks/fixtures';
+import { mockAccount, mockIdentity } from '../../src/mocks/fixtures';
 
 async function backend(page: Page, options: { role?: 'ADMIN' | 'CUSTOMER'; failLogout?: boolean; unavailable?: boolean; loginGate?: Promise<void> } = {}) {
   let signedIn = false;
@@ -17,6 +17,7 @@ async function backend(page: Page, options: { role?: 'ADMIN' | 'CUSTOMER'; failL
       expect(csrf).toBeGreaterThan(0); mutations.push(path);
     }
     if (path.endsWith('/session')) return signedIn ? route.fulfill({ json: { ...mockIdentity, role: options.role || 'CUSTOMER' } }) : error(401);
+    if (path.endsWith('/accounts/me')) return signedIn ? route.fulfill({ json: mockAccount }) : error(401);
     if (path.endsWith('/register')) {
       const body = request.postDataJSON(); expect(Object.keys(body).sort()).toEqual(['displayName', 'email', 'password']);
       if (body.email === 'used@example.test') return error(409);

@@ -1,6 +1,6 @@
 import { http, HttpResponse, passthrough } from 'msw';
 import { isRecord } from '../api/contracts';
-import { mockAccount, mockCredentials, mockHistoryItem, mockIdentity, mockReceipt } from './fixtures';
+import { mockAccount, mockCredentials, mockFrozenAccount, mockFrozenCredentials, mockFrozenIdentity, mockHistoryItem, mockIdentity, mockReceipt } from './fixtures';
 import { exceedsPasswordByteLimit } from '../features/auth/validation';
 
 type MockCustomer = {
@@ -15,6 +15,7 @@ export function createMockApi(origin: string) {
   let nextCustomer = 0;
   const fixtureCustomer: MockCustomer = { identity: mockIdentity, customerId: 'MOCK-CUSTOMER-ID',
     account: mockAccount, history: [mockHistoryItem], receipts: [mockReceipt] };
+  const frozenCustomer: MockCustomer = { identity: mockFrozenIdentity, customerId: 'MOCK-FROZEN-CUSTOMER-ID', account: mockFrozenAccount, history: [], receipts: [] };
   let principal: MockCustomer | undefined;
   const registrations = new Map<string, MockCustomer>();
   // Ephemeral fixture verifier only, never fed into BCrypt or used to bypass TD-007.
@@ -41,7 +42,7 @@ export function createMockApi(origin: string) {
           return HttpResponse.json({ code: 'INVALID_REQUEST', message: 'Password exceeds 72 UTF-8 bytes.' }, { status: 422 });
         }
         const email = (data.email as string).trim().toLowerCase();
-        if (email === mockCredentials.email || registrations.has(email)) {
+        if (email === mockCredentials.email || email === mockFrozenCredentials.email || registrations.has(email)) {
           return HttpResponse.json({ code: 'EMAIL_EXISTS', message: 'Synthetic email already registered.' }, { status: 409 });
         }
         const passwordDigest = await digest(data.password as string);
@@ -67,6 +68,7 @@ export function createMockApi(origin: string) {
         const email = data.email.trim().toLowerCase();
         const registered = registrations.get(email);
         if (email === mockCredentials.email && data.password === mockCredentials.password) principal = fixtureCustomer;
+        else if (email === mockFrozenCredentials.email && data.password === mockFrozenCredentials.password) principal = frozenCustomer;
         else if (registered && registered.digest === await digest(data.password)) principal = registered;
         else return unauthorized();
         generation++;

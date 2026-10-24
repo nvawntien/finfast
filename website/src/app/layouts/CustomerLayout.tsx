@@ -24,7 +24,7 @@ export function CustomerLayout() {
     <a className={styles.skip} href="#main-content">Bỏ qua điều hướng</a>
     <header className={styles.header}>
       <Link to="/customer" className={styles.brand} aria-label="FinFast — Tổng quan"><span className={styles.mark} aria-hidden="true">F</span>FinFast<span className={styles.brandDot} aria-hidden="true">.</span></Link>
-      <nav aria-label="Truy cập" className={styles.access}>{status === 'authenticated' || status === 'signing-out' ? <LogoutButton /> : <><Link to="/login">Đăng nhập</Link><Link to="/register">Đăng ký</Link>{status === 'signing-in' && <LogoutButton />}</>}</nav>
+      <nav aria-label="Truy cập" className={styles.access}>{status === 'authenticated' || status === 'signing-out' || status === 'revalidating' ? <LogoutButton /> : <><Link to="/login">Đăng nhập</Link><Link to="/register">Đăng ký</Link>{status === 'signing-in' && <LogoutButton />}</>}</nav>
     </header>
     <div className={`${styles.body} ${customer ? '' : styles.publicBody}`}>
       {customer && <div className={styles.sidebar}><Navigation /><p className={styles.sidebarNote}>Một không gian để trải nghiệm ngân hàng mô phỏng.</p></div>}

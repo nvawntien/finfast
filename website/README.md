@@ -1,8 +1,8 @@
-# FinFast Customer Web — BK-019 Phases 1–3
+# FinFast Customer Web — BK-019 Phases 1–4
 
-Frontend foundation, shared HTTP client, opt-in Mock API and Identity UI.
+Frontend foundation, shared HTTP client, opt-in Mock API, Identity UI and Customer Dashboard.
 Registration/login and server-session checks are implemented. Customer routes require
-a CUSTOMER session; account, transfer, history and receipt screens remain placeholders.
+a CUSTOMER session; the Dashboard reads the current account. Transfer, history and receipt screens remain placeholders.
 Synthetic fixtures live only in the development/test mock module. Only simulated funds
 are in scope; no Admin UI is included.
 
@@ -21,7 +21,7 @@ npm run dev
 Open http://127.0.0.1:3000. Port 3000 is reserved for frontend by the repository;
 the server fails if occupied instead of silently choosing another port.
 On Windows with PowerShell script restrictions, use `npm.cmd` instead of `npm`.
-Use `npm run dev:mock` for Identity without a backend. Normal dev requires the approved
+Use `npm run dev:mock` for Identity and Dashboard without a backend. Normal dev requires the approved
 same-origin API; unavailable APIs show an explicit error and never enable mocks.
 
 ## Phase 2 — HTTP client and opt-in mocks
@@ -103,10 +103,10 @@ try {
 
 - Synthetic login: `customer@example.test` / `mock-only-password`, **mock mode only**.
   Never enter real credentials into mocks. Mock state resets on reload/test reset.
-- Handlers cover the ten Customer operations. Registration returns a fixed zero-balance
+- Handlers cover the ten Customer operations. Registration creates a distinct zero-balance
   fixture; it does not create a real account or a new login. Session state is in memory
   and CSRF rotates after mock login/logout; this does not prove cookie security.
-- Account/history/receipt are fixed synthetic fixtures; large VND values intentionally
+- Account/history/receipt are principal-scoped synthetic fixtures; large VND values intentionally
   exercise precision. History has one page and no valid continuation cursor fixture.
 - Default transfer/resolve return 202 UNKNOWN. They never post funds or manufacture
   a success. Unit tests inject deterministic completed/rejected/error responses.
@@ -153,8 +153,8 @@ Stop any manually started server on port 3000 before tests. Playwright starts/st
 its own local dev server. `test:mock` additionally needs free ports 3001/3002 and a
 fresh `npm run build`; it checks mock startup and production preview separately.
 `npm run check` runs build, production artifact checks, unit/integration tests and
-both browser suites. Foundation tests cover direct routes, 404, root redirect, simulation notice, no API
-requests, runtime exceptions, active navigation, keyboard skip link/route focus,
+both browser suites. Foundation tests cover direct routes, 404, root redirect, simulation notice,
+only expected session/account API reads, runtime exceptions, active navigation, keyboard skip link/route focus,
 browser back, reduced motion, reflow and axe checks at 360×800, 768×1024 and 1440×900.
 The 200% text-scaling check is not a substitute for manual browser 200% zoom.
 Trace files for failures are in ignored `test-results/`.
@@ -169,7 +169,7 @@ or run all development commands as Administrator.
   money boundaries, environment guards and mock/OpenAPI schema/status checks.
 - Normal build and `npm.cmd run build -- --mode mock`: passed. Both production
   bundles passed `check:production`; the conditional mock code/fixtures and worker
-  are absent. The transport is currently unused by placeholder screens and may
+  are absent. At Phase 2 the transport was unused by placeholder screens and could
   also be tree-shaken until feature integration.
 - Chrome mock/production tests: **3 passed**; rerun against the production build
   with `--mode mock` also passed. Phase 1 browser regression: **30 passed**.
@@ -243,8 +243,10 @@ website/
     styles/tokens.css + global.css
     api/client.ts + contracts.ts + errors.ts + index.ts
     lib/money.ts
+    features/auth/             # Identity forms, service, session store/provider and guard
+    features/account/          # Dashboard, DTO decoder and session-scoped account store
     mocks/browser.ts + fixtures.ts + handlers.ts
-  tests/e2e/foundation.spec.ts
+  tests/e2e/                  # Foundation, Identity and Dashboard browser checks
   tests/unit/                 # Client, money, environment and OpenAPI fixture checks
   tests/mock/                 # Real browser MSW and production isolation checks
 ```
@@ -253,7 +255,7 @@ CSS Modules isolate components; CSS variables own design tokens. Native links an
 React Router declarative routing provide keyboard navigation. Layout owns shared
 landmarks and focus management. `PlaceholderPage` is intentionally shared until
 actual feature behavior needs separate modules. Do not create speculative API wrappers
-or unused folders. Future phases introduce `src/features/{auth,account,transfers,history,receipts}`
+or unused folders. Future phases introduce `src/features/{transfers,history,receipts}`
 as behavior is implemented.
 
 | Route | Screen |
@@ -261,7 +263,7 @@ as behavior is implemented.
 | `/` | Redirect to `/customer` |
 | `/register` | S01 registration; success requires separate login |
 | `/login` | S02 login and expired-session notice |
-| `/customer` | S03 overview placeholder |
+| `/customer` | S03 Customer Dashboard; server-owned account overview |
 | `/customer/transfer` | S04 transfer placeholder |
 | `/customer/history` | S05 history placeholder |
 | `/customer/receipts/:reference` | S06 receipt placeholder; reference is not looked up |
@@ -275,10 +277,10 @@ Read [AGENTS.md](../AGENTS.md), [BK-019](../docs/02-requirements/10-product-back
 [architecture](../docs/03-design/15-system-architecture.md) and
 [API contracts](../docs/03-design/17-api-contracts.md).
 UX-001/003/004/005 and AC-005/011/013/014/015/033/038 remain the full BK-019 target;
-Phase 3 verifies the frontend Identity behavior against controlled APIs; it does not
+Phases 3–4 verify frontend Identity and account reads against controlled APIs; this does not
 establish real backend security, financial or full end-to-end acceptance.
 
-Source inspection on 2026-10-23 found no banking HTTP controllers in this checkout.
+Source inspection on 2026-10-24 found no banking HTTP controllers in this checkout.
 The approved `/api/v1` auth, account, transfer, outcome-resolution, history and
 receipt contracts are integration specifications, not available endpoint evidence.
 Later phases must verify provider implementations before connecting. Preserve
@@ -324,8 +326,10 @@ pending operation. If login ended with an uncertain transport/protocol result, t
 keeps logout uncertainty even after a logout response: a client timeout alone cannot
 prove that delayed server work cannot create a session. Real backend validation remains required.
 The session DTO has no expiry timestamp: expiry is discovered through server 401 on
-refresh, not an invented client TTL. Future account/financial feature adapters must
-connect their own 401 handling to session refresh; Phase 3 has no business API reads.
+refresh or current-scope account reads, not an invented client TTL. Phase 4 account 401
+expires only its originating confirmed session scope. Account responses from before
+session revalidation are discarded, including late 401 responses.
+Future financial adapters must integrate their own session-expiry handling.
 A client guard is a UX boundary, not a substitute for server authorization.
 
 ### Synthetic development flow
@@ -402,3 +406,87 @@ byte boundaries and rejection without truncation. Browser outputs are ignored un
 `.cache/phase3-review-fixes-browser/` and `.cache/phase3-review-fixes-mock/`.
 These are frontend/mock checks; real server cookie rotation, delayed server completion,
 CSRF-filter mapping, manual screen-reader checks and Firefox/WebKit remain unverified.
+
+## Phase 4 — Customer Dashboard
+
+`src/features/account/` contains the Dashboard, account DTO decoder and request store.
+The existing HTTP client performs only `GET /api/v1/accounts/me`; no financial
+mutation or automatic retry is introduced. Refresh/retry is an explicit GET.
+The decoder validates the six approved fields and FR-003's Customer-only visibility
+and equal current/available balances in V1. VND remains an integer decimal string;
+the Phase 2 formatter preserves precision, including amounts above JavaScript's safe integer range.
+The greeting comes from the authenticated session, not an invented account-owner field.
+
+Loading clears previous amounts. Zero, funded and FROZEN states have explicit messages;
+FROZEN retains account reads and the history placeholder link. The transfer shortcut
+is omitted for FROZEN according to FR-004's ACTIVE requirement; server authorization
+remains authoritative. Transfer/history/receipt functionality is not implemented.
+An empty/null DTO is a protocol error, never a successful absent account or a fabricated
+zero balance: this operation specifies only 200, 401 and 403. Network, timeout,
+forbidden and invalid-response failures have retry feedback without fallback to mocks.
+
+Requests are scoped to an in-memory session epoch and cancelled on cleanup, logout or
+principal change. Both sequence and epoch checks discard late responses even if a
+transport ignores abort. Data is hidden synchronously when its scope is no longer
+current. Shared `revalidating` state removes the cached principal and advances scope
+as soon as session verification starts. The guard hides Dashboard content; account
+reads are aborted and cannot restart until a server session response confirms CUSTOMER.
+Even confirmation of the same principal requires a fresh account read. Concurrent
+refresh calls share one promise per authentication generation; old completion/cleanup
+cannot replace a newer login or verification. Network failure shows a session problem,
+not a claim that logout succeeded. A current account 401 expires the session; a stale
+401 cannot expire a new one or override an in-progress session verification.
+No account cache or credentials are persisted in browser storage.
+
+Mock fixtures: `customer@example.test` has a large funded ACTIVE account;
+`frozen@example.test` has a FROZEN account with `250000` VND. Both use the synthetic
+password `mock-only-password`. A new registration has its own account number and zero
+balance. Use these only with `npm run dev:mock`; the mock banner stays visible.
+Dashboard design rules: [Dashboard](design-system/finfast/pages/dashboard.md).
+
+### Phase 4 verification — 2026-10-24
+
+Baseline: Phase 3 commit `7630091` on `feature/BK-019`.
+
+| Check | Result |
+| --- | --- |
+| Typecheck / production build | Passed |
+| Production artifact isolation | Passed; no mock worker, markers or fixture data |
+| Unit/integration, including Phase 2–3 regression | 154 passed in 7 files; 41 new account cases |
+| Chrome browser, including Phase 1–3 regression | 96 passed; 36 new Dashboard cases across mobile/tablet/desktop |
+| Browser MSW / production isolation | 6 passed |
+
+Dashboard checks cover exact DTOs/VND, zero/funded/frozen, errors, explicit retry,
+session expiry, role guard, pending logout, principal changes and late-response
+isolation. Browser checks include keyboard, axe and 200% text scaling; final desktop
+and mobile screenshots were visually inspected. Artifacts are ignored under
+`.cache/phase4-final-browser/` and `.cache/phase4-final-mock/`.
+An initial empty-response browser fixture was corrected to send JSON `null`; the
+final rerun passed. No dependency changes were required.
+
+Real backend integration is still required for account ownership/authorization,
+actual session cookies and expiry, CSRF/security-filter mapping, TLS and same-origin
+routing. Manual screen-reader/200% browser zoom and Firefox/WebKit checks remain
+outstanding. Automated frontend/mock tests do not establish those server guarantees.
+
+### Phase 4 P2 revalidation fix — 2026-10-24
+
+Re-reviewed the session A/account B race: starting session refresh now synchronously
+publishes `revalidating`, removes the cached principal and advances the account scope.
+The existing account store aborts old reads and rejects late responses; the guard
+hides the Dashboard until server confirmation. Same-principal confirmation also
+loads a fresh account. Refreshes deduplicate within an authentication generation;
+old responses and cleanup cannot overwrite a later login/verification. Network
+failure remains a session error, not successful logout.
+
+Final verification: typecheck and production build passed; **161 unit/integration
+tests**, **108 Chrome browser tests** (including Phase 1–3 regression across three
+viewports), and **6 browser MSW/production isolation tests** passed. Production
+artifact isolation and `git diff --check` passed. New coverage includes deferred
+session verification for A/B/401/network, hiding rendered A, account responses before
+session confirmation, late account 401, logout during verification, and overlapping
+verification across login generations. Initial new browser assertions had damaged
+Vietnamese encoding from shell input; corrected assertions passed the final full rerun.
+Artifacts: `.cache/phase4-revalidation-final-browser/` and
+`.cache/phase4-revalidation-mock/`. Real backend cookie/security integration and
+manual accessibility/cross-browser checks remain outstanding as described above.

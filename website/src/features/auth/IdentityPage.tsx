@@ -61,7 +61,7 @@ export function IdentityPage({ register = false }: { register?: boolean }) {
   }
   if (status === 'error') return <SessionProblem />;
   if (status === 'signing-in' || status === 'signing-out') return <IdentityPending />;
-  if (status === 'checking') return <p role="status">Đang kiểm tra phiên…</p>;
+  if (status === 'checking' || status === 'revalidating') return <p role="status">Đang kiểm tra phiên…</p>;
   return <div className={styles.grid}>
     <section className={styles.intro} aria-label="Giới thiệu FinFast">
       <p className={styles.eyebrow}>FINFAST · CUSTOMER WEB</p>

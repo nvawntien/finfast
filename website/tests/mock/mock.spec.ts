@@ -46,7 +46,27 @@ test('Identity UI registers, separately logs in and logs out through the real mo
   await page.getByLabel('Mật khẩu (bắt buộc)', { exact: true }).fill('synthetic-password');
   await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Tổng quan tài khoản' })).toBeVisible();
+  await expect(page.getByTestId('available-balance')).toHaveText('0 ₫');
+  await expect(page.getByTestId('account-balance')).toHaveText('0 ₫');
+  await expect(page.getByTestId('account-number')).toHaveText(/^MOCK-REGISTERED-ACCOUNT-/);
   await page.getByRole('button', { name: 'Đăng xuất', exact: true }).click();
   await expect(page).toHaveURL(/\/login$/);
   expect(await page.evaluate(() => [localStorage.length, sessionStorage.length])).toEqual([0, 0]);
 });
+
+for (const [email, status, balance] of [
+  ['customer@example.test', 'Đang hoạt động · ACTIVE', '9.007.199.254.740.993 ₫'],
+  ['frozen@example.test', 'Bị phong tỏa · FROZEN', '250.000 ₫'],
+]) {
+  test(`Dashboard uses the mock principal fixture for ${email}`, async ({ page }) => {
+    await page.goto('/login');
+    await page.getByLabel('Email', { exact: false }).fill(email!);
+    await page.getByLabel('Mật khẩu (bắt buộc)', { exact: true }).fill('mock-only-password');
+    await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
+    await expect(page.getByTestId('available-balance')).toHaveText(balance!);
+    await expect(page.getByText(status!, { exact: true })).toBeVisible();
+    await expect(page.getByRole('status').filter({ hasText: 'Chế độ Mock API' })).toBeVisible();
+    await page.getByRole('button', { name: 'Làm mới', exact: true }).click();
+    await expect(page.getByTestId('available-balance')).toHaveText(balance!);
+  });
+}

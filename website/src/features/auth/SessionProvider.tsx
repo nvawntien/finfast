@@ -45,7 +45,7 @@ export function CustomerGuard() {
   const { status, session, expired } = useSession();
   const location = useLocation();
   if (status === 'signing-in' || status === 'signing-out') return <IdentityPending />;
-  if (status === 'checking') return <p role="status">Đang kiểm tra phiên…</p>;
+  if (status === 'checking' || status === 'revalidating') return <p role="status">Đang kiểm tra phiên…</p>;
   if (status === 'error') return <SessionProblem />;
   if (status === 'anonymous') return <Navigate to="/login" replace state={{ from: location.pathname, expired }} />;
   if (session?.role !== 'CUSTOMER') return <RoleDenied />;

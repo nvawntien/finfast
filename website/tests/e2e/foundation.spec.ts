@@ -1,8 +1,9 @@
 import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import { mockIdentity } from '../../src/mocks/fixtures';
+import { mockAccount, mockIdentity } from '../../src/mocks/fixtures';
 
 test.beforeEach(async ({ page }) => {
+  await page.route('**/api/v1/accounts/me', route => route.fulfill({ json: mockAccount }));
   await page.route('**/api/v1/auth/session', route => {
     const publicIdentity = /\/(login|register)$/.test(new URL(route.request().headers().referer || 'http://test/').pathname);
     return route.fulfill({ status: publicIdentity ? 401 : 200, json: publicIdentity ? { code: 'UNAUTHENTICATED', message: 'Test session required' } : mockIdentity });
@@ -29,10 +30,11 @@ for (const [path, title] of routes) {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(title);
     await expect(page).toHaveTitle(`${title} | FinFast`);
     await expect(page.getByRole('complementary', { name: 'Thông báo mô phỏng' })).toBeVisible();
-    if (path !== '/register' && path !== '/login') await expect(page.getByRole('heading', { name: 'Màn hình chưa được triển khai' })).toBeVisible();
+    if (path !== '/register' && path !== '/login' && path !== '/customer') await expect(page.getByRole('heading', { name: 'Màn hình chưa được triển khai' })).toBeVisible();
+    if (path === '/customer') await expect(page.getByTestId('account-number')).toHaveText(mockAccount.accountNumber);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
-    expect(apiRequests.every(url => url.endsWith('/api/v1/auth/session'))).toBe(true);
+    expect(apiRequests.every(url => url.endsWith('/api/v1/auth/session') || (path === '/customer' && url.endsWith('/api/v1/accounts/me')))).toBe(true);
     expect(errors).toEqual([]);
     if (path === '/customer') {
       await page.screenshot({ path: testInfo.outputPath('overview.png'), fullPage: true });

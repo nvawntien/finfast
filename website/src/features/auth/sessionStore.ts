@@ -2,37 +2,56 @@ import { ApiError } from '../../api/errors';
 import type { createIdentityService, Session } from './service';
 import type { Credentials } from './validation';
 
-export type SessionState = { status: 'checking' | 'anonymous' | 'authenticated' | 'error' | 'signing-in' | 'signing-out'; session?: Session; expired?: boolean; logoutUncertain?: boolean; waitingForLogin?: boolean };
+export type SessionState = { status: 'checking' | 'revalidating' | 'anonymous' | 'authenticated' | 'error' | 'signing-in' | 'signing-out'; session?: Session; expired?: boolean; logoutUncertain?: boolean; waitingForLogin?: boolean };
 export class IdentityBusyError extends Error {
   constructor() { super('An identity request is already pending.'); this.name = 'IdentityBusyError'; }
 }
 export function createSessionStore(service: ReturnType<typeof createIdentityService>) {
   let state: SessionState = { status: 'checking' };
   let version = 0;
+  let scope = 0;
   let loginRequest: Promise<void> | undefined;
   let logoutRequest: Promise<void> | undefined;
   let loginUncertain = false;
   let refresh: Promise<void> | undefined;
+  let refreshVersion = -1;
   const listeners = new Set<() => void>();
-  const set = (next: SessionState) => { state = next; listeners.forEach(listener => listener()); };
+  const set = (next: SessionState) => {
+    if (state.status !== next.status || state.session?.userId !== next.session?.userId || state.session?.role !== next.session?.role) scope++;
+    state = next; listeners.forEach(listener => listener());
+  };
   return {
     getSnapshot: () => state,
+    // Local request ownership epoch, not a credential. Includes logout/login of the same user.
+    getScope: () => scope,
+    expireSession(expectedScope: number) {
+      if (scope !== expectedScope || state.status !== 'authenticated') return;
+      version++; // An older session refresh must not revive a session rejected by a protected API.
+      set({ status: 'anonymous', expired: true });
+    },
     subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; },
     refresh() {
       if (state.status === 'signing-in' || state.status === 'signing-out') return Promise.resolve();
-      if (refresh) return refresh;
+      if (refresh && refreshVersion === version) return refresh;
       const current = version;
       const wasAuthenticated = state.status === 'authenticated' || state.expired;
-      refresh = (async () => {
+      const logoutUncertain = state.logoutUncertain;
+      // Publish the promise before notifying subscribers, so reentrant refreshes deduplicate.
+      const request = Promise.resolve().then(async () => {
         try {
           const session = await service.session();
           if (current === version) set({ status: 'authenticated', session });
         } catch (error) {
           if (current === version) set(error instanceof ApiError && error.kind === 'http' && error.status === 401
-            ? { status: 'anonymous', expired: !!wasAuthenticated } : { status: 'error' });
+            ? { status: 'anonymous', expired: !!wasAuthenticated } : { status: 'error', ...(logoutUncertain ? { logoutUncertain: true } : {}) });
         }
-      })().finally(() => { refresh = undefined; });
-      return refresh;
+      }).finally(() => { if (refresh === request) refresh = undefined; });
+      refresh = request;
+      refreshVersion = current;
+      // No cached principal is authoritative while the server is being queried.
+      // This status transition advances scope synchronously and invalidates account reads.
+      set({ status: 'revalidating', expired: !!wasAuthenticated, ...(logoutUncertain ? { logoutUncertain: true } : {}) });
+      return request;
     },
     login(values: Credentials) {
       if (loginRequest || logoutRequest) return Promise.reject(new IdentityBusyError());
