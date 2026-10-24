@@ -1,19 +1,31 @@
 import { http, HttpResponse, passthrough } from 'msw';
 import { isRecord } from '../api/contracts';
 import { mockAccount, mockCredentials, mockHistoryItem, mockIdentity, mockReceipt } from './fixtures';
+import { exceedsPasswordByteLimit } from '../features/auth/validation';
+
+type MockCustomer = {
+  identity: typeof mockIdentity; customerId: string; account: typeof mockAccount;
+  history: typeof mockHistoryItem[]; receipts: typeof mockReceipt[]; digest?: string;
+};
 
 /** Per-worker/test state only. This is NOT a cookie/session security implementation. */
 export function createMockApi(origin: string) {
   const base = `${new URL(origin).origin}/api/v1`;
-  let authenticated = false;
   let generation = 0;
+  let nextCustomer = 0;
+  const fixtureCustomer: MockCustomer = { identity: mockIdentity, customerId: 'MOCK-CUSTOMER-ID',
+    account: mockAccount, history: [mockHistoryItem], receipts: [mockReceipt] };
+  let principal: MockCustomer | undefined;
+  const registrations = new Map<string, MockCustomer>();
+  // Ephemeral fixture verifier only, never fed into BCrypt or used to bypass TD-007.
+  const digest = async (password: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password))), byte => byte.toString(16).padStart(2, '0')).join('');
   const token = () => `mock-csrf-${generation}`;
   const unauthorized = () => HttpResponse.json({ code: 'UNAUTHENTICATED', message: 'Mock session required.' }, { status: 401 });
   const validCsrf = (request: Request) => request.headers.get('X-CSRF-TOKEN') === token();
   const nonfinal = () => HttpResponse.json({ outcome: 'UNKNOWN', code: 'MOCK_PENDING', message: 'Fixture only; no financial operation was executed.' }, { status: 202 });
 
   return {
-    reset() { authenticated = false; generation = 0; },
+    reset() { principal = undefined; generation = 0; nextCustomer = 0; registrations.clear(); },
     handlers: [
       http.get(`${base}/auth/csrf`, () => HttpResponse.json({ token: token() })),
       http.post(`${base}/auth/register`, async ({ request }) => {
@@ -25,48 +37,73 @@ export function createMockApi(origin: string) {
           || Object.keys(data).some(key => !['displayName', 'email', 'password'].includes(key))) {
           return HttpResponse.json({ code: 'INVALID_REQUEST', message: 'Use synthetic registration fields.' }, { status: 422 });
         }
-        return HttpResponse.json({ customerId: 'MOCK-REGISTERED', accountNumber: 'MOCK-REGISTERED-ACCOUNT', status: 'ACTIVE', currency: 'VND', balanceVnd: '0' }, { status: 201 });
+        if (exceedsPasswordByteLimit(data.password as string)) {
+          return HttpResponse.json({ code: 'INVALID_REQUEST', message: 'Password exceeds 72 UTF-8 bytes.' }, { status: 422 });
+        }
+        const email = (data.email as string).trim().toLowerCase();
+        if (email === mockCredentials.email || registrations.has(email)) {
+          return HttpResponse.json({ code: 'EMAIL_EXISTS', message: 'Synthetic email already registered.' }, { status: 409 });
+        }
+        const passwordDigest = await digest(data.password as string);
+        // Recheck after await so simultaneous synthetic registrations stay unique.
+        if (registrations.has(email)) return HttpResponse.json({ code: 'EMAIL_EXISTS', message: 'Synthetic email already registered.' }, { status: 409 });
+        const id = ++nextCustomer;
+        const customer: MockCustomer = {
+          identity: { userId: `MOCK-USER-${id}`, role: 'CUSTOMER', displayName: data.displayName as string },
+          customerId: `MOCK-CUSTOMER-${id}`, digest: passwordDigest,
+          account: { accountNumber: `MOCK-REGISTERED-ACCOUNT-${id}`, type: 'CUSTOMER', status: 'ACTIVE', currency: 'VND', balanceVnd: '0', availableBalanceVnd: '0' },
+          history: [], receipts: [],
+        };
+        registrations.set(email, customer);
+        return HttpResponse.json({ customerId: customer.customerId, accountNumber: customer.account.accountNumber, status: 'ACTIVE', currency: 'VND', balanceVnd: '0' }, { status: 201 });
       }),
       http.post(`${base}/auth/login`, async ({ request }) => {
         if (!validCsrf(request)) return HttpResponse.error();
         const data: unknown = await request.json();
-        if (!isRecord(data) || data.email !== mockCredentials.email || data.password !== mockCredentials.password
+        if (!isRecord(data) || typeof data.email !== 'string' || typeof data.password !== 'string'
           || Object.keys(data).some(key => !['email', 'password'].includes(key))) return unauthorized();
-        authenticated = true;
+        // Login has no frozen 422 response: invalid credentials remain 401.
+        if (exceedsPasswordByteLimit(data.password)) return unauthorized();
+        const email = data.email.trim().toLowerCase();
+        const registered = registrations.get(email);
+        if (email === mockCredentials.email && data.password === mockCredentials.password) principal = fixtureCustomer;
+        else if (registered && registered.digest === await digest(data.password)) principal = registered;
+        else return unauthorized();
         generation++;
-        return HttpResponse.json(mockIdentity);
+        return HttpResponse.json(principal.identity);
       }),
       http.post(`${base}/auth/logout`, ({ request }) => {
-        if (!authenticated) return unauthorized();
+        if (!principal) return unauthorized();
         if (!validCsrf(request)) return HttpResponse.error();
-        authenticated = false;
+        principal = undefined;
         generation++;
         return HttpResponse.json({ message: 'Mock session ended.' });
       }),
-      http.get(`${base}/auth/session`, () => authenticated ? HttpResponse.json(mockIdentity) : unauthorized()),
-      http.get(`${base}/accounts/me`, () => authenticated ? HttpResponse.json(mockAccount) : unauthorized()),
+      http.get(`${base}/auth/session`, () => principal ? HttpResponse.json(principal.identity) : unauthorized()),
+      http.get(`${base}/accounts/me`, () => principal ? HttpResponse.json(principal.account) : unauthorized()),
       http.get(`${base}/accounts/me/history`, ({ request }) => {
-        if (!authenticated) return unauthorized();
+        if (!principal) return unauthorized();
         const query = new URL(request.url).searchParams;
         const limit = query.get('limit');
         if (query.has('cursor') || (limit !== null && (!/^[1-9][0-9]*$/.test(limit) || Number(limit) > 100))) {
           return HttpResponse.json({ code: 'INVALID_REQUEST', message: 'Fixture has one page; use limit 1–100 and no cursor.' }, { status: 422 });
         }
-        return HttpResponse.json({ items: [mockHistoryItem], nextCursor: null });
+        return HttpResponse.json({ items: principal.history, nextCursor: null });
       }),
       http.get(`${base}/transactions/:reference/receipt`, ({ params }) => {
-        if (!authenticated) return unauthorized();
-        return params.reference === mockReceipt.reference ? HttpResponse.json(mockReceipt)
+        if (!principal) return unauthorized();
+        const receipt = principal.receipts.find(item => item.reference === params.reference);
+        return receipt ? HttpResponse.json(receipt)
           : HttpResponse.json({ code: 'NOT_FOUND', message: 'Receipt unavailable.' }, { status: 404 });
       }),
       http.post(`${base}/transfers`, ({ request }) => {
-        if (!authenticated) return unauthorized();
+        if (!principal) return unauthorized();
         if (!validCsrf(request)) return HttpResponse.json({ code: 'FORBIDDEN', message: 'Mock CSRF token required.' }, { status: 403 });
         if (!request.headers.get('Idempotency-Key')) return HttpResponse.error();
         return nonfinal();
       }),
       http.post(`${base}/request-outcomes/resolve`, async ({ request }) => {
-        if (!authenticated) return unauthorized();
+        if (!principal) return unauthorized();
         if (!validCsrf(request)) return HttpResponse.json({ code: 'FORBIDDEN', message: 'Mock CSRF token required.' }, { status: 403 });
         const data: unknown = await request.json();
         if (!isRecord(data) || data.operationType !== 'INTERNAL_TRANSFER') {

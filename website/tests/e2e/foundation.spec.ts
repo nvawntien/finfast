@@ -1,5 +1,13 @@
 import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { mockIdentity } from '../../src/mocks/fixtures';
+
+test.beforeEach(async ({ page }) => {
+  await page.route('**/api/v1/auth/session', route => {
+    const publicIdentity = /\/(login|register)$/.test(new URL(route.request().headers().referer || 'http://test/').pathname);
+    return route.fulfill({ status: publicIdentity ? 401 : 200, json: publicIdentity ? { code: 'UNAUTHENTICATED', message: 'Test session required' } : mockIdentity });
+  });
+});
 
 const routes = [
   ['/register', 'Tạo tài khoản'],
@@ -15,16 +23,16 @@ for (const [path, title] of routes) {
   test(`direct route ${path}: placeholder, semantics and reflow`, async ({ page }, testInfo) => {
     const apiRequests: string[] = [];
     const errors: string[] = [];
-    page.on('request', request => { if (request.url().includes('/api/')) apiRequests.push(request.url()); });
+    page.on('request', request => { if (new URL(request.url()).pathname.startsWith('/api/')) apiRequests.push(request.url()); });
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(path);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(title);
     await expect(page).toHaveTitle(`${title} | FinFast`);
     await expect(page.getByRole('complementary', { name: 'Thông báo mô phỏng' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Màn hình chưa được triển khai' })).toBeVisible();
+    if (path !== '/register' && path !== '/login') await expect(page.getByRole('heading', { name: 'Màn hình chưa được triển khai' })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
-    expect(apiRequests).toEqual([]);
+    expect(apiRequests.every(url => url.endsWith('/api/v1/auth/session'))).toBe(true);
     expect(errors).toEqual([]);
     if (path === '/customer') {
       await page.screenshot({ path: testInfo.outputPath('overview.png'), fullPage: true });

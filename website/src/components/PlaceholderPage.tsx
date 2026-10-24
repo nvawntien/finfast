@@ -15,7 +15,7 @@ export function PlaceholderPage({ title, description, screen, overview = false }
     <section className={styles.placeholder} aria-labelledby="placeholder-title">
       <div className={styles.symbol}><Icon name="document" /></div>
       <div><p className={styles.badge}>Đang xây dựng</p><h2 id="placeholder-title">Màn hình chưa được triển khai</h2>
-        <p>Đây là placeholder của giai đoạn nền tảng. Chưa có dữ liệu tài khoản, xác thực hoặc thao tác giao dịch.</p>
+        <p>Đây là placeholder của giai đoạn nền tảng. Chưa có dữ liệu tài khoản hoặc thao tác giao dịch.</p>
         {!overview && <Link className={styles.back} to="/customer">Về tổng quan <span aria-hidden="true">→</span></Link>}
       </div>
     </section>

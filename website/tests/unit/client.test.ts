@@ -29,7 +29,7 @@ describe('fetch boundary and CSRF', () => {
   it('fetches fresh CSRF for register, login and logout; handles rotation', async () => {
     const spy = vi.fn(globalThis.fetch);
     const api = createHttpClient({ baseUrl, fetchImpl: spy });
-    await api.request('/auth/register', { method: 'POST', body: { ...mockCredentials, displayName: 'Synthetic' } });
+    await api.request('/auth/register', { method: 'POST', body: { ...mockCredentials, email: 'new@example.test', displayName: 'Synthetic' } });
     await api.request('/auth/login', { method: 'POST', body: mockCredentials });
     await api.request('/auth/logout', { method: 'POST' });
     expect(spy).toHaveBeenCalledTimes(6);

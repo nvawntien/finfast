@@ -1,9 +1,10 @@
-# FinFast Customer Web — BK-019 Phases 1–2
+# FinFast Customer Web — BK-019 Phases 1–3
 
-Frontend foundation, shared HTTP client and opt-in Mock API. All banking screens
-remain placeholders: no screen performs authentication, API reads or transaction
-submission. Customer routes are public previews until Phase 3. Synthetic fixtures
-live only in the development/test mock module. Only simulated funds are in scope.
+Frontend foundation, shared HTTP client, opt-in Mock API and Identity UI.
+Registration/login and server-session checks are implemented. Customer routes require
+a CUSTOMER session; account, transfer, history and receipt screens remain placeholders.
+Synthetic fixtures live only in the development/test mock module. Only simulated funds
+are in scope; no Admin UI is included.
 
 ## Requirements and installation
 
@@ -20,7 +21,8 @@ npm run dev
 Open http://127.0.0.1:3000. Port 3000 is reserved for frontend by the repository;
 the server fails if occupied instead of silently choosing another port.
 On Windows with PowerShell script restrictions, use `npm.cmd` instead of `npm`.
-No backend, database, credentials or `.env` is needed for the placeholder app.
+Use `npm run dev:mock` for Identity without a backend. Normal dev requires the approved
+same-origin API; unavailable APIs show an explicit error and never enable mocks.
 
 ## Phase 2 — HTTP client and opt-in mocks
 
@@ -29,7 +31,7 @@ npm run dev:mock
 ```
 
 This explicitly selects Vite's `mock` development mode. A visible Mock API notice
-appears; screens still remain placeholders. Stop the server before switching back
+appears; Identity forms call synthetic endpoints. Stop the server before switching back
 to `npm run dev`. Normal dev never enables mocks; production builds cannot enable
 mocks, including `vite build --mode mock`. Worker startup must finish before render;
 startup failure stops initialization rather than falling back to a real backend.
@@ -257,8 +259,8 @@ as behavior is implemented.
 | Route | Screen |
 | --- | --- |
 | `/` | Redirect to `/customer` |
-| `/register` | S01 registration placeholder |
-| `/login` | S02 login placeholder |
+| `/register` | S01 registration; success requires separate login |
+| `/login` | S02 login and expired-session notice |
 | `/customer` | S03 overview placeholder |
 | `/customer/transfer` | S04 transfer placeholder |
 | `/customer/history` | S05 history placeholder |
@@ -273,7 +275,8 @@ Read [AGENTS.md](../AGENTS.md), [BK-019](../docs/02-requirements/10-product-back
 [architecture](../docs/03-design/15-system-architecture.md) and
 [API contracts](../docs/03-design/17-api-contracts.md).
 UX-001/003/004/005 and AC-005/011/013/014/015/033/038 remain the full BK-019 target;
-Phases 1–2 do not establish financial, authentication or end-to-end acceptance.
+Phase 3 verifies the frontend Identity behavior against controlled APIs; it does not
+establish real backend security, financial or full end-to-end acceptance.
 
 Source inspection on 2026-10-23 found no banking HTTP controllers in this checkout.
 The approved `/api/v1` auth, account, transfer, outcome-resolution, history and
@@ -298,3 +301,104 @@ Versions/requirements checked against npm registry and official
 [React Router installation](https://reactrouter.com/start/declarative/installation)
 on 2026-10-23. No framework was mandated by the repository; these are the selected
 Phase 1 implementation dependencies, not a change to backend technology.
+
+## Phase 3 — Identity UI
+
+- `src/features/auth/validation.ts`: required-field/email checks and TD-007's 72 UTF-8 byte password capacity; no additional complexity policy.
+- `service.ts`: typed, runtime-validated Identity DTOs over the existing HTTP client.
+- `sessionStore.ts`: in-memory state, stale-response protection, deduplicated refresh,
+  mutation serialization, explicit unknown logout result.
+- `SessionProvider.tsx`: refresh on startup, Customer navigation and window focus/visibility;
+  Customer role guard, expired-session redirect and POST logout.
+- `IdentityPage.tsx` / `.module.css`: accessible register/login forms and separate
+  registration confirmation. Design decisions: [Identity](design-system/finfast/pages/identity.md).
+
+No token or password is written to localStorage/sessionStorage. Form passwords are
+cleared after submission; registration is aborted on unmount. A pending login is owned
+by the session store and completes across navigation (aborting the browser request
+would not prove the server did not create a session). No mutation is automatically retried.
+Shared `signing-in` state survives route changes and prevents competing Identity forms.
+Explicit logout during login suppresses that login's UI result, waits for it to settle,
+then sends exactly one POST logout with fresh CSRF. Repeated logout calls share that
+pending operation. If login ended with an uncertain transport/protocol result, the UI
+keeps logout uncertainty even after a logout response: a client timeout alone cannot
+prove that delayed server work cannot create a session. Real backend validation remains required.
+The session DTO has no expiry timestamp: expiry is discovered through server 401 on
+refresh, not an invented client TTL. Future account/financial feature adapters must
+connect their own 401 handling to session refresh; Phase 3 has no business API reads.
+A client guard is a UX boundary, not a substitute for server authorization.
+
+### Synthetic development flow
+
+Run `npm.cmd run dev:mock`, open `/register`, create a synthetic account, then sign in
+separately. The existing fixture is `customer@example.test` / `mock-only-password`.
+That address and duplicate registrations return 409. New mock registrations live only
+in worker memory and are lost on reload/reset; they retain an ephemeral digest, not
+plaintext passwords. SHA-256 here is fixture bookkeeping, never a production password
+hashing recommendation. Real backend password storage remains the backend's concern.
+MSW does not implement HttpOnly cookies, server session expiry or real authorization.
+Each registration has distinct User/Customer/Account identifiers and a zero-balance
+account matching the registration response. Session, account, history and receipt
+fixtures follow the current principal. New customers have empty history and cannot
+read the seeded customer's receipt (404); signed-out requests return 401.
+Mock registration rejects passwords exceeding 72 UTF-8 bytes with 422 before creating
+the fixture verifier. Login rejects them with 401, since its frozen contract has no 422.
+Passwords are never truncated or normalized, and the fixture digest is never passed
+into BCrypt as a custom prehash. Production BCrypt behavior is outside this mock.
+
+### Verification commands (Windows)
+
+```powershell
+npm.cmd run build
+npm.cmd run test:unit
+npm.cmd run check:production
+$env:PLAYWRIGHT_CHANNEL='chrome'
+npm.cmd run test -- --output=.cache/phase3-browser
+npm.cmd run test:mock -- --output=.cache/phase3-mock
+```
+
+Chrome must be installed for that channel override; otherwise use the browser installation
+instructions above. Fresh `.cache/` output folders avoid collisions with Windows artifacts
+owned by a different execution account. Do not change permissions on source files to fix
+regenerable build/test caches.
+
+Remaining integration gaps: no banking controllers in this branch; production same-origin
+routing/TLS and cookie attributes need a real environment; frozen auth contracts do not
+specify CSRF-filter denial responses. Do not invent response statuses or fallback behavior.
+Manual screen-reader checks, actual browser zoom and Firefox/WebKit remain outstanding.
+
+### Phase 3 verification record — 2026-10-23
+
+| Check | Result |
+| --- | --- |
+| TypeScript / production build | Passed |
+| Production artifact isolation | Passed; no mock worker, markers or fixture data |
+| Unit/integration, including Phase 2 regression | 100 passed in 6 files |
+| Chrome browser, including Phase 1 regression | 51 passed across mobile/tablet/desktop |
+| Browser MSW / production isolation | 4 passed |
+| `git diff --check` | Passed; Windows LF/CRLF notices only |
+
+Final browser artifacts are ignored under `.cache/phase3-verified-browser/` and
+`.cache/phase3-verified-mock/`. Desktop/mobile screenshots were visually inspected.
+The initial default-browser run could not launch the bundled browser; verification
+used installed Chrome through the existing channel setting. No dependencies were added.
+
+### Review fixes verification — 2026-10-24
+
+Preserved the interrupted changes and verified all three findings after resuming:
+
+| Check | Result |
+| --- | --- |
+| TypeScript / production build / production artifact isolation | Passed |
+| Unit/integration, including Phase 2 regression | 113 passed in 6 files |
+| Chrome browser, including Phase 1 regression | 60 passed across mobile/tablet/desktop |
+| Browser MSW / production isolation | 4 passed |
+| `git diff --check` | Passed; Windows LF/CRLF notices only |
+
+Added coverage includes pending login across route changes, competing login rejection,
+queued/deduplicated logout, stale session completion, uncertain login failure, two-customer
+ownership and receipt isolation, concurrent duplicate registration, ASCII/Unicode 72/73
+byte boundaries and rejection without truncation. Browser outputs are ignored under
+`.cache/phase3-review-fixes-browser/` and `.cache/phase3-review-fixes-mock/`.
+These are frontend/mock checks; real server cookie rotation, delayed server completion,
+CSRF-filter mapping, manual screen-reader checks and Firefox/WebKit remain unverified.

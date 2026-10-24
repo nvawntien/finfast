@@ -58,7 +58,7 @@ it('Customer status inventory exactly matches frozen OpenAPI', () => {
 it('all default Customer fixtures match the authoritative response schemas', async () => {
   const cases: [string, string, Parameters<typeof api.request>[1], string?][] = [
     ['GET', '/auth/csrf', {}],
-    ['POST', '/auth/register', { method: 'POST', body: { ...mockCredentials, displayName: 'Mock' } }],
+    ['POST', '/auth/register', { method: 'POST', body: { ...mockCredentials, email: 'new@example.test', displayName: 'Mock' } }],
     ['POST', '/auth/login', { method: 'POST', body: mockCredentials }],
     ['GET', '/auth/session', {}],
     ['GET', '/accounts/me', {}],
