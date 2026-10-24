@@ -378,6 +378,48 @@ Final scope review confirms unchanged public APIs, financial domain/posting algo
 
 The [test-only Accounts collaborator](../../backend/src/test/java/com/finfast/AdminFinancialQueriesTestSupport.java) performs identity SQL through the same bound DataSource and verifies Spring metadata, physical JDBC state, server transaction mode and snapshot IDs. It is not Hải's AM-02 implementation and establishes no real-provider correctness, Accounts balance/eligibility, ADMIN authorization, protected setup or durable outcome/audit workflow. Production Ledger configuration remains absent until real AM-02 participation is available and verified. Administration/BK-018 integration, HTTP/security/browser/end-to-end acceptance and BK-010 Phase 6 remain pending. Full-list memory/identity-call costs are documented in [data design](../03-design/16-domain-model-and-data-design.md#committed-admin-financial-inspection--td-016-am-04); no load measurement or complete BK-018 acceptance is claimed.
 
+## BK-014 Ledger history verification — 2026-10-24
+
+**IMPLEMENTED — Ledger-local history contribution; production composition/full BK-014 acceptance pending.** Started on clean `feat/BK-014-ledger-history-queries` at `1c8552ab3a0b91e4434215a92d8ec8b05697e756`, including merged AM-04. Executions use Temurin Java 21.0.12.1+1, existing Maven Wrapper/Boot dependencies and pinned PostgreSQL 16.15 Testcontainers, with unchanged V1/V2 in disposable isolated databases. Java 21 is selected through `JAVA_HOME=/tmp/finfast-am04-java21` and its `bin` prepended to `PATH`; no developer database or persistent Compose volume is used.
+
+Commands executed from `backend/`:
+
+```sh
+./mvnw --batch-mode --no-transfer-progress '-Dtest=AdminFinancialTransaction*Tests,GenesisDatasetInspectionIntegrationTests,ProductionArchitectureTests,ApplicationBoundaryVerificationTests,ReadCapabilityContractTests' test
+./mvnw --batch-mode --no-transfer-progress -Dtest=HistoryCursorCodecTests,ProductionArchitectureTests test
+./mvnw --batch-mode --no-transfer-progress -Dtest=LedgerHistoryIntegrationTests test
+./mvnw --batch-mode --no-transfer-progress '-Dtest=LedgerHistory*Tests,HistoryCursorCodecTests,ApplicationBoundaryVerificationTests,ProductionArchitectureTests' test
+./mvnw --batch-mode --no-transfer-progress '-Dtest=Ledger*Tests,HistoryCursorCodecTests,AdminFinancialTransaction*Tests,Genesis*Tests,OrdinaryPosting*Tests,FinancialTransactionAndLedgerTests,DatasetControlConstraintTests,SchemaIdentityAndCounterTests,*ArchitectureTests,*VerificationTests,*Contract*Tests' test
+./mvnw --batch-mode --no-transfer-progress clean verify
+```
+
+Pre-change focused baseline passed **164 tests / 6 suites**. Initial cryptographic/architecture verification passed **64 tests / 2 suites**; initial functional PostgreSQL suite passed **42 tests / 1 suite**. The first combined focused command stopped during test compilation because the pinned AssertJ ClassAssert does not supply `isNotAssignableFrom`; no tests executed in that invocation. Replacing it with an assertion on Java's `Class.isAssignableFrom` preserved the intended check. The identical combined command then passed **150 tests / 6 suites**, zero failures/errors/skips, including all 112 new invocations: 41 cursor unit tests, 70 PostgreSQL-fixture invocations (66 exercise database/proxy behavior and four assert existing PageRequest limits), and one explicit entry-contract check.
+
+Combined Ledger/AM-04/History/architecture/capability/contract regression passed **729 tests / 28 suites**, zero failures/errors/skips. Existing positive/negative structural rules and Ledger Phases 1–5/AM-04 behavior remain intact.
+
+Final full `clean verify` passed **1,238 tests / 55 suites**, zero failures/errors/skips, including application-context checks, all existing PostgreSQL/schema/domain/AM-04/reconciliation/posting tests, cursor vectors and architecture/capability/contract suites. Maven produced the executable JAR; packaging isolation validation passed. Existing production files, public APIs, Accounts/History/Administration implementation, posting algorithms, V1/V2/OpenAPI and historical governance remain byte-identical to the starting commit. All eleven new files (six production, five test) and five modified files were reviewed for scope/whitespace; nothing was staged, committed, pushed, merged or published.
+
+Root checks executed successfully with the existing pinned documentation environment/tools:
+
+```sh
+python3 scripts/check_backend_jar.py
+/tmp/finfast-am04-docs-venv/bin/python scripts/check_docs.py
+/tmp/finfast-am04-docs-venv/bin/python -m openapi_spec_validator docs/03-design/contracts/openapi-v1.yaml
+docker compose -f compose.docs.yaml config --quiet
+docker run --rm --network none -v /home/vantien/Projects/cloud/finfast:/repo:ro -w /repo rhysd/actionlint:1.7.7 -color
+git diff --check
+```
+
+Documentation validation passes 27 Markdown files, 473 local links and 88 OpenAPI references with no duplicate YAML keys; the frozen OpenAPI validates. No hosted CI run, real Accounts integration, secret deployment, process restart, History HTTP/security/browser acceptance or performance benchmark was executed. Passing local tests is scoped evidence and does not complete BK-014/BK-015 or release acceptance.
+
+- [Functional/pagination/integrity tests](../../backend/src/test/java/com/finfast/LedgerHistoryIntegrationTests.java): 42 invocations. Empty/initialized histories exclude GENESIS, rejections/audit and unrelated movements; exact signed direction/reference/timestamp/MAX_VALUE, immutable results and safe Treasury labels. Traversals across 205 eligible movements plus unrelated position gaps, tied timestamps and limits 1/2/20/100 verify exact ordered membership without duplicates, omissions or unnecessary final cursors. Tests verify lookahead corruption fails the page, missing/mismatched Account IDs, incompatible kinds, duplicate Number/Customer ownership, inconsistent posting bounds, maximum-position SQL bounds and propagating SQL failures. These are read fixtures, not production Account balance/eligibility evidence.
+- [Cursor integration tests](../../backend/src/test/java/com/finfast/LedgerHistoryCursorIntegrationTests.java): 14 invocations. Malformed/tampered/wrong-key/unknown-version/invalid-bound tokens fail before Account or fact lookups. Account/limit mismatch also fails before lookups; authenticated owner mismatch fails before financial queries. Same-key service/proxy recreation continues the original cursor. The test context has no partial `LedgerQueries` provider and no receipt implementation. Recreation verifies key continuity, not a process/deployment restart.
+- [Snapshot/concurrency tests](../../backend/src/test/java/com/finfast/LedgerHistorySnapshotIntegrationTests.java): 14 invocations. New transfers/allocations cannot enter an old traversal; a new traversal sees them. A commit between first bound and page retrieval leaves bound/rows/identities on the original snapshot. Partial/complete pending postings remain invisible and rollback remains absent. Real observed `pg_blocking_pids` counter contention prevents a disjoint later writer overtaking a held commit; commit/rollback schedules preserve old traversal membership and expose winners only to fresh traversals. Actual proxies and PostgreSQL server/JDBC/resource state verify read-only REPEATABLE READ and reject write/wrong-isolation/unproxied-without-transaction/unbound/mismatched/autocommit/conflicting physical resources. An attempted write fails with SQLSTATE 25006. All concurrency coordination has bounded waits and no sleeps.
+- [Cursor unit vectors](../../backend/src/test/java/com/finfast/ledger/internal/application/service/HistoryCursorCodecTests.java): 41 invocations. Fixed canonical golden vector independently calculated with Python struct/HMAC, round-trip/MAX positions, defensive key copying, same/different-key behavior, modified fields/tags, invalid Base64url/padding/aliases, truncated/oversized input, authenticated unsupported versions and invalid position/page bounds. Production uses standard JCA HMAC-SHA256 and constant-time MAC comparison, not custom cryptographic primitives. Test-only deterministic key bytes establish no production secret provisioning.
+- [Entry-contract verification](../../backend/src/test/java/com/finfast/architecture/ApplicationBoundaryVerificationTests.java): confirms the internal History inbound interface, existing public DTOs and concrete REQUIRED/read-only/REPEATABLE READ/checked-failure rollback declaration. Public `LedgerQueries` signatures, History-only capability permission, graph and existing positive/negative architecture rules are unchanged.
+
+The [test support](../../backend/src/test/java/com/finfast/LedgerHistoryTestSupport.java) reuses existing isolated databases, Spring transaction composition, Ledger fact storage/position allocator and bounded test deadlines. Its Accounts identity SQL explicitly uses the same bound DataSource/snapshot and is strictly test-scoped. This cannot establish Hải's real AM-02 provider correctness or resource participation, current History authentication/authorization, production HMAC key provisioning, deployment restart, public provider/receipt composition or end-to-end acceptance. See [implementation/composition boundaries](../03-design/16-domain-model-and-data-design.md#bk-014-ledger-history-implementation). BK-014 is not Done, BK-015 is not implemented and BK-010 Phase 6 remains unchanged.
+
 ## Test levels and environments
 
 | Level | Purpose | Examples / evidence |
