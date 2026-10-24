@@ -5,9 +5,11 @@ import com.finfast.administration.internal.application.dto.AllocationResult;
 import com.finfast.administration.internal.application.port.inbound.AllocateDemoFunds;
 import com.finfast.administration.internal.application.usecase.AllocateDemoFundsService;
 import com.finfast.ledger.api.AllocationPosting;
+import com.finfast.ledger.api.AdminFinancialTransactionQueries;
 import com.finfast.ledger.api.FinancialPosting;
 import com.finfast.ledger.api.GenesisPosting;
 import com.finfast.ledger.internal.application.usecase.AllocationPostingService;
+import com.finfast.ledger.internal.application.usecase.AdminFinancialTransactionQueryService;
 import com.finfast.ledger.internal.application.usecase.GenesisPostingService;
 import com.finfast.ledger.internal.application.usecase.TransferPostingService;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
@@ -33,6 +35,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Package/dependency enforcement plus explicit entry inventory; no blanket interface rule for helpers. */
 class ApplicationBoundaryVerificationTests {
     private static final String ROOT = "finfast.architecture.fixtures";
+
+    @Test
+    void adminFinancialReaderUsesApprovedInboundContractAndConcreteReadSnapshotBoundary() throws Exception {
+        assertThat(AdminFinancialTransactionQueries.class).isAssignableFrom(AdminFinancialTransactionQueryService.class);
+        assertThat(AdminFinancialTransactionQueries.class.getDeclaredAnnotations()).isEmpty();
+        var entry = AdminFinancialTransactionQueryService.class.getMethod("listCommitted");
+        assertThat(entry.getReturnType()).isEqualTo(AdminFinancialTransactionQueries.Transactions.class);
+        var transaction = entry.getAnnotation(Transactional.class);
+        assertThat(transaction).isNotNull();
+        assertThat(transaction.propagation()).isEqualTo(Propagation.REQUIRED);
+        assertThat(transaction.readOnly()).isTrue();
+        assertThat(transaction.isolation()).isEqualTo(Isolation.REPEATABLE_READ);
+        assertThat(transaction.rollbackFor()).containsExactly(Exception.class);
+    }
 
     @Test
     void allocationEntryImplementsItsInterfaceAndExposesOnlyApplicationDtos() throws Exception {

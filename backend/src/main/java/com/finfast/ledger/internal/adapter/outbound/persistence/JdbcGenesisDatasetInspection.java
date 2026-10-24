@@ -4,15 +4,10 @@ import com.finfast.common.money.VndAmount;
 import com.finfast.ledger.api.GenesisDatasetInspection;
 import com.finfast.ledger.internal.domain.entity.FinancialTransaction;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DataSourceUtils;
-import org.springframework.transaction.IllegalTransactionStateException;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-import java.sql.Connection;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -32,7 +27,7 @@ public class JdbcGenesisDatasetInspection implements GenesisDatasetInspection {
 
     @Override
     public Optional<InitializedDataset> findCommitted() {
-        requireCommittedSnapshot();
+        LedgerJdbcTransaction.requireCommittedSnapshot(jdbc);
         var controls = jdbc.query("""
                 SELECT treasury_account_id, genesis_tx_id, initial_supply_vnd, last_commit_seq
                 FROM public.dataset_control WHERE singleton_id = 1
@@ -59,21 +54,6 @@ public class JdbcGenesisDatasetInspection implements GenesisDatasetInspection {
         }
         return Optional.of(new InitializedDataset(control.treasuryId(), genesis.id(), genesis.reference(),
                 new VndAmount(control.supply()), genesis.recordedAt()));
-    }
-
-    private void requireCommittedSnapshot() {
-        if (!TransactionSynchronizationManager.isActualTransactionActive()
-                || !TransactionSynchronizationManager.isCurrentTransactionReadOnly()) {
-            throw new IllegalTransactionStateException("GENESIS inspection requires a committed read-only snapshot");
-        }
-        jdbc.execute((ConnectionCallback<Void>) connection -> {
-            if (!DataSourceUtils.isConnectionTransactional(DataSourceUtils.getTargetConnection(connection),
-                    Objects.requireNonNull(jdbc.getDataSource())) || connection.getAutoCommit()
-                    || !connection.isReadOnly() || connection.getTransactionIsolation() != Connection.TRANSACTION_REPEATABLE_READ) {
-                throw new IllegalTransactionStateException("GENESIS inspection requires bound read-only REPEATABLE READ JDBC");
-            }
-            return null;
-        });
     }
 
     private static DataIntegrityViolationException invalid() {

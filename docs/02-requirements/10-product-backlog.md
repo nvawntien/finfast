@@ -147,6 +147,12 @@ The initial new tests and the reviewed rerun each passed **25 tests / 3 suites**
 
 **BLOCKED integration obligations:** Minh's real full-scope coordination/durable outcomes/recovery and shared v1 byte/fingerprint vectors; Hải's real Accounts locking/eligibility/conservation; Hưng's current Identity/session authorization; verified production transaction-manager/proxy composition and uncertain-commit recovery. Preserve original initiator/operation/key/payload, authorize every retry and resolve against the authoritative provider. No automatic new key, technical business rejection, production transaction-manager change or full AC acceptance is introduced. Phase 5 remains dependent on these integrations and separately authorized HTTP/end-to-end acceptance.
 
+## BK-018 — Ledger AM-04 contribution
+
+**IMPLEMENTED — Ledger-owned financial reader, 2026-10-24; BK-018 is not Done.** Starting branch `feat/BK-018-ledger-financial-queries`, clean HEAD `d0e75a8edb3191397398cb6d8f955b9a60df1e42`. The approved `AdminFinancialTransactionQueries.listCommitted()` now returns complete immutable GENESIS/transfer/allocation evidence from a committed read-only REPEATABLE READ snapshot, ordered by posting position. Account Numbers resolve through AM-02 only, with per-invocation reuse and technical failure for corrupt/missing identities. [Implementation and resource limitations](../03-design/16-domain-model-and-data-design.md#committed-admin-financial-inspection--td-016-am-04); [executed verification](../05-verification/22-test-strategy-and-acceptance.md#bk-018-ledger-am-04-verification--2026-10-24).
+
+Hải's real `AccountIdentityQueries` is absent on this checkout; all Accounts collaborators and proxy composition in this contribution are test-scoped. Future production wiring requires verified shared DataSource/transaction-manager snapshot participation. Trung's Administration inspection use case/authorization/HTTP integration and full end-to-end acceptance remain separate. No Accounts implementation, Bootstrap, History/Receipts, posting algorithm, allocation/audit orchestration, migration or REST contract is supplied or changed; BK-010 Phase 6 remains NOT STARTED.
+
 ## Example issue template
 
 ```markdown
