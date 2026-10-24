@@ -1,4 +1,4 @@
-package com.finfast.accounts.internal.domain;
+package com.finfast.accounts.internal.domain.valueobject;
 
 /**
  * Supported account types in FinFast V1.

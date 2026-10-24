@@ -1,4 +1,4 @@
-package com.finfast.accounts.internal.domain;
+package com.finfast.accounts.internal.domain.exception;
 
 import com.finfast.common.error.ErrorCode;
 

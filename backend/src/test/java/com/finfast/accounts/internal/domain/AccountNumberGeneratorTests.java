@@ -1,5 +1,6 @@
 package com.finfast.accounts.internal.domain;
 
+import com.finfast.accounts.internal.domain.service.AccountNumberGenerator;
 import com.finfast.accounts.api.AccountNumber;
 import org.junit.jupiter.api.Test;
 
@@ -27,5 +28,12 @@ class AccountNumberGeneratorTests {
 
         // Multiple calls produce distinct numbers
         assertThat(generated).hasSizeGreaterThan(90);
+    }
+
+    @Test
+    void handlesLongMinValueWithoutOverflowingMathAbs() {
+        AccountNumberGenerator generator = new AccountNumberGenerator.Default(() -> Long.MIN_VALUE);
+
+        assertThat(generator.nextCustomerNumber().value()).isEqualTo("ACC-3145224192");
     }
 }

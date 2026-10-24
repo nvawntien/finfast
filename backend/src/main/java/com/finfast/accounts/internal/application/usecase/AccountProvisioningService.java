@@ -1,11 +1,12 @@
-package com.finfast.accounts.internal.application;
+package com.finfast.accounts.internal.application.usecase;
 
 import com.finfast.accounts.api.AccountNumber;
 import com.finfast.accounts.api.AccountProvisioning;
 import com.finfast.accounts.api.CustomerAccount;
-import com.finfast.accounts.internal.domain.Account;
-import com.finfast.accounts.internal.domain.AccountErrorCode;
-import com.finfast.accounts.internal.domain.AccountNumberGenerator;
+import com.finfast.accounts.internal.application.port.outbound.AccountRepositoryPort;
+import com.finfast.accounts.internal.domain.entity.Account;
+import com.finfast.accounts.internal.domain.exception.AccountErrorCode;
+import com.finfast.accounts.internal.domain.service.AccountNumberGenerator;
 import com.finfast.common.error.ApplicationException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

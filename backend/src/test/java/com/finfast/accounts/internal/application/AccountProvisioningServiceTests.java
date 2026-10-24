@@ -1,5 +1,6 @@
 package com.finfast.accounts.internal.application;
 
+import com.finfast.accounts.internal.application.usecase.AccountProvisioningService;
 import com.finfast.accounts.api.CustomerAccount;
 import com.finfast.common.error.ApplicationException;
 import org.junit.jupiter.api.BeforeEach;

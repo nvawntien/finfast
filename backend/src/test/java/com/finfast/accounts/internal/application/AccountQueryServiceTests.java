@@ -2,7 +2,8 @@ package com.finfast.accounts.internal.application;
 
 import com.finfast.accounts.api.AccountNumber;
 import com.finfast.accounts.api.CustomerAccount;
-import com.finfast.accounts.internal.domain.Account;
+import com.finfast.accounts.internal.application.usecase.AccountQueryService;
+import com.finfast.accounts.internal.domain.entity.Account;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

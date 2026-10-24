@@ -1,5 +1,6 @@
 package com.finfast.accounts.internal.domain;
 
+import com.finfast.accounts.internal.domain.service.AccountUnsignedUuidComparator;
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;

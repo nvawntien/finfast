@@ -1,4 +1,4 @@
-package com.finfast.accounts.internal.domain;
+package com.finfast.accounts.internal.domain.service;
 
 import java.util.Comparator;
 import java.util.Objects;

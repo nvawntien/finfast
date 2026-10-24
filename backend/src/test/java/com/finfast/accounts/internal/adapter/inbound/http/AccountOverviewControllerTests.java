@@ -14,6 +14,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.Optional;
+import java.security.Principal;
 import java.util.UUID;
 
 import static org.mockito.Mockito.verify;
@@ -31,6 +32,7 @@ class AccountOverviewControllerTests {
     private AccountQueries accountQueries;
 
     private MockMvc mvc;
+    private AccountOverviewController controller;
 
     private static final UUID CUSTOMER_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final UUID ACCOUNT_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
@@ -38,7 +40,7 @@ class AccountOverviewControllerTests {
 
     @BeforeEach
     void setUp() {
-        AccountOverviewController controller = new AccountOverviewController(accountQueries);
+        controller = new AccountOverviewController(accountQueries);
         mvc = MockMvcBuilders.standaloneSetup(controller).build();
     }
 
@@ -47,9 +49,7 @@ class AccountOverviewControllerTests {
         CustomerAccount account = new CustomerAccount(
                 ACCOUNT_ID, CUSTOMER_ID, ACCOUNT_NUMBER, CustomerAccount.Status.ACTIVE, new VndAmount(250_000));
         when(accountQueries.findByCustomerId(CUSTOMER_ID)).thenReturn(Optional.of(account));
-
-        mvc.perform(get("/api/v1/accounts/me")
-                        .requestAttr(AccountOverviewController.ATTR_CUSTOMER_ID, CUSTOMER_ID)
+        mvc.perform(get("/api/v1/accounts/me").principal(principal(CUSTOMER_ID))
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
@@ -68,9 +68,7 @@ class AccountOverviewControllerTests {
         CustomerAccount account = new CustomerAccount(
                 ACCOUNT_ID, CUSTOMER_ID, ACCOUNT_NUMBER, CustomerAccount.Status.FROZEN, new VndAmount(50_000));
         when(accountQueries.findByCustomerId(CUSTOMER_ID)).thenReturn(Optional.of(account));
-
-        mvc.perform(get("/api/v1/accounts/me")
-                        .requestAttr(AccountOverviewController.ATTR_CUSTOMER_ID, CUSTOMER_ID))
+        mvc.perform(get("/api/v1/accounts/me").principal(principal(CUSTOMER_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("FROZEN"))
                 .andExpect(jsonPath("$.balanceVnd").value("50000"))
@@ -88,18 +86,20 @@ class AccountOverviewControllerTests {
     @Test
     void returnsForbiddenWhenCustomerAccountNotFound() throws Exception {
         when(accountQueries.findByCustomerId(CUSTOMER_ID)).thenReturn(Optional.empty());
-
-        mvc.perform(get("/api/v1/accounts/me")
-                        .requestAttr(AccountOverviewController.ATTR_CUSTOMER_ID, CUSTOMER_ID))
+        mvc.perform(get("/api/v1/accounts/me").principal(principal(CUSTOMER_ID)))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    void ignoresClientControlledCustomerHeader() throws Exception {
+    void ignoresClientControlledRequestAttribute() throws Exception {
         mvc.perform(get("/api/v1/accounts/me")
-                        .header("X-Customer-Id", CUSTOMER_ID.toString()))
+                        .requestAttr(AccountOverviewController.ATTR_CUSTOMER_ID, CUSTOMER_ID))
                 .andExpect(status().isUnauthorized());
 
         verifyNoInteractions(accountQueries);
+    }
+
+    private static Principal principal(UUID customerId) {
+        return () -> customerId.toString();
     }
 }

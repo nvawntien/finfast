@@ -1,9 +1,10 @@
-package com.finfast.accounts.internal.domain;
+package com.finfast.accounts.internal.domain.service;
 
 import com.finfast.accounts.api.AccountNumber;
 
 import java.security.SecureRandom;
 import java.util.Objects;
+import java.util.function.LongSupplier;
 
 /**
  * Generator for unique system-generated AccountNumbers.
@@ -21,11 +22,19 @@ public interface AccountNumberGenerator {
 
     final class Default implements AccountNumberGenerator {
         private static final String TREASURY_DEFAULT = "TREASURY";
-        private final SecureRandom random = new SecureRandom();
+        private final LongSupplier random;
+
+        public Default() {
+            this(new SecureRandom()::nextLong);
+        }
+
+        public Default(LongSupplier random) {
+            this.random = Objects.requireNonNull(random, "random");
+        }
 
         @Override
         public AccountNumber nextCustomerNumber() {
-            long randomVal = Math.abs(random.nextLong());
+            long randomVal = Math.floorMod(random.getAsLong(), 10_000_000_000L);
             long numberPart = randomVal % 10_000_000_000L;
             return new AccountNumber(String.format("ACC-%010d", numberPart));
         }

@@ -1,7 +1,8 @@
 package com.finfast.accounts.internal.application;
 
-import com.finfast.accounts.internal.domain.Account;
-import com.finfast.accounts.internal.domain.AccountType;
+import com.finfast.accounts.internal.application.usecase.TreasuryProvisioningService;
+import com.finfast.accounts.internal.domain.entity.Account;
+import com.finfast.accounts.internal.domain.valueobject.AccountType;
 import com.finfast.common.error.ApplicationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

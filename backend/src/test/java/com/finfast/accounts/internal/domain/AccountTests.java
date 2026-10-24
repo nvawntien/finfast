@@ -1,5 +1,7 @@
 package com.finfast.accounts.internal.domain;
 
+import com.finfast.accounts.internal.domain.entity.Account;
+import com.finfast.accounts.internal.domain.valueobject.AccountType;
 import com.finfast.accounts.api.AccountNumber;
 import com.finfast.accounts.api.CustomerAccount;
 import com.finfast.common.error.ApplicationException;

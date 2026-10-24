@@ -1,8 +1,8 @@
-package com.finfast.accounts.internal.application;
+package com.finfast.accounts.internal.application.port.outbound;
 
 import com.finfast.accounts.api.AccountNumber;
 import com.finfast.accounts.api.CustomerAccount;
-import com.finfast.accounts.internal.domain.Account;
+import com.finfast.accounts.internal.domain.entity.Account;
 import com.finfast.common.money.VndAmount;
 
 import java.util.List;

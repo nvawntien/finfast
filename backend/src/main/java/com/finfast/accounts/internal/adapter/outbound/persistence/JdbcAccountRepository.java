@@ -2,9 +2,9 @@ package com.finfast.accounts.internal.adapter.outbound.persistence;
 
 import com.finfast.accounts.api.AccountNumber;
 import com.finfast.accounts.api.CustomerAccount;
-import com.finfast.accounts.internal.application.AccountRepositoryPort;
-import com.finfast.accounts.internal.domain.Account;
-import com.finfast.accounts.internal.domain.AccountType;
+import com.finfast.accounts.internal.application.port.outbound.AccountRepositoryPort;
+import com.finfast.accounts.internal.domain.entity.Account;
+import com.finfast.accounts.internal.domain.valueobject.AccountType;
 import com.finfast.common.money.VndAmount;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -98,14 +98,20 @@ public class JdbcAccountRepository implements AccountRepositoryPort {
     public void updateBalance(UUID id, VndAmount balance) {
         Objects.requireNonNull(id, "id");
         Objects.requireNonNull(balance, "balance");
-        jdbc.update("UPDATE public.account SET balance_vnd = ? WHERE id = ?", balance.value(), id);
+        int affected = jdbc.update("UPDATE public.account SET balance_vnd = ? WHERE id = ?", balance.value(), id);
+        if (affected != 1) {
+            throw new IllegalStateException("Expected exactly one account balance row to update, got " + affected);
+        }
     }
 
     @Override
     public void updateStatus(UUID id, CustomerAccount.Status status) {
         Objects.requireNonNull(id, "id");
         Objects.requireNonNull(status, "status");
-        jdbc.update("UPDATE public.account SET status = ? WHERE id = ?", status.name(), id);
+        int affected = jdbc.update("UPDATE public.account SET status = ? WHERE id = ?", status.name(), id);
+        if (affected != 1) {
+            throw new IllegalStateException("Expected exactly one account status row to update, got " + affected);
+        }
     }
 
     @Override
