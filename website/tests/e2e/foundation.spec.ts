@@ -3,6 +3,8 @@ import AxeBuilder from '@axe-core/playwright';
 import { mockAccount, mockIdentity } from '../../src/mocks/fixtures';
 
 test.beforeEach(async ({ page }) => {
+  await page.route('**/api/v1/accounts/me/history?*', route => route.fulfill({ json: { items: [], nextCursor: null } }));
+  await page.route('**/api/v1/transactions/*/receipt', route => route.fulfill({ status: 404, json: { code: 'NOT_FOUND', message: 'Unavailable' } }));
   await page.route('**/api/v1/accounts/me', route => route.fulfill({ json: mockAccount }));
   await page.route('**/api/v1/auth/session', route => {
     const publicIdentity = /\/(login|register)$/.test(new URL(route.request().headers().referer || 'http://test/').pathname);
@@ -30,11 +32,13 @@ for (const [path, title] of routes) {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(title);
     await expect(page).toHaveTitle(`${title} | FinFast`);
     await expect(page.getByRole('complementary', { name: 'Thông báo mô phỏng' })).toBeVisible();
-    if (path !== '/register' && path !== '/login' && path !== '/customer') await expect(page.getByRole('heading', { name: 'Màn hình chưa được triển khai' })).toBeVisible();
+    if (path === '/customer/transfer' || path === '/unknown-route') await expect(page.getByRole('heading', { name: 'Màn hình chưa được triển khai' })).toBeVisible();
     if (path === '/customer') await expect(page.getByTestId('account-number')).toHaveText(mockAccount.accountNumber);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
-    expect(apiRequests.every(url => url.endsWith('/api/v1/auth/session') || (path === '/customer' && url.endsWith('/api/v1/accounts/me')))).toBe(true);
+    expect(apiRequests.every(url => url.endsWith('/api/v1/auth/session') || (path === '/customer' && url.endsWith('/api/v1/accounts/me'))
+      || (path === '/customer/history' && url.includes('/api/v1/accounts/me/history?'))
+      || (path.startsWith('/customer/receipts/') && url.endsWith('/receipt')))).toBe(true);
     expect(errors).toEqual([]);
     if (path === '/customer') {
       await page.screenshot({ path: testInfo.outputPath('overview.png'), fullPage: true });

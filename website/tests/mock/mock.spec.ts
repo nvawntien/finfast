@@ -70,3 +70,17 @@ for (const [email, status, balance] of [
     await expect(page.getByTestId('available-balance')).toHaveText(balance!);
   });
 }
+
+test('frozen principal reads paginated history and an owned receipt through MSW', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByLabel('Email', { exact: false }).fill('frozen@example.test');
+  await page.getByLabel('Mật khẩu (bắt buộc)', { exact: true }).fill('mock-only-password');
+  await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
+  await page.getByRole('link', { name: /Mở trang lịch sử/ }).click();
+  await expect(page.getByRole('link', { name: /Xem biên nhận/ })).toHaveCount(20);
+  await page.getByRole('button', { name: 'Trang tiếp' }).click();
+  await expect(page.getByRole('link', { name: /Xem biên nhận MOCK-FROZEN-TX-085/ })).toBeVisible();
+  await page.getByRole('link', { name: /Xem biên nhận MOCK-FROZEN-TX-085/ }).click();
+  await expect(page.getByRole('article', { name: 'Biên nhận đã cam kết' })).toContainText('MOCK-FROZEN-ACCOUNT');
+  await expect(page.getByRole('status').filter({ hasText: 'Chế độ Mock API' })).toBeVisible();
+});

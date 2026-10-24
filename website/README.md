@@ -1,8 +1,8 @@
-# FinFast Customer Web — BK-019 Phases 1–4
+# FinFast Customer Web — BK-019 Phases 1–5
 
 Frontend foundation, shared HTTP client, opt-in Mock API, Identity UI and Customer Dashboard.
 Registration/login and server-session checks are implemented. Customer routes require
-a CUSTOMER session; the Dashboard reads the current account. Transfer, history and receipt screens remain placeholders.
+a CUSTOMER session; Dashboard, History and Receipt read server-owned data. Transfer remains a placeholder.
 Synthetic fixtures live only in the development/test mock module. Only simulated funds
 are in scope; no Admin UI is included.
 
@@ -107,7 +107,7 @@ try {
   fixture; it does not create a real account or a new login. Session state is in memory
   and CSRF rotates after mock login/logout; this does not prove cookie security.
 - Account/history/receipt are principal-scoped synthetic fixtures; large VND values intentionally
-  exercise precision. History has one page and no valid continuation cursor fixture.
+  exercise precision. Frozen Customer history has 105 records with opaque continuation fixtures.
 - Default transfer/resolve return 202 UNKNOWN. They never post funds or manufacture
   a success. Unit tests inject deterministic completed/rejected/error responses.
   Mock data does not implement a ledger, durable idempotency, concurrent posting or
@@ -255,7 +255,7 @@ CSS Modules isolate components; CSS variables own design tokens. Native links an
 React Router declarative routing provide keyboard navigation. Layout owns shared
 landmarks and focus management. `PlaceholderPage` is intentionally shared until
 actual feature behavior needs separate modules. Do not create speculative API wrappers
-or unused folders. Future phases introduce `src/features/{transfers,history,receipts}`
+or unused folders. History/Receipt share `src/features/history/`. Future phases introduce `src/features/transfers/`
 as behavior is implemented.
 
 | Route | Screen |
@@ -265,8 +265,8 @@ as behavior is implemented.
 | `/login` | S02 login and expired-session notice |
 | `/customer` | S03 Customer Dashboard; server-owned account overview |
 | `/customer/transfer` | S04 transfer placeholder |
-| `/customer/history` | S05 history placeholder |
-| `/customer/receipts/:reference` | S06 receipt placeholder; reference is not looked up |
+| `/customer/history` | S05 committed history with opaque cursor pagination |
+| `/customer/receipts/:reference` | S06 authorized immutable receipt lookup |
 | Other paths | 404 with navigation home |
 
 ## Baseline and integration boundaries
@@ -490,3 +490,56 @@ Vietnamese encoding from shell input; corrected assertions passed the final full
 Artifacts: `.cache/phase4-revalidation-final-browser/` and
 `.cache/phase4-revalidation-mock/`. Real backend cookie/security integration and
 manual accessibility/cross-browser checks remain outstanding as described above.
+
+
+## Phase 5 - History and Receipt
+
+Implements FR-007/008 and UX S05/S06 in `src/features/history/` using the existing
+fetch client, session scope, guards and string VND helper. History requests 20 rows;
+next/previous page navigation retains server cursors verbatim in component memory.
+No decoding, offset arithmetic, client sorting, monetary calculations or financial
+mutation is performed. Restart begins a new traversal; retry retains the failed
+page cursor. Server-side snapshot/order and authorization remain authoritative.
+
+Receipt references are encoded as one path segment; a mismatching returned reference
+is rejected. Both screens clear prior data on loading, logout or revalidation and
+ignore stale completions even when transport abort is ignored. Reference changes
+remount receipt state. FROZEN Customers retain reads. Receipt 404 safely combines
+unknown and inaccessible references. Receipt 403 is outside its approved operation
+statuses and remains a protocol error with no private data displayed. History 422
+exposes restart from the first page. No automatic retries or mock fallback.
+
+The frozen synthetic principal has 105 records with timestamp ties, paired movements
+and an allocation. MSW stores opaque, owner/session/limit-bound continuation tokens
+and immutable traversal snapshots in memory; these are test fixtures, not a server
+HMAC implementation. New registrations retain empty history and inaccessible foreign
+receipts. Mock pagination supports 20/default and 100/max without changing contracts.
+
+Self-review corrected trailing-line-terminator acceptance in the shared money helper
+and rejected invalid dates that JavaScript would otherwise normalize. Design details:
+[History and Receipt](design-system/finfast/pages/history-receipt.md).
+
+Real backend authorization, cursor signing/snapshot stability across concurrent commits,
+persistence/restart, cookie security and full banking E2E remain unverified. Manual
+screen reader, actual browser zoom and Firefox/WebKit checks remain outstanding.
+
+### Phase 5 verification - 2026-10-24
+
+- Focused Phase 5 browser checks: 27 passed. Focused history/money checks: 69 passed.
+- Full unit/integration regression: 208 passed, 0 failed (8 files).
+- Full browser regression ran once: 132 passed, 3 failed due to the old Identity
+  fixture rejecting the newly implemented History GET. Added the authenticated
+  History/401 fixture; reran those three cases across all viewports: 3 passed, 0 failed.
+  All 135 cases therefore have passing evidence; no second full suite run is claimed.
+- Browser MSW/production isolation: 7 passed, 0 failed.
+- Typecheck, production build, production artifact isolation and Git whitespace checks
+  passed. New-file whitespace and local Markdown links/fences passed. Mobile and
+  desktop receipt screenshots were inspected.
+- `make help` unavailable (Make not installed). Repository documentation checker
+  unavailable (`markdown_it` missing); lightweight Markdown checks are not its replacement.
+- Self-review fixed monetary trailing newline acceptance and normalized invalid dates;
+  no remaining P1/P2/P3 issue was identified within the implemented scope.
+
+Artifacts are ignored under `.cache/phase5-focused-browser/`, `.cache/phase5-full-browser/`,
+`.cache/phase5-full-mock/` and `.cache/phase5-identity-fix/`. No backend/contracts,
+dependencies, deployment resources, commits or pushes were changed.

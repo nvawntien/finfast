@@ -1,6 +1,6 @@
 import { http, HttpResponse, passthrough } from 'msw';
 import { isRecord } from '../api/contracts';
-import { mockAccount, mockCredentials, mockFrozenAccount, mockFrozenCredentials, mockFrozenIdentity, mockHistoryItem, mockIdentity, mockReceipt } from './fixtures';
+import { mockAccount, mockCredentials, mockFrozenAccount, mockFrozenCredentials, mockFrozenIdentity, mockFrozenHistory, mockFrozenReceipts, mockHistoryItem, mockIdentity, mockReceipt } from './fixtures';
 import { exceedsPasswordByteLimit } from '../features/auth/validation';
 
 type MockCustomer = {
@@ -15,7 +15,8 @@ export function createMockApi(origin: string) {
   let nextCustomer = 0;
   const fixtureCustomer: MockCustomer = { identity: mockIdentity, customerId: 'MOCK-CUSTOMER-ID',
     account: mockAccount, history: [mockHistoryItem], receipts: [mockReceipt] };
-  const frozenCustomer: MockCustomer = { identity: mockFrozenIdentity, customerId: 'MOCK-FROZEN-CUSTOMER-ID', account: mockFrozenAccount, history: [], receipts: [] };
+  const frozenCustomer: MockCustomer = { identity: mockFrozenIdentity, customerId: 'MOCK-FROZEN-CUSTOMER-ID', account: mockFrozenAccount, history: mockFrozenHistory, receipts: mockFrozenReceipts };
+  const cursors = new Map<string, { owner: string; generation: number; limit: number; items: typeof mockHistoryItem[]; offset: number }>();
   let principal: MockCustomer | undefined;
   const registrations = new Map<string, MockCustomer>();
   // Ephemeral fixture verifier only, never fed into BCrypt or used to bypass TD-007.
@@ -26,7 +27,7 @@ export function createMockApi(origin: string) {
   const nonfinal = () => HttpResponse.json({ outcome: 'UNKNOWN', code: 'MOCK_PENDING', message: 'Fixture only; no financial operation was executed.' }, { status: 202 });
 
   return {
-    reset() { principal = undefined; generation = 0; nextCustomer = 0; registrations.clear(); },
+    reset() { principal = undefined; generation = 0; nextCustomer = 0; registrations.clear(); cursors.clear(); },
     handlers: [
       http.get(`${base}/auth/csrf`, () => HttpResponse.json({ token: token() })),
       http.post(`${base}/auth/register`, async ({ request }) => {
@@ -86,11 +87,22 @@ export function createMockApi(origin: string) {
       http.get(`${base}/accounts/me/history`, ({ request }) => {
         if (!principal) return unauthorized();
         const query = new URL(request.url).searchParams;
-        const limit = query.get('limit');
-        if (query.has('cursor') || (limit !== null && (!/^[1-9][0-9]*$/.test(limit) || Number(limit) > 100))) {
-          return HttpResponse.json({ code: 'INVALID_REQUEST', message: 'Fixture has one page; use limit 1–100 and no cursor.' }, { status: 422 });
+        const rawLimit = query.get('limit') ?? '20';
+        const invalid = () => HttpResponse.json({ code: 'INVALID_REQUEST', message: 'Invalid history continuation or limit.' }, { status: 422 });
+        if (!/^[1-9][0-9]*$/.test(rawLimit) || Number(rawLimit) > 100) return invalid();
+        const limit = Number(rawLimit); // Page size only, never money.
+        const cursor = query.get('cursor');
+        const continuation = cursor === null ? undefined : cursors.get(cursor);
+        if (cursor !== null && (!continuation || continuation.owner !== principal.identity.userId || continuation.generation !== generation || continuation.limit !== limit)) return invalid();
+        const items = continuation?.items ?? principal.history.map(item => ({ ...item }));
+        const offset = continuation?.offset ?? 0;
+        const end = offset + limit;
+        let nextCursor: string | null = null;
+        if (end < items.length) {
+          nextCursor = `mock-continuation:${crypto.randomUUID()}`;
+          cursors.set(nextCursor, { owner: principal.identity.userId, generation, limit, items, offset: end });
         }
-        return HttpResponse.json({ items: principal.history, nextCursor: null });
+        return HttpResponse.json({ items: items.slice(offset, end), nextCursor });
       }),
       http.get(`${base}/transactions/:reference/receipt`, ({ params }) => {
         if (!principal) return unauthorized();

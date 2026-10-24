@@ -56,7 +56,7 @@ export function CustomerDashboard() {
         <p className={styles.readNotice}>Số dư khả dụng bằng số dư tài khoản trong FinFast V1. Đây là tiền mô phỏng, không phải tiền thật.</p>
         <section className={styles.next} aria-labelledby="next-title"><h2 id="next-title">Tiếp tục khám phá</h2><div className={styles.links}>
           {account.status === 'ACTIVE' && <Link to="/customer/transfer"><Icon name="transfer" /><span><strong>Mở trang chuyển tiền</strong><small>Chức năng đang được xây dựng</small></span></Link>}
-          <Link to="/customer/history"><Icon name="history" /><span><strong>Mở trang lịch sử</strong><small>Chức năng đang được xây dựng</small></span></Link>
+          <Link to="/customer/history"><Icon name="history" /><span><strong>Mở trang lịch sử</strong><small>Xem giao dịch đã ghi nhận và biên nhận</small></span></Link>
         </div></section>
       </>}
     </div>

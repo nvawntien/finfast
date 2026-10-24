@@ -14,6 +14,7 @@ async function setup(page: Page, data: unknown = mockAccount, role = 'CUSTOMER')
     if (request.method() === 'POST') mutations.push(path);
     if (path.endsWith('/auth/session')) return route.fulfill({ status: session ? 200 : 401, json: session || { code: 'UNAUTHENTICATED', message: 'Synthetic expired session' } });
     if (path.endsWith('/auth/csrf')) return route.fulfill({ json: { token: 'synthetic-csrf' } });
+    if (path.endsWith('/accounts/me/history')) return route.fulfill({ json: { items: [], nextCursor: null } });
     if (path.endsWith('/auth/logout')) {
       expect(request.method()).toBe('POST'); expect(request.headers()['x-csrf-token']).toBe('synthetic-csrf');
       session = undefined; return route.fulfill({ json: { message: 'Synthetic sign-out' } });
@@ -49,7 +50,7 @@ for (const [state, amount, status] of [['zero', '0', 'ACTIVE'], ['funded', '9007
     await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.getByRole('link', { name: /Mở trang lịch sử/ }).click();
-    await expect(page.getByRole('heading', { name: 'Màn hình chưa được triển khai' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Chưa có giao dịch' })).toBeVisible();
     expect(api.mutations).toEqual([]);
   });
 }

@@ -3,7 +3,7 @@ export type MoneyVnd = string & { readonly __moneyVnd: unique symbol };
 export const MAX_VND = '9223372036854775807';
 
 export function parseMoneyVnd(value: unknown): MoneyVnd {
-  if (typeof value !== 'string' || !/^(0|[1-9][0-9]*)$/.test(value)
+  if (typeof value !== 'string' || value !== value.trim() || !/^(0|[1-9][0-9]*)$/.test(value)
     || value.length > MAX_VND.length || (value.length === MAX_VND.length && value > MAX_VND)) {
     throw new TypeError('VND must be a canonical nonnegative signed-64-bit decimal string.');
   }
