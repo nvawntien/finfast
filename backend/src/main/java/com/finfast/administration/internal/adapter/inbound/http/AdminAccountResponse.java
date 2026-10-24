@@ -1,6 +1,7 @@
 package com.finfast.administration.internal.adapter.inbound.http;
 
 import com.finfast.accounts.api.CustomerAccount;
+import com.finfast.administration.internal.application.dto.AdminAccountView;
 
 import java.util.Objects;
 import java.util.UUID;
@@ -10,23 +11,24 @@ public record AdminAccountResponse(
         UUID customerId,
         String displayName,
         String status,
-        long balanceVnd
+        String balanceVnd
 ) {
     public AdminAccountResponse {
         Objects.requireNonNull(accountNumber, "accountNumber");
         Objects.requireNonNull(customerId, "customerId");
         Objects.requireNonNull(displayName, "displayName");
         Objects.requireNonNull(status, "status");
+        Objects.requireNonNull(balanceVnd, "balanceVnd");
     }
 
-    public static AdminAccountResponse from(CustomerAccount account) {
-        Objects.requireNonNull(account, "account");
+    public static AdminAccountResponse from(AdminAccountView view) {
+        Objects.requireNonNull(view, "view");
         return new AdminAccountResponse(
-                account.number().value(),
-                account.customerId(),
-                account.customerId().toString(),
-                account.status().name(),
-                account.balance().value()
+                view.accountNumber(),
+                view.customerId(),
+                view.displayName(),
+                view.status(),
+                view.balanceVnd()
         );
     }
 
@@ -35,9 +37,9 @@ public record AdminAccountResponse(
         return new AdminAccountResponse(
                 account.number().value(),
                 account.customerId(),
-                displayName != null ? displayName : account.customerId().toString(),
+                displayName != null && !displayName.isBlank() ? displayName : "Customer " + account.number().value(),
                 account.status().name(),
-                account.balance().value()
+                String.valueOf(account.balance().value())
         );
     }
 }
