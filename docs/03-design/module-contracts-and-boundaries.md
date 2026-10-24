@@ -184,6 +184,8 @@ provider obligations and TD-004 evidence work. Admin-wide transactions/entries,
 reconciliation and dataset verification projections remain deferred to reviewed
 concrete consumers rather than exposing an unrestricted repository-shaped API.
 
+**BK-014 implementation checkpoint — 2026-10-24:** Ledger now implements committed Customer history through internal `ReadCustomerHistory` / `CustomerHistoryQueryService`, reusing the frozen PageRequest/Page/Movement values. [Selected TD-004 realization](16-domain-model-and-data-design.md#bk-014-ledger-history-implementation) defines bounded participant reads, safe labels and canonical owner/Account/high-water/last-position/page-limit HMAC cursors. This internal port is a temporary Ledger composition boundary, not a new cross-module capability. No public `LedgerQueries` provider is registered while BK-015 receipt behavior is absent; no fake receipt method is supplied. Public source signatures and History-only permission remain unchanged. Real AM-02, stable secret provisioning, proxy/DataSource composition and Hải's History authorization/HTTP/end-to-end integration remain pending; [local verification](../05-verification/22-test-strategy-and-acceptance.md#bk-014-ledger-history-verification--2026-10-24) does not complete BK-014 or BK-015.
+
 ### Identity / Customer
 
 | Package / source | Exact methods / records | Caller and semantics |
