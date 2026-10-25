@@ -15,6 +15,22 @@ final class LedgerJdbcTransaction {
     private LedgerJdbcTransaction() {
     }
 
+    /** Shared physical-resource guard for committed inspection, independent of the write protocol. */
+    static void requireCommittedSnapshot(JdbcTemplate jdbc) {
+        if (!TransactionSynchronizationManager.isActualTransactionActive()
+                || !TransactionSynchronizationManager.isCurrentTransactionReadOnly()) {
+            throw new IllegalTransactionStateException("Ledger inspection requires a committed read-only snapshot");
+        }
+        jdbc.execute((ConnectionCallback<Void>) connection -> {
+            if (!DataSourceUtils.isConnectionTransactional(DataSourceUtils.getTargetConnection(connection),
+                    Objects.requireNonNull(jdbc.getDataSource())) || connection.getAutoCommit()
+                    || !connection.isReadOnly() || connection.getTransactionIsolation() != Connection.TRANSACTION_REPEATABLE_READ) {
+                throw new IllegalTransactionStateException("Ledger inspection requires bound read-only REPEATABLE READ JDBC");
+            }
+            return null;
+        });
+    }
+
     static void require(JdbcTemplate jdbc, boolean writing) {
         if (!TransactionSynchronizationManager.isActualTransactionActive()
                 || (writing && TransactionSynchronizationManager.isCurrentTransactionReadOnly())) {

@@ -49,7 +49,17 @@ Only `GlobalExceptionHandler` maps transport-independent categories to HTTP:
 | `NOT_FOUND` | 404 |
 | `CONFLICT` | 409 |
 | `FORBIDDEN` | 403 |
+| `UNAUTHORIZED` | 401 |
 | `UNPROCESSABLE` | 422 |
+
+The 2026-10-25 Admin read correction adds `UNAUTHORIZED` to the common category
+mapping, retaining the existing category behavior and code/message response.
+Identity-owned safe catalogs can distinguish missing/expired authentication from
+wrong-role `FORBIDDEN` without transport dependencies in application code. There
+is still no production `CurrentIdentity` provider or typed Identity error contract
+on this checkout; test-only catalog exceptions prove the common mapping and
+Administration boundary, not real session authentication. Arbitrary security or
+infrastructure exceptions are not inferred to be 401/403.
 
 These generic adapter conventions do not override the existing endpoint-specific OpenAPI. The later TD-008 freeze preserves that contract direction without inventing new codes/statuses.
 The owning use case must choose safe disclosure and authorization semantics.
