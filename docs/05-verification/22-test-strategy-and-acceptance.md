@@ -137,7 +137,542 @@ Committed incomplete ordinary/GENESIS rows allowed by V1/V2 produce deterministi
 
 This is partial evidence for BR-LED-02..06, BR-ADM-02, AC-003/008/010/022/023/031 and CONS-15/16; no canonical scenario is marked fully complete. Cross-table SQL remains strictly test-scoped under the existing production-read exception. Real Accounts/Treasury, protected Bootstrap/restart, durable Idempotency outcomes/replay, required Administration audit, authorized reads, HTTP/security and performance acceptance remain pending with their owners. A production-wide reader still needs a scoped capability amendment with Hải/Tiến. **Phase 6 is NOT STARTED; BK-010 is not Done.**
 
+## BK-013 Phase 2 JDBC audit persistence execution — 2026-10-23
+
+**IMPLEMENTED AND VERIFIED — isolated Administration persistence only.** Starting branch `feat/BK-013-admin-allocation`, HEAD `aa4e4ade6316e9c59090a66bca22c587d2deddea`, clean working tree. Phase 2 was explicitly authorized. The existing Phase 1 model, outbound port and 38 pure tests remain byte-for-byte unchanged. See [BK-013 tracking](../02-requirements/10-product-backlog.md#bk-013-phase-2--jdbc-admin-audit-persistence) for scope and remaining owners.
+
+The valid pre-change baseline and subsequent tests used Temurin Java 21.0.13+9, Spring Boot 4.1.1 and the existing pinned PostgreSQL 16.15 Testcontainer. An initial invocation under default host Java 26 failed with 759 tests, zero failures, 438 errors and zero skips because the sandbox denied Docker/network socket access. This was environment failure, not accepted baseline evidence. Selecting Java 21 and executing with Docker/socket access resolved it before any source changes; no test, dependency or infrastructure configuration was weakened.
+
+Executed from `backend/` with `JAVA_HOME=/tmp/finfast-jdk21` and that JDK's `bin` prepended to `PATH`:
+
+```sh
+./mvnw --batch-mode --no-transfer-progress clean verify
+./mvnw --batch-mode --no-transfer-progress -Dtest=AdminAuditPersistenceIntegrationTests,AdminAuditEventTests,ProductionArchitectureTests,RuleVerificationTests,CapabilityVerificationTests,ModuleContractValueTests test
+./mvnw --batch-mode --no-transfer-progress verify
+```
+
+| Executed check | Actual result | Evidence boundary |
+|---|---|---|
+| Java 21 pre-change full baseline | PASS — 759 tests across 36 suites, zero failures/errors/skips | Re-established Phase 1 and all existing tests before source edits |
+| Focused Phase 2/domain/architecture/contract run | PASS — 155 tests across 6 suites, zero failures/errors/skips | 44 new audit invocations, 38 unchanged domain cases and 73 existing architecture/contract checks |
+| Final full Maven `verify` | PASS — 803 tests across 37 suites, zero failures/errors/skips | All existing and new tests, followed by executable JAR packaging |
+
+[AdminAuditPersistenceIntegrationTests](../../backend/src/test/java/com/finfast/AdminAuditPersistenceIntegrationTests.java) and its [test support](../../backend/src/test/java/com/finfast/AdminAuditPersistenceTestSupport.java) reuse `PostgresTestSupport`, `IsolatedTestDatabase` and `DatabaseFixtures`. Each invocation applies unchanged V1/V2 in a fresh disposable database inside the existing container. Synthetic ADMIN, Customer Account and DEMO_ALLOCATION transaction prerequisites are table fixtures, not a completed funding workflow. No developer datasource, Compose volume, real dataset or live teammate implementation is used.
+
+Eight complete-row cases verify supplied UUIDs, fixed action/outcome, NULL statuses, exact ordinary/whitespace/combining/supplementary Unicode reasons and 500-code-point boundaries, including trailing spaces. Five timestamp cases round-trip exact microseconds, sub-microsecond truncation without rounding, a pre-epoch instant and the finite driver lower boundary, with a non-UTC session zone. Inputs remain immutable. Three Java/driver-unrepresentable cases fail rather than becoming infinity; a PostgreSQL out-of-range timestamp propagates SQLSTATE 22008. The lower-bound guard prevents the pinned [pgJDBC encoder's negative-infinity substitution](https://github.com/pgjdbc/pgjdbc/blob/REL42.7.13/pgjdbc/src/main/java/org/postgresql/jdbc/TimestampUtils.java). No current/database time is substituted.
+
+Duplicate UUID/transaction references propagate 23505; all three missing FKs propagate 23503. Test-only SQL verifies four impossible allocation shapes (23514) and an oversized nonspace reason (22001), without bypassing production domain validation. Phase 1 already rejects oversized reasons including trailing spaces before SQL. Two additional cases stub only JdbcTemplate's affected-row count to verify explicit failure for zero/two rows; these are defensive-branch checks, not PostgreSQL transaction evidence.
+
+Actual Spring proxies enforce MANDATORY before target invocation. The local resource guard separately rejects unproxied writes without a transaction, a thread transaction flag without a bound resource, a different DataSource, a bound autocommit connection, Spring/JDBC read-only modes and REPEATABLE READ/SERIALIZABLE writes. Successful writes run at actual READ COMMITTED on the caller's bound connection. A reader with a distinct PostgreSQL backend PID cannot see the inserted audit until outer commit. Explicit outer rollback, a configured checked `IOException`, and a later SQL division-by-zero fault remove the audit. Duplicate audit failure removes prior caller marker/audit writes; catching the proxied persistence error still produces `UnexpectedRollbackException` and no surviving writes. The adapter never starts or commits a transaction.
+
+Repository-root checks passed: `python3 scripts/check_backend_jar.py` (executable JAR without compiled tests/test libraries), `/tmp/finfast-docs-venv/bin/python scripts/check_docs.py` (24 Markdown files, 325 local links, 88 OpenAPI references; no duplicate YAML keys), `/tmp/finfast-docs-venv/bin/python -m openapi_spec_validator docs/03-design/contracts/openapi-v1.yaml` and `git diff --check`. The isolated documentation environment uses the unchanged `scripts/requirements-docs.txt` pins. New untracked Java files were also checked directly for trailing whitespace, tabs and final newlines, without staging.
+
+A separate second pass inspected every new/modified file and confirmed exact insert-only mapping, immutable input, failure propagation, transaction safeguards and unchanged module ownership. All pre-existing Java sources/tests, migrations, POM and OpenAPI remained byte-identical to HEAD. Changes remain unstaged and uncommitted; no forbidden Git operation was executed.
+
+This contributes partial persistence evidence toward AC-008/010/019 and CONS-13 only. FKs prove existence, not authenticated Admin authority, ACTIVE Customer eligibility or a correct Treasury posting workflow. Real Accounts/Ledger/Idempotency orchestration, final durable outcomes, replay/recovery, HTTP/commit-confirmed success and protected setup remain unverified here. **BK-013 is not Done; at the Phase 2 checkpoint, Phase 3 and later were NOT STARTED and remained separately authorized work.** No full AC-008/010/013/019/032 acceptance is claimed.
+
+## BK-013 Phase 3 allocation orchestration execution — 2026-10-23
+
+**IMPLEMENTED AND VERIFIED — Administration application contribution with bounded verification.** Explicit Phase 3 authorization on clean `feat/BK-013-admin-allocation` HEAD `533f9b80da6afa0bb4dfa8c340905c840473df8f`. The merged TD-016 read amendment is active. [BK-013 implementation/source inventory](../02-requirements/10-product-backlog.md#bk-013-phase-3--administration-allocation-orchestration) describes the five new production types and four test files. Existing Phase 1/2, other modules, public APIs, architecture rules, V1/V2, dependencies and frozen OpenAPI are preserved.
+
+Runs use Temurin 21.0.13+9, Maven Wrapper 3.9.11, Boot 4.1.1 and the existing PostgreSQL 16.15 Testcontainer with fresh isolated databases and unchanged Flyway migrations. No developer database or persistent Compose volume is used. From `backend/`, with `JAVA_HOME=/tmp/finfast-architecture-jdk21` and its `bin` prepended to `PATH`:
+
+```sh
+./mvnw --batch-mode --no-transfer-progress verify
+./mvnw --batch-mode --no-transfer-progress -Dtest=AllocationCommandAndCanonicalIntentTests,AllocateDemoFundsServiceTests,ProductionArchitectureTests,ReadCapabilityVerificationTests,CapabilityVerificationTests,RuleVerificationTests,ModuleContractValueTests,ReadCapabilityContractTests test
+./mvnw --batch-mode --no-transfer-progress -Dtest=AdminAllocationOrchestrationIntegrationTests test
+./mvnw --batch-mode --no-transfer-progress -Dtest=AdminAllocationOrchestrationIntegrationTests test
+./mvnw --batch-mode --no-transfer-progress -Dtest=AllocationCommandAndCanonicalIntentTests,AllocateDemoFundsServiceTests,AdminAllocationOrchestrationIntegrationTests,AdminAuditEventTests,AdminAuditPersistenceIntegrationTests,OrdinaryPostingIntegrationTests,OrdinaryPostingConcurrencyTests,LedgerPersistenceIntegrationTests,GenesisPostingIntegrationTests,ProductionArchitectureTests,RuleVerificationTests,CapabilityVerificationTests,ReadCapabilityVerificationTests,ModuleContractValueTests,ReadCapabilityContractTests test
+./mvnw --batch-mode --no-transfer-progress verify
+```
+
+| Executed check | Actual result | Evidence boundary |
+|---|---|---|
+| Pre-change full baseline | PASS — 904 tests / 40 suites, zero failures/errors/skips | Current merged baseline, not the older Phase 2 803-test count |
+| Initial consumer/canonical/architecture run | PASS — 198 tests / 8 suites, zero failures/errors/skips | 47 new pure/mocked invocations and 151 existing architecture/contracts |
+| Initial PostgreSQL orchestration run | FAIL — 27 tests, 1 failure, zero errors/skips | Known pre-commit TransactionSystemException exposed default manager cleanup behavior described below |
+| PostgreSQL rerun with corrected composition and both pre-commit exception cases | PASS — 28 tests / 1 suite, zero failures/errors/skips | Real service/Ledger/audit proxies, test Accounts and non-durable outcome coordination |
+| Combined new/existing Ledger/Admin/architecture regression | PASS — 441 tests / 15 suites, zero failures/errors/skips | Includes 38 unchanged audit-domain, 44 audit JDBC, 63 ordinary posting, 7 ordinary concurrency, 26 Ledger JDBC and 37 GENESIS tests |
+| Final full verification after second-pass review | PASS — 979 tests / 43 suites, zero failures/errors/skips | All existing tests plus 28 consumer, 19 command/canonical and 28 PostgreSQL Phase 3 invocations; executable JAR packaged |
+
+The initial failure is retained as evidence: the shared fixture used default `JdbcTransactionManager.rollbackOnCommitFailure=false`. A TransactionSystemException thrown by a beforeCommit callback takes Spring 7.0.9's TransactionException path without explicit rollback; JDBC cleanup restores autocommit, and the test observed persisted balances/facts/audit despite caller failure. The new fixture enables `rollbackOnCommitFailure` on the **same existing manager**, retains every rollback assertion and now tests both ordinary runtime and TransactionSystemException pre-commit faults. This is a composition safeguard, not an application catch/rejection or an independent transaction. Production composition is not installed in Phase 3 and must retain that setting; actual connection loss/uncertain commit and failures after commit still need original-key recovery. These tests do not prove rollback after an already successful commit.
+
+The final 28 consumer cases use mocked provider APIs and explicit transaction metadata only: denied missing/expired/Customer identity before protected access, current trusted actor and exact scope, inspect-before-revalidation, no writes for replay/conflict/PROCESSING/UNKNOWN, precise posting/audit/outcome order, immutable target UUID, original completion snapshot, missing recipient, positive amount/reason rejection, stale snapshot independence, provider inconsistencies and escaping technical failures. The 19 command/canonical cases pin version/order/TREASURY/tags/decimal bounds, literal ASCII/Unicode/control JSON and UTF-8, exact composed/decomposed text, changed intent fields and structural storage validation. Cross-owner vectors, malformed HTTP tokens, absent required HTTP fields and version-upgrade readers remain unverified.
+
+The 28 real PostgreSQL cases reuse existing Ledger posting/GENESIS/persistence/reconciliation fixtures plus the real audit adapter. All required participants join one READ COMMITTED connection, with backend PID/resource/autocommit checks. Actual proxies create REQUIRED and join MANDATORY; a surrounding REQUIRED transaction can still roll back the returned Pending. Tests cover one/two-balance failures, header/entry triggers, audit trigger, later SQL/outcome faults, a checked IOException thrown directly into the outer service target after audit, caught rollback-only SQL, both pre-commit faults, same-key retry after rollback, synthetic final replay/conflict, frozen/insufficient/absent/zero/blank rejection, read-only/isolation/unproxied guards and BIGINT maximum. An independent reader sees no tentative effects while a bounded latch holds the operation after audit; the external future cannot complete until the outer proxy does. Reconciliation probes verify committed synthetic balances, entries and conserved supply.
+
+Repository-root checks passed: `python3 scripts/check_backend_jar.py`; `/tmp/finfast-capability-docs-venv/bin/python scripts/check_docs.py` (24 Markdown files, 342 local links, 88 OpenAPI references; no duplicate YAML keys); `/tmp/finfast-capability-docs-venv/bin/python -m openapi_spec_validator docs/03-design/contracts/openapi-v1.yaml`; `docker compose -f compose.docs.yaml config --quiet`; and `git diff --check`. The isolated Python environment matches all 20 checked-in dependency pins. Every new untracked Java file also passed a direct whitespace/final-newline check. A separate second pass reviewed all nine new Java files and both modified canonical documents; it refined the mocked identity cases to the three actual identity failures and added trusted-actor/replay-before-validation coverage before final verification. Exact file allowlist, unchanged pre-existing Java/schema/API/build source, empty staged diff and original branch/HEAD were verified. All work remains unstaged/uncommitted; no Git mutation was performed.
+
+Identity, Account queries and the existing paired Accounts collaborator are test-only. The Idempotency fixture compares full typed scope/intent in memory and observes afterCommit; it does not implement advisory locks, hashing, SQL persistence or crash durability. It writes **zero `request_outcome` rows**, including on success. Therefore this is consumer orchestration plus real Ledger/audit/transaction evidence, not real outcome persistence or full AC-013 acceptance. Synthetic rejection replay after unfreeze and sequential duplicate checks do not prove concurrent scope safety. Production identity/session/CSRF, Accounts providers, Idempotency coordination/durable outcomes, protected setup, retries, uncertain commits, process restart, HTTP and Phase 4/5 remain pending. **BK-013 is not Done; no full canonical AC is marked accepted.**
+
+## BK-013 Phase 3 interface-first correction execution — 2026-10-23
+
+**Tech Lead-authorized internal architecture correction**, starting on `feat/BK-013-admin-allocation` HEAD `533f9b80da6afa0bb4dfa8c340905c840473df8f`. The starting working tree already contained nine untracked Phase 3 Java files and changes to backlog/test strategy; all were preserved before editing. This implements the inbound boundary portion of the [mandatory architecture convention](../03-design/15-system-architecture.md#33-java-project-and-module-structure-doc-02), without changing the earlier financial/public-contract approvals or implementing another phase.
+
+The new Administration-local AllocateDemoFunds interface exposes the existing operation using DTOs in `application/dto`; its concrete implementation retains the transaction annotation and orchestration. The canonicalizer moves to `application/service`, with unchanged encoding body and literal golden expectations. The local error catalog remains package-private beside its use case; helpers/DTOs/domain types do not gain interfaces. [Current implementation/source links](../02-requirements/10-product-backlog.md#phase-3-architecture-correction--2026-10-23).
+
+Using Temurin Java 21.0.13+9, Maven Wrapper 3.9.11, Boot 4.1.1 and isolated PostgreSQL 16.15 Testcontainers, from `backend/` with `JAVA_HOME=/tmp/finfast-architecture-jdk21` and its `bin` prepended to PATH:
+
+```sh
+./mvnw --batch-mode --no-transfer-progress verify
+./mvnw --batch-mode --no-transfer-progress -Dtest=AllocateDemoFundsServiceTests,AllocationCommandAndCanonicalIntentTests,AdminAllocationOrchestrationIntegrationTests,AdminAuditEventTests,AdminAuditPersistenceIntegrationTests,ApplicationBoundaryVerificationTests,ProductionArchitectureTests,RuleVerificationTests,CapabilityVerificationTests,ReadCapabilityVerificationTests,ModuleContractValueTests,ReadCapabilityContractTests clean test
+./mvnw --batch-mode --no-transfer-progress verify
+```
+
+| Executed check | Actual result | Evidence boundary |
+|---|---|---|
+| Current working-tree baseline | PASS — 979 tests / 43 suites, zero failures/errors/skips | Re-ran the complete pre-correction Phase 3 contribution |
+| Focused clean regression | PASS — 326 tests / 12 suites, zero failures/errors/skips | All 75 Phase 3 cases, 82 prior audit-domain/JDBC cases, 14 new boundary cases and 155 existing/extended architecture/contract cases |
+| Final full verification | PASS — 997 tests / 44 suites, zero failures/errors/skips | Existing 979 cases plus 14 boundary cases and four production ArchUnit checks; executable JAR packaged |
+
+Actual consumer fields and Spring bean lookup now use the inbound contract. The existing test configuration still has `proxyTargetClass=true`; strengthened assertions verify CGLIB and lookup identity through AllocateDemoFunds. All prior transaction, snapshot, checked-exception, no-write replay/conflict/non-final, audit/outcome-failure and pre-commit rollback assertions are retained. The same existing JdbcTransactionManager still enables `rollbackOnCommitFailure`, and no second manager or production composition is added.
+
+The new generic production rules enforce inbound-port interfaces/purity, inbound-adapter dependency direction and DTO isolation. Fourteen JUnit cases prove legitimate port/DTO/implementation/adapter directions and concrete helpers, unchanged Ledger public inbound capabilities, BK-013 entry/DTO/annotation structure, and negative interface/concrete/generic/helper/HTTP/JDBC/persistence/transaction-annotation dependencies. Generic rules deliberately do not guess which application helpers are feature entries: explicit entry inventory and review remain required. These checks establish structural boundaries, not controller authorization or runtime financial behavior.
+
+Repository-root checks passed: `python3 scripts/check_backend_jar.py`; `/tmp/finfast-capability-docs-venv/bin/python scripts/check_docs.py` (24 Markdown files, 355 local links, 88 OpenAPI references; no duplicate YAML keys); `/tmp/finfast-capability-docs-venv/bin/python -m openapi_spec_validator docs/03-design/contracts/openapi-v1.yaml`; `docker compose -f compose.docs.yaml config --quiet`; and `git diff --check`, plus direct untracked Java whitespace checks. All 20 isolated documentation dependency pins match. Explicit JAR inspection confirms the new inbound port, moved DTOs and canonical helper are present, with no obsolete usecase-package copies; no tests/test libraries are packaged. No test run in this correction failed or skipped integrations; the earlier Phase 3 failed attempt remains recorded in its original execution section.
+
+The independent second pass checked all added/modified/moved files and compared them with the preserved starting working tree. Command/result changes are package-only; the canonical encoder body is byte-identical; the use-case implementation changes only imports, interface declaration and Override; every original consumer/PostgreSQL assertion is preserved, with stronger proxy assertions. Existing architecture-rule bodies, nine-module/eighteen-edge graph, capability permissions, historical governance records, frozen APIs, migrations and OpenAPI remain unchanged. No duplicate/forwarding DTOs or extra helper interfaces remain. AGENTS/architecture/module guidance share the mandatory architecture convention. The staged diff is empty, the branch/HEAD are unchanged, and no Git mutation occurred.
+
+**BLOCKER for full production integration:** the corrected interface does not configure the production transaction manager. Wiring must demonstrate one correctly proxied DataSource/manager with the tested pre-commit safeguard before enabling the financial workflow. The known pre-commit TransactionSystemException finding remains recorded above; passing with the fixture's `rollbackOnCommitFailure` setting does not prove safe default production composition, rollback after successful commit or resolution of a failed/uncertain JDBC commit. Actual during-commit faults and response loss after a potentially successful commit require separately verified original-key durable recovery. Identity/Accounts/Idempotency collaborators remain test-only; there are still zero real final-outcome rows in these orchestration tests. Cross-owner canonical vectors, real providers, protected setup, HTTP, crash/concurrency/recovery and Phase 4/5 remain pending. No full AC or BK-013 Done claim follows.
+
 > **Remaining financial workflow execution plan** grounded in [04 — 38 canonical AC scenarios](../01-discovery/04-use-cases.md), [06 — 19 CONS risk views](../01-discovery/06-business-rules.md), and [09 PRD §§9–11](../02-requirements/09-product-requirements.md). The canonical Given/When/Then in 04 remains normative. `T-*` is a test execution grouping, not new business acceptance criteria. **No complete banking acceptance or performance result is asserted by the scoped checks above.** Documentation checks are distinct from these runtime evidence gates.
+
+## Complete architecture convention verification
+
+The permanent [architecture convention](../03-design/15-system-architecture.md#33-java-project-and-module-structure-doc-02), [module guidance](../03-design/module-contracts-and-boundaries.md#public-api-and-private-implementation) and [AGENTS.md](../../AGENTS.md#architecture) cover all nine modules and implementation phases: module/API boundaries, domain/application/adapter/configuration responsibilities, inbound/outbound contracts, DTO/helpers, constructor injection, financial transaction ownership and verification. Governance points to the convention without defining it as a dated or feature-specific decision. Historical contract approvals and test results remain preserved.
+
+Seven additional production architecture checks cover internal responsibility packages, outbound-port interfaces/purity, inbound-adapter use of application boundaries, inward outbound adapters, constructor injection and prohibition of inbound-adapter transaction ownership. Domain/application isolation is strengthened for framework/persistence dependencies. [HexagonalConventionVerificationTests](../../backend/src/test/java/com/finfast/architecture/HexagonalConventionVerificationTests.java) adds 23 fixture-based invocations, including 21 negative cases. Positive fixtures allow the responsibility tree, constructor injection and inward adapter dependencies; negative cases exercise misplaced code, concrete outbound ports, generic implementation leakage, adapter bypasses, transaction annotations, domain framework/configuration/application leaks and field/setter injection. The existing entry-contract, module, capability and financial assertions are retained.
+
+Starting checkout: `feat/BK-013-admin-allocation` at `533f9b80da6afa0bb4dfa8c340905c840473df8f`, with eight tracked modifications and sixteen untracked Java files already present. All were preserved before editing. Verification uses Temurin Java 21.0.13+9, Maven Wrapper 3.9.11 and isolated PostgreSQL 16.15 Testcontainers. From `backend/`, with the same Java 21 environment as the preceding execution:
+
+```sh
+./mvnw --batch-mode --no-transfer-progress verify
+./mvnw --batch-mode --no-transfer-progress -Dtest=ApplicationBoundaryVerificationTests,HexagonalConventionVerificationTests,ProductionArchitectureTests,RuleVerificationTests,CapabilityVerificationTests,ReadCapabilityVerificationTests test
+./mvnw --batch-mode --no-transfer-progress -Dtest=AllocateDemoFundsServiceTests,AllocationCommandAndCanonicalIntentTests,AdminAllocationOrchestrationIntegrationTests,AdminAuditEventTests,AdminAuditPersistenceIntegrationTests,ApplicationBoundaryVerificationTests,HexagonalConventionVerificationTests,ProductionArchitectureTests,RuleVerificationTests,CapabilityVerificationTests,ReadCapabilityVerificationTests,ModuleContractValueTests,ReadCapabilityContractTests clean test
+./mvnw --batch-mode --no-transfer-progress verify
+```
+
+| Executed check | Actual result |
+|---|---|
+| Starting full baseline | PASS — 997 tests / 44 suites, zero failures/errors/skips |
+| Initial architecture-only verification | PASS — 152 tests / 6 suites, zero failures/errors/skips; before the additional inbound-transaction rule/case |
+| Focused clean regression | PASS — 356 tests / 13 suites, zero failures/errors/skips; includes all 75 Phase 3 cases, 82 audit cases and 199 architecture/contract cases |
+| Final full verification | PASS — 1,027 tests / 45 suites, zero failures/errors/skips; executable JAR packaged |
+
+An executable-JAR check attempted during the final verification initially reported a missing artifact: the focused `clean test` had removed the JAR and packaging had not yet run. This was an artifact-ordering failure, not a Java/test failure. Re-running `python3 scripts/check_backend_jar.py` after the final Maven packaging passed: the JAR is executable and contains no compiled tests or test-only libraries. No JUnit run failed or skipped integrations during this change.
+
+Repository-root documentation/OpenAPI checks pass in the existing isolated environment matching all 20 checked-in dependency pins: `/tmp/finfast-capability-docs-venv/bin/python scripts/check_docs.py` (24 Markdown files, 368 local links, 88 OpenAPI references; no duplicate YAML keys), and `/tmp/finfast-capability-docs-venv/bin/python -m openapi_spec_validator docs/03-design/contracts/openapi-v1.yaml`. `docker compose -f compose.docs.yaml config --quiet`, `git diff --check` and direct whitespace/final-newline checks on all 22 untracked Java files also pass.
+
+Independent review compares the final files with a snapshot of the starting working tree. All six untracked production Phase 3 files and existing application/PostgreSQL tests remain byte-identical. The exact graph and module/public-API/restricted-capability policy remain unchanged; historical governance after the convention pointer is also unchanged. No public API, schema, migration, OpenAPI, build dependency or financial behavior is changed. All additions are documentation or test enforcement, with no new production providers or implementation phase. No file was deleted or moved. The branch/HEAD remain unchanged, the index is empty and all changes remain unstaged/uncommitted; no Git mutation was performed.
+
+Static rules select all nine modules but cannot infer every feature entry/helper distinction, detect every reflective/service-locator shortcut, inspect SQL table ownership or prove runtime financial durability. Explicit entry inventory/review and real PostgreSQL/proxy/concurrency tests remain required. Current real Ledger/audit transaction tests retain their test-only Identity/Accounts/Idempotency boundary, zero real final-outcome rows and the documented transaction-manager/canonicalization interoperability limitations. Production composition and uncertain-commit recovery remain full-integration blockers; these structural changes do not close financial ACs or mark BK-013 Done.
+
+## BK-013 Phase 4 idempotency concurrency and recovery verification
+
+**Bounded Administration verification implemented; real-provider financial integration BLOCKED. BK-013 is not Done and Phase 5 is not started.** Starting branch `feat/BK-013-admin-allocation`, HEAD `104c8dc7c43b6cad8df87e7a865e3a8b4830aecf`, clean working tree/index and no Git operation in progress. Local source inspection finds only `api` contracts in Identity, Accounts and Idempotency. No production provider is inferred from those interfaces. Real Ledger posting/JDBC and Administration audit persistence participate; all missing collaborators remain test-only. Production source, frozen public Java/OpenAPI, migrations, architecture rules and prior tests remain unchanged.
+
+### Canonical intent evidence
+
+[AllocationCanonicalInteroperabilityTests](../../backend/src/test/java/com/finfast/administration/internal/application/service/AllocationCanonicalInteroperabilityTests.java) adds six independent local-vector invocations against the frozen typed v1 specification in [16 stable encodings](../03-design/16-domain-model-and-data-design.md#stable-encodings-and-boundary-validation): version 1; ordered initiatorUserId/operation/source/destinationAccountNumber/currency/amount/note/reason; lowercase trusted UUID; DEMO_ALLOCATION; fixed TREASURY; VND; maximum integral decimal text; absent note and exact present reason. Literal expectations cover control escaping, quotes/backslashes/slash, U+2028/U+2029, combining/precomposed characters, supplementary Unicode, whitespace and escaped exact Account Number. An independent hexadecimal UTF-8 tail pins `é`, decomposed `é` and 😀, without generating the expected bytes through the serializer. The exact key remains in scope, outside canonical JSON.
+
+These are Administration-local vectors, not a second authoritative format or cross-owner interoperability approval. **BLOCKED shared verification with Minh:** publish matching versioned canonical JSON and UTF-8 bytes for the fixed actor/recipient/amount/reason cases, including exact escape spelling and tags; feed those same bytes into the real provider's version/fingerprint/full-intent comparison and replay/conflict tests. Scope/advisory encoding, fingerprints, collision handling and durable storage remain Idempotency-owned and untouched. Typed Long/VndAmount input does not prove raw malformed money-token handling, duplicate JSON properties, absent required HTTP fields or old-version recovery readers.
+
+### Overlapping consumer schedules
+
+[AdminAllocationConcurrencyIntegrationTests](../../backend/src/test/java/com/finfast/AdminAllocationConcurrencyIntegrationTests.java) contains nine invocations. Bounded latches hold the first call after real audit INSERT while another call reaches inspect. For identical intent, explicit PROCESSING and UNKNOWN decisions produce no additional posting/audit or record() invocation; after the first commit, repeated invocations replay the exact Completion snapshot. A reason differing by one trailing space yields UNKNOWN during the overlap and Conflict after finalization, leaving the original untouched. Two distinct exact keys (case-only or whitespace-only differences) and two trusted Admin contexts using the same key reach posting through a two-party barrier. Both scripted scopes commit the fixture’s Ledger/audit effects against the same recipient. An unrelated-operation sentinel verifies the service always chooses DEMO_ALLOCATION without overwriting INTERNAL_TRANSFER scope; no transfer workflow/canonical vector is implemented.
+
+A failing first attempt is held after audit, a duplicate receives scripted PROCESSING, and the first transaction then fails at the simulated outcome boundary. After observed rollback, the same exact intent executes and replays without duplicate committed facts. Cancellation interrupts a held post-audit attempt; a separate unwound latch waits for proxy cleanup before asserting rollback and retrying. No arbitrary sleeps are used; all synchronization/future waits are bounded.
+
+The [Phase 4 harness](../../backend/src/test/java/com/finfast/AdminAllocationPhase4TestSupport.java) supplies **scripted decisions**, delegates final observation to the existing afterCommit memory map, and adds no mutex, advisory lock, hashing or outcome SQL. It verifies actual CGLIB invocation, the same DataSource/manager and a fresh `finfast_it_` database distinct from the container's default database. The inherited SQL Accounts collaborator and synthetic trusted-context fixture are not production providers. These schedules prove Administration's reaction to supplied decisions, not exclusive execution, durable replay or concurrent financial correctness of the missing Idempotency/Accounts implementations.
+
+### PostgreSQL commit and recovery investigation
+
+[AdminAllocationCommitRecoveryIntegrationTests](../../backend/src/test/java/com/finfast/AdminAllocationCommitRecoveryIntegrationTests.java) contains ten invocations, using the [test-only JDBC observer](../../backend/src/test/java/com/finfast/AllocationJdbcCommitProbe.java) around the same DataSource for all participants. Fresh independent database connections observe committed Ledger/audit facts and complete test-fixture SQL snapshots. All ordinary committed allocation facts have exactly two opposite entries and exactly one linked required audit. Tests intentionally assert **zero real request_outcome rows**: no durable outcome provider participates. Account SQL state is the test collaborator's behavior, not production Account eligibility/conservation evidence.
+
+| Injected boundary | JDBC observation and database result | Meaning |
+|---|---|---|
+| Before posting / after real Ledger posting but before audit (two cases) | No COMMIT; successful rollback; original committed snapshot unchanged; no audit/outcome; same-key fresh invocation can execute | Known rollback of available real database effects |
+| beforeCommit TransactionSystemException, rollbackOnCommitFailure=false | No explicit JDBC COMMIT and no rollback; cleanup calls setAutoCommit(true); Ledger/audit writes become committed; Spring completion UNKNOWN | Reproduces the unsafe default composition; caller failure is not proof of rollback |
+| Same callback, rollbackOnCommitFailure=true | No COMMIT; one successful rollback; unchanged database snapshot; completion ROLLED_BACK | Narrow known pre-commit safeguard, not a universal guarantee |
+| beforeCommit error followed by synthetic rollback failure | Rollback attempted but delegate not called; rollback DataAccessException replaces the original TransactionSystemException; completion UNKNOWN; autocommit restoration commits on this deliberately still-usable connection | Diagnostic failure composition; a genuinely broken connection can instead remain uncertain |
+| Synthetic SQLException before delegate COMMIT | COMMIT method entered but raw database COMMIT not called; subsequent rollback succeeds; no effects; same exact scope/intent can retry | Known pre-send failure only because the test controls the injection point |
+| Real deferred PostgreSQL audit trigger failure at COMMIT | Audit INSERT succeeded tentatively; raw COMMIT fails with P0001; Spring attempts rollback; independent snapshot unchanged | Real server-side commit-time failure leaves no committed Ledger/audit effects |
+| Synthetic acknowledgement failure after delegate COMMIT returned | One successful raw COMMIT, then technical exception; an additional successful rollback does not undo committed facts; Spring reports ROLLED_BACK to completion callbacks despite those committed facts | Caller must treat commit as uncertain; neither rollback callback status nor an empty fake outcome map proves failure |
+| afterCommit callback failure | Raw COMMIT succeeded; no rollback; completion COMMITTED; caller receives the callback exception; later fake outcome callback never runs | Already committed database effects; afterCommit memory publication is not atomic durable outcome storage |
+| Caller response loss after successful proxy completion | Real facts committed, fake outcome observed once; expired-context retry is denied before inspect; current-authorized original-key retry replays without additional writes | Simulated caller loss and consumer replay, not HTTP/network/crash recovery or durable outcome proof |
+
+Spring 7.0.9's installed source archives were inspected: AbstractPlatformTransactionManager.processCommit distinguishes TransactionException from other runtime failures, doRollbackOnCommitException may replace the original failure and emits ROLLED_BACK after a rollback call returns; DataSourceTransactionManager cleanup restores autocommit. The tests observe actual calls/committed facts rather than deriving database finality from Spring status. No new production manager configuration is installed. A still-usable synthetic connection, deferred trigger rejection, real connection loss and a possibly successful COMMIT have different evidence; no rollback after successful commit is claimed.
+
+In the acknowledgement-loss test, the fixture knows commit occurred through the delegate and independent observation; the caller receives only a technical exception. A scripted UNKNOWN decision blocks another posting, and a separately scripted original Completion replay verifies no new writes. **Real authorized committed lookup/coordination/recovery is BLOCKED.** The empty memory map is explicitly not permission to execute. Preserve original initiator/operation/exact key/canonical intent; authorize every retry; never invent a replacement key or durable technical rejection.
+
+### Executed verification and remaining gates
+
+Temurin Java 21.0.13+9, Maven Wrapper 3.9.11, Spring Boot 4.1.1/Spring 7.0.9 and PostgreSQL 16.15 Testcontainers are used. Every new PostgreSQL invocation creates a separate disposable database with Flyway V1/V2 validation, existing lock/statement/socket deadlines and no developer datasource/Compose volume. Commands from `backend/`, with `JAVA_HOME=/tmp/finfast-architecture-jdk21` and its `bin` prepended to PATH:
+
+```sh
+./mvnw --batch-mode --no-transfer-progress verify
+./mvnw --batch-mode --no-transfer-progress -Dtest=AllocationCanonicalInteroperabilityTests,AdminAllocationConcurrencyIntegrationTests,AdminAllocationCommitRecoveryIntegrationTests test
+./mvnw --batch-mode --no-transfer-progress -Dtest=AllocationCanonicalInteroperabilityTests,AdminAllocationConcurrencyIntegrationTests,AdminAllocationCommitRecoveryIntegrationTests,AllocateDemoFundsServiceTests,AllocationCommandAndCanonicalIntentTests,AdminAllocationOrchestrationIntegrationTests,AdminAuditEventTests,AdminAuditPersistenceIntegrationTests,OrdinaryPostingIntegrationTests,OrdinaryPostingConcurrencyTests,LedgerPersistenceIntegrationTests,GenesisPostingIntegrationTests,ApplicationBoundaryVerificationTests,HexagonalConventionVerificationTests,ProductionArchitectureTests,RuleVerificationTests,CapabilityVerificationTests,ReadCapabilityVerificationTests,ModuleContractValueTests,ReadCapabilityContractTests test
+./mvnw --batch-mode --no-transfer-progress -Dtest=AllocationCanonicalInteroperabilityTests,AdminAllocationConcurrencyIntegrationTests,AdminAllocationCommitRecoveryIntegrationTests test
+./mvnw --batch-mode --no-transfer-progress verify
+```
+
+| Execution | Actual result |
+|---|---|
+| Current full baseline | PASS — 1,027 tests / 45 suites, zero failures/errors/skips |
+| Initial new Phase 4 tests | PASS — 25 tests / 3 suites: six canonical and nineteen PostgreSQL cases, zero failures/errors/skips |
+| Combined Admin/Ledger/architecture/contracts | PASS — 514 tests / 20 suites, zero failures/errors/skips |
+| Reviewed Phase 4 rerun | PASS — 25 tests / 3 suites, zero failures/errors/skips; stronger DataSource/database isolation and misleading completion-status assertions |
+| Final full verification | PASS — 1,052 tests / 48 suites, zero failures/errors/skips; executable JAR packaged |
+
+Repository-root checks pass: `python3 scripts/check_backend_jar.py` (executable JAR, no compiled tests or test-only libraries); `/tmp/finfast-capability-docs-venv/bin/python scripts/check_docs.py` (24 Markdown files, 380 local links, 88 OpenAPI references; no duplicate YAML keys); `/tmp/finfast-capability-docs-venv/bin/python -m openapi_spec_validator docs/03-design/contracts/openapi-v1.yaml`; `docker compose -f compose.docs.yaml config --quiet`; `git diff --check`; and direct whitespace/final-newline checks on all five untracked Java files. All 20 documentation dependency pins match the isolated environment.
+
+The independent second pass reviewed all five new test files and both modified documents, including decision-before-posting ordering, exact scope/canonical capture, trusted-context changes, actual proxy/DataSource identity, bounded synchronization, interruption cleanup and physical commit evidence. It strengthened database isolation and the acknowledgement-loss completion-status assertion before the reviewed rerun and full verify. A manifest comparison confirms every pre-existing production source/test, architecture instruction/rule, public API, migration, OpenAPI and build file is unchanged; only the two BK-013 evidence documents differ. No new provider, lock implementation, endpoint or financial implementation is introduced. Branch/HEAD are unchanged, index empty, all work unstaged/uncommitted; no Git mutation occurred.
+
+The first `make help` attempt ran from backend/ and failed because its Makefile is at the repository root; rerunning at the root passed. Expected fault injection includes logged commit/rollback errors; no JUnit failure is hidden by those passing diagnostic assertions. Prior Phase 3 failed runs and the earlier architecture-check artifact-ordering failure remain recorded in their own execution sections.
+
+| Remaining owner integration | Status / required evidence before acceptance |
+|---|---|
+| Minh: Idempotency | **BLOCKED** — real provider absent. Full-scope exclusivity, fresh authoritative reads after lock wait, insert-once durable completion/rejection, collisions, rollback, concurrent winner failure, original-key resolution after commit uncertainty and process restart |
+| Minh/Tiến: canonical interoperability | **BLOCKED** — shared literal v1 bytes/provider vectors absent. Match exact encoding/tags and real provider version/fingerprint/full-intent/replay behavior; no Administration hash/lock implementation |
+| Hải: Accounts | **BLOCKED** — production provider absent. Real sorted locks/current eligibility, Treasury competition, balances/conservation and same-database atomic participation; synthetic SQL fixtures do not close these obligations |
+| Hưng: Identity | **BLOCKED** — current production identity/session provider absent. Live authorization/session expiry/role behavior before every inspect/recovery/replay |
+| Tiến and provider owners: transaction composition | **BLOCKED** — production wiring absent. Same DataSource/manager and actual outer proxies, safe pre-commit/rollback-failure handling, during-commit classification and authoritative uncertain-commit recovery; rollbackOnCommitFailure alone is insufficient |
+| Phase 5 and acceptance | **NOT STARTED** — depends on the above integrations and separately authorized HTTP/CSRF/raw-input/outcome mapping, restart/network-loss/E2E and full financial AC evidence |
+
+## BK-016/BK-018 corrective read verification — 2026-10-25
+
+**Independent Administration read contribution; real authentication/provider
+integration and end-to-end acceptance remain pending.** Git preflight verified
+clean `feat/BK-016-admin-read-apis`, local/remote/PR #35 HEAD
+`5dfffc492a2642033ac8c2f72a77c497b971b355`, target `develop` at
+`bb7b5ce911446b86c0d51583d22ab15f8d25cc05`, and `0 / 6` develop-only/branch-only
+commits. No pull or develop merge was needed. GitHub CLI authentication was
+unavailable; the connected GitHub metadata and remote Git refs agreed.
+
+Verification uses Temurin Java 21.0.12.1+1 extracted into
+`/tmp/finfast-pr35-java21` from the cached, repository-pinned JDK image; host Java
+26 is not used. From `backend/`, with that JDK in `JAVA_HOME` and `PATH`:
+
+```sh
+./mvnw --batch-mode --no-transfer-progress '-Dtest=AdminInspectionControllerTest,AdminInspectionServiceTest,*ArchitectureTests,*VerificationTests' test
+./mvnw --batch-mode --no-transfer-progress '-Dtest=AdminInspection*Test*,FinfastApplicationTests,GlobalExceptionHandlerTests,*ArchitectureTests,*VerificationTests' clean test
+./mvnw --batch-mode --no-transfer-progress '-Dtest=AdminInspection*Test*,FinfastApplicationTests,GlobalExceptionHandlerTests,*ArchitectureTests,*VerificationTests' test
+./mvnw --batch-mode --no-transfer-progress clean verify
+```
+
+The pre-edit baseline passed **170 tests**, zero failures/errors/skips. The final
+focused run passed **260 tests / 11 suites**, zero failures/errors/skips: 28
+application, 20 HTTP/Jackson, eight activation/dependency, four full-application
+context, 42 shared-error and 158 architecture/capability/layer/negative-fixture
+checks. Direct inbound invocation and the real controller/config/application chain
+both authorize before private reads. Tests cover missing/wrong-role identity,
+null actors, technical failures, Customer consistency, all three financial types,
+signed MAX_VALUE decimal strings, exact timestamp/field sets and actual omission
+of optional audit properties via `JsonNode.has`. Production scanning registers
+neither use case nor controller/route by default; activation without any one of
+the five required dependencies fails context startup.
+
+Final full `clean verify` passed **1,310 tests / 61 suites**, zero
+failures/errors/skips, in 3 minutes 29 seconds; Maven produced the executable JAR.
+This includes existing PostgreSQL 16.15 Testcontainers allocation
+orchestration/concurrency/commit-recovery, audit persistence/constraints, status
+change, Ledger AM-04/history/posting/reconciliation and schema regressions in
+isolated databases. Their passing results preserve their existing provider and
+transaction evidence scope; they do not establish the new Admin HTTP read
+pipeline with real Identity/Customer/audit readers.
+
+Repository-root checks passed: `python3 scripts/check_backend_jar.py`, pinned
+`openapi_spec_validator` and `scripts/check_docs.py`,
+`docker compose -f compose.docs.yaml config --quiet`, `git diff --check`, and
+whitespace/final-newline checks for both new Java files. JAR inspection confirms
+the new configuration is packaged and removed Admin handler/DTO/exception classes
+are absent. Public module APIs, Accounts/Ledger/Identity/Customer implementations,
+V1/V2 migrations, frozen OpenAPI and build configuration are unchanged.
+
+Initial attempts exposed a stale incremental nested-class artifact
+(`PostingResult$Rejected.class`, resolved by clean compilation), an incorrectly
+unstubbed Mockito null-result fixture and ambiguous MVC/Actuator mapping injection
+in the new context test. The fixtures now explicitly return null and qualify the
+MVC mapping. No existing financial implementation, architecture rule or assertion
+was weakened to resolve these failures.
+
+All new read-provider/security collaborators are test-only. They establish no
+real session/logout/expiry/RBAC integration or PostgreSQL Admin read pipeline.
+Production Identity/Customer/AM-03/audit readers and complete Ledger composition
+remain pending; existing audit persistence stays insert-only. The new common
+UNAUTHORIZED category supports a safe 401 convention without asserting a typed
+Identity error contract. API-ERR-01 still governs exceptional statuses absent
+from the frozen operation response lists. No OpenAPI/public module API/migration
+change or BK-016/BK-018 acceptance completion is claimed.
+
+## BK-017 Freeze/unfreeze verification — 2026-10-24
+
+**PARTIAL IMPLEMENTATION EVIDENCE — Accounts status provider and Administration orchestration.** The focused PostgreSQL/Testcontainers suite uses isolated PostgreSQL 16 databases, the real JDBC transaction manager and actual Spring proxies. It verifies ACTIVE→FROZEN and FROZEN→ACTIVE, complete status audit action/outcome/before/after fields, same-state `UNCHANGED` without an audit row, Treasury exclusion, blank-reason rejection, audit-trigger rollback, and rejection of missing/read-only/unproxied caller transactions.
+
+Executed from `backend/`:
+
+```sh
+./mvnw --batch-mode --no-transfer-progress -Dtest=AccountStatusIntegrationTests,AdminAuditEventTests,ApplicationBoundaryVerificationTests test
+./mvnw --batch-mode --no-transfer-progress clean test-compile
+```
+
+The evidence covers the approved internal contracts and database transaction semantics only. There is no production `CurrentIdentity` implementation or complete runtime Bean composition for Accounts/Administration on this baseline, so no HTTP authentication, endpoint, deployment-secret or end-to-end acceptance is claimed. No OpenAPI, migration, BK-015 Receipts or public Java contract was changed. BK-017 remains incomplete until the responsible Identity/Accounts/runtime owners provide and integrate those real dependencies.
+
+## BK-009 corrective Bootstrap verification — 2026-10-25
+
+**Independent Bootstrap correction; BK-009 acceptance remains pending.** Preflight
+verified a clean `feat/BK-009-bootstrap-treasury-genesis` checkout, local/remote/PR
+#36 HEAD `6a9ddaed6811f1dceb8014dfec8b0e4930507c80` and target `develop`.
+Live Git fetch found `origin/develop` at
+`b3f0539886875f0e969ce9a8dea7431bd3d0e356`, eight commits ahead of the feature's
+merge base; the feature has eleven commits of its own. The develop-only changes
+are the Administration read contribution and related common error/tests/docs;
+Bootstrap's approved provisioning/GENESIS APIs are unchanged. No pull was needed,
+and no merge/rebase/commit is performed. Synchronize develop and rerun CI on the
+integrated result before final merge.
+
+The startup runner and duplicate boolean inspection contract are removed. Tests
+exercise the existing inbound entry, approved Ledger AM-01 API, nontransactional
+coordinator and separate REQUIRED / READ COMMITTED writer with checked-exception
+rollback. Configuration requires the existing transaction manager and all four
+provider APIs; the existing enable switch only composes beans. No operator
+invocation, REST endpoint, fake production provider or new property is supplied.
+
+Executed from `backend/`, using cached repository-pinned Temurin Java
+21.0.12.1+1 at `/tmp/finfast-pr35-java21` in `JAVA_HOME` and `PATH`:
+
+```sh
+./mvnw --batch-mode --no-transfer-progress '-Dtest=DatasetInitializationServiceTest,Genesis*Tests,*ArchitectureTests,*VerificationTests' clean test
+./mvnw --batch-mode --no-transfer-progress '-Dtest=DatasetInitializationServiceTest,BootstrapConfigurationTests,BootstrapTransactionBoundaryIntegrationTests,*ArchitectureTests,*VerificationTests' clean test
+./mvnw --batch-mode --no-transfer-progress '-Dtest=DatasetInitializationServiceTest,BootstrapConfigurationTests,BootstrapTransactionBoundaryIntegrationTests,*ArchitectureTests,*VerificationTests' test
+./mvnw --batch-mode --no-transfer-progress '-Dtest=BootstrapConfigurationTests' test
+./mvnw --batch-mode --no-transfer-progress clean verify
+```
+
+The pre-edit baseline passed **224 tests**, zero failures/errors/skips. The
+corrected focused run passed **210 tests / nine suites**, zero failures/errors/skips:
+20 isolated application tests, ten configuration/startup/entry checks, 23 real
+PostgreSQL transaction-boundary probes and 157 existing architecture checks.
+The final startup/route rerun passed all ten configuration tests. Full
+`clean verify` passed **1,303 tests / 61 suites**, zero failures/errors/skips, in
+3 minutes 34 seconds, including all existing GENESIS/committed-inspection,
+Ledger/Accounts/Administration, schema and architecture regressions; Maven
+produced the executable JAR. Executable packaging/isolation verification passed,
+and JAR inspection confirmed the deleted runner and duplicate inspection class
+are absent while the new writer and approved Ledger API are packaged.
+Repository-root OpenAPI/reference/Markdown validation, docs Compose configuration,
+tracked diff whitespace and all three new Java files' whitespace/final-newline
+checks passed. No dependency/build setting, migration, frozen REST contract or
+foreign production implementation was changed.
+
+The [PostgreSQL probes](../../backend/src/test/java/com/finfast/bootstrap/internal/application/BootstrapTransactionBoundaryIntegrationTests.java)
+use a disposable pinned PostgreSQL 16.15 container, a separate database per test,
+actual Bootstrap configuration/Spring proxies and the real JDBC transaction
+manager. Module providers and the inspection reader are explicitly test-scoped
+fixtures over `bootstrap_probe`, not banking tables or real provisioning. They
+verify Admin→Treasury→GENESIS call order in one physical READ COMMITTED write
+transaction, fresh read-only REPEATABLE READ inspection transactions, rollback
+before recovery after SQLSTATE 23505/25P02, provider/checked/pre-commit failures,
+rollback-only detection, failed inspection uncertainty, required result
+validation, ambient/unproxied transaction rejection and explicit retry. A
+synthetic acknowledgement failure after a physical probe commit propagates
+while the committed probe rows remain visible; no rollback or success is claimed
+from that exception. Changed-supply/context-recreation tests prove no repeated
+fixture provisioning, not credential preservation or process restart.
+
+Startup coverage calls the real `SpringApplication.run()` path with the Bootstrap
+gate enabled, test-only dependencies, no external datasource and an ephemeral
+loopback HTTP port. It verifies no provider invocation, no runner and no Bootstrap
+HTTP handler. Initial test attempts failed because the first startup fixture
+incorrectly selected non-web mode despite the existing MVC-dependent global
+handler, and the SQL-state assertion initially selected pgJDBC's deepest prior
+constraint cause rather than the current aborted-query exception. Both fixtures
+were corrected without changing foreign production code or weakening assertions.
+
+Race handling deliberately retains technical failure: a winner observed after
+rollback is no proof that an arbitrary failed provisioning constraint was a
+harmless duplicate. No approved provider API identifies that condition. Bootstrap
+reports the failed attempt with its cause and never posts again during recovery;
+a later explicit invocation can observe the winner and perform no writes. Failed
+inspection retains the attempt error as suppressed context. Connection/timeout,
+UnexpectedRollbackException and uncertain commit failures are never accepted as
+success. Any future automatic race-success classification remains an owner
+integration decision, without speculative provider API changes here.
+
+Real atomic Admin/Treasury/GENESIS commit, concurrent first initialization,
+interrupted monetary setup, persistent-dataset process restart, credential
+preservation, supply reconciliation and protected operator execution remain
+pending. Existing Ledger GENESIS/inspection suites retain their own evidence
+scope; Bootstrap adds no foreign implementation or SQL. The only non-Bootstrap
+production change restores `LedgerQueries.java`'s incidental blank line to the
+exact current develop baseline, without a signature change.
+
+### BK-009 develop synchronization — 2026-10-25
+
+The subsequent synchronization task explicitly authorized local commits. The
+reviewed twelve-file corrective working tree was preserved in local commit
+`c082755632b86d017843e02e6159c50caf2ed4a5` on
+`feat/BK-009-bootstrap-treasury-genesis`, whose original local/remote/PR #36 HEAD
+was `6a9ddaed6811f1dceb8014dfec8b0e4930507c80`. A second fetch confirmed
+`origin/develop` at `b3f0539886875f0e969ce9a8dea7431bd3d0e356` and an unchanged
+remote feature HEAD. `git merge --no-commit --no-ff origin/develop` merged cleanly;
+there were no unmerged paths or conflict markers. Both documents retained the
+valid BK-009 and develop checkpoints, including BK-013/014/016/017/018 evidence.
+
+All Bootstrap tests remain byte-identical to the preserved correction. Bootstrap
+production changed only by deleting a pre-existing EOF blank line in
+`InitializeDatasetUseCase`; behavior and signatures are unchanged. Incoming
+non-Bootstrap logic, APIs, migrations, build configuration
+and architecture enforcement remain unchanged from develop. Initial staged
+whitespace verification detected an inherited extra EOF blank line in each of
+`AdminAccountView`, `AdminAuditRecordView`, `AdminFinancialTransactionView`,
+`AdminInspectionUseCase` and `AdminInspectionService`. Tiến explicitly authorized
+removing exactly those five blank lines; a byte comparison verifies each file is
+otherwise identical to develop. No whitespace rule or test was disabled.
+
+Integration verification uses the same pinned Java 21 JDK as the corrective run:
+
+```sh
+./mvnw --batch-mode --no-transfer-progress '-Dtest=DatasetInitializationServiceTest,BootstrapConfigurationTests,BootstrapTransactionBoundaryIntegrationTests,Genesis*Tests,*ArchitectureTests,*VerificationTests' clean test
+./mvnw --batch-mode --no-transfer-progress clean verify
+```
+
+The integrated focused run passed **274 tests / twelve suites**, zero
+failures/errors/skips: 53 Bootstrap checks, 63 existing GENESIS/inspection cases
+and 158 architecture/capability/layer checks. Full `clean verify` passed
+**1,363 tests / 64 suites**, zero failures/errors/skips, in 3 minutes 20 seconds.
+The executable JAR isolation check passed; the removed startup runner and
+duplicate inspection class remain absent. Pinned OpenAPI validation and
+`scripts/check_docs.py` passed (27 Markdown files, 480 local links, 88 OpenAPI
+references), as did docs Compose configuration, staged whitespace and the full
+PR diff whitespace check against develop. No test or architecture rule changed.
+
+These local checks do not establish hosted CI or complete BK-009 acceptance.
+Actual Admin/Treasury providers, protected operator invocation, real monetary
+atomicity/concurrency, credential preservation, process restart and full supply
+reconciliation retain their existing owners and pending status. No push or
+GitHub PR approval/closure/merge is performed by this synchronization task.
+
+## BK-018 Ledger AM-04 verification — 2026-10-24
+
+**Ledger provider implemented; real Accounts and Administration integration pending.** Started on clean `feat/BK-018-ledger-financial-queries` at `d0e75a8edb3191397398cb6d8f955b9a60df1e42`. Verification uses Temurin Java 21.0.12.1+1, the existing Maven Wrapper/Boot dependencies and pinned PostgreSQL 16.15 Testcontainers image, with unchanged Flyway V1/V2 in disposable isolated databases. The host default is Java 26; a cached Temurin JDK was extracted into `/tmp/finfast-am04-java21` for these invocations. No developer database or persistent Compose volume is used.
+
+Commands executed from `backend/`, with `JAVA_HOME=/tmp/finfast-am04-java21` and its `bin` prepended to `PATH`:
+
+```sh
+./mvnw --batch-mode --no-transfer-progress -Dtest=LedgerPersistenceIntegrationTests,GenesisDatasetInspectionIntegrationTests,ProductionArchitectureTests,ReadCapabilityVerificationTests test
+./mvnw --batch-mode --no-transfer-progress -Dtest=AdminFinancialTransactionQueriesIntegrationTests,AdminFinancialTransactionSnapshotIntegrationTests,ApplicationBoundaryVerificationTests,ProductionArchitectureTests test
+./mvnw --batch-mode --no-transfer-progress '-Dtest=AdminFinancialTransaction*Tests,FinancialTransactionRowsTests,Ledger*Tests,Genesis*Tests,OrdinaryPosting*Tests,FinancialTransactionAndLedgerTests,DatasetControlConstraintTests,SchemaIdentityAndCounterTests,*ArchitectureTests,*VerificationTests,*Contract*Tests' test
+./mvnw --batch-mode --no-transfer-progress clean verify
+```
+
+The pre-change focused baseline passed **110 tests / 4 suites**. The initial new focused run executed 101 tests with zero failures, one error and zero skips: its Unicode-blank reference fixture was rejected by the existing PostgreSQL nonblank constraint before the read. The test was corrected to assert that constraint, retaining schema enforcement; isolated reconstruction tests also cover invalid references. The subsequent combined AM-04/Ledger/architecture/contract regression passed **627 tests / 25 suites**, zero failures/errors/skips.
+
+Final clean Maven verification and executable packaging passed **1,126 tests / 51 suites**, zero failures/errors/skips, including 74 new invocations (63 PostgreSQL, 10 isolated reconstruction, one entry-contract check). Existing Ledger Phases 1–5, AM-01, Administration, architecture/capability/layer/negative-fixture, contract and Spring application-context suites all passed. The executable-JAR isolation checker passed with no compiled test classes or test-only libraries packaged. This is local evidence; no hosted CI run, publication or release acceptance is claimed.
+
+Root validation commands also passed, using the repository's unchanged pinned documentation dependencies in the temporary environment:
+
+```sh
+python3 scripts/check_backend_jar.py
+/tmp/finfast-am04-docs-venv/bin/python scripts/check_docs.py
+/tmp/finfast-am04-docs-venv/bin/python -m openapi_spec_validator docs/03-design/contracts/openapi-v1.yaml
+docker compose -f compose.docs.yaml config --quiet
+docker run --rm --network none -v /home/vantien/Projects/cloud/finfast:/repo:ro -w /repo rhysd/actionlint:1.7.7 -color
+git diff --check
+```
+
+Final scope review confirms unchanged public APIs, financial domain/posting algorithms, Accounts/Administration implementation, Flyway migrations, OpenAPI and historical governance records. New Java files were included in whitespace review separately from the tracked diff. No commit, push, merge or PR was made.
+
+[Financial projection integration tests](../../backend/src/test/java/com/finfast/AdminFinancialTransactionQueriesIntegrationTests.java) add 48 PostgreSQL invocations: empty datasets and separation from rejection/audit evidence; exact GENESIS/transfer/allocation references, timestamps, signed entries and MAX_VALUE; immutable results, repeated reads, position-based ordering and a 106-transaction complete listing; one identity lookup per distinct participant per request; incomplete cardinality/sign/magnitude facts, corrupt GENESIS/linkage/positions, nonfinite time, missing/inconsistent identities and propagating Ledger/Accounts SQL failures. Invalid type/reference/null timestamp/amount/currency/position, zero delta and duplicate participants are verified against unchanged PostgreSQL constraints.
+
+[Snapshot integration tests](../../backend/src/test/java/com/finfast/AdminFinancialTransactionSnapshotIntegrationTests.java) add 15 PostgreSQL invocations using actual service/adapter Spring proxies: server-enforced read-only REPEATABLE READ, pending/rolled-back setup and ordinary posting invisibility, fresh snapshot visibility after commit, held-snapshot stability across concurrent commits, and identity SELECTs remaining in the same snapshot when a new Account and posting commit between fact retrieval and identity resolution. Bounded futures/latches coordinate schedules without sleeps. Write callers, wrong isolation, unproxied calls without a transaction, unbound/mismatched DataSources, autocommit and conflicting physical JDBC state are rejected. Attempting a write inside the read-only transaction yields PostgreSQL SQLSTATE 25006.
+
+[Reconstruction tests](../../backend/src/test/java/com/finfast/ledger/internal/adapter/outbound/persistence/FinancialTransactionRowsTests.java) add 10 isolated invalid-header cases, with no PostgreSQL claim for mocked ResultSets. One explicit [entry-contract check](../../backend/src/test/java/com/finfast/architecture/ApplicationBoundaryVerificationTests.java) verifies the approved public API relationship and concrete REQUIRED/read-only/REPEATABLE READ/checked-failure rollback declaration. Existing graph, capability, layer and negative-fixture rules are unchanged.
+
+The [test-only Accounts collaborator](../../backend/src/test/java/com/finfast/AdminFinancialQueriesTestSupport.java) performs identity SQL through the same bound DataSource and verifies Spring metadata, physical JDBC state, server transaction mode and snapshot IDs. It is not Hải's AM-02 implementation and establishes no real-provider correctness, Accounts balance/eligibility, ADMIN authorization, protected setup or durable outcome/audit workflow. Production Ledger configuration remains absent until real AM-02 participation is available and verified. Administration/BK-018 integration, HTTP/security/browser/end-to-end acceptance and BK-010 Phase 6 remain pending. Full-list memory/identity-call costs are documented in [data design](../03-design/16-domain-model-and-data-design.md#committed-admin-financial-inspection--td-016-am-04); no load measurement or complete BK-018 acceptance is claimed.
+
+## BK-014 Ledger history verification — 2026-10-24
+
+**IMPLEMENTED — Ledger-local history contribution; production composition/full BK-014 acceptance pending.** Started on clean `feat/BK-014-ledger-history-queries` at `1c8552ab3a0b91e4434215a92d8ec8b05697e756`, including merged AM-04. Executions use Temurin Java 21.0.12.1+1, existing Maven Wrapper/Boot dependencies and pinned PostgreSQL 16.15 Testcontainers, with unchanged V1/V2 in disposable isolated databases. Java 21 is selected through `JAVA_HOME=/tmp/finfast-am04-java21` and its `bin` prepended to `PATH`; no developer database or persistent Compose volume is used.
+
+Commands executed from `backend/`:
+
+```sh
+./mvnw --batch-mode --no-transfer-progress '-Dtest=AdminFinancialTransaction*Tests,GenesisDatasetInspectionIntegrationTests,ProductionArchitectureTests,ApplicationBoundaryVerificationTests,ReadCapabilityContractTests' test
+./mvnw --batch-mode --no-transfer-progress -Dtest=HistoryCursorCodecTests,ProductionArchitectureTests test
+./mvnw --batch-mode --no-transfer-progress -Dtest=LedgerHistoryIntegrationTests test
+./mvnw --batch-mode --no-transfer-progress '-Dtest=LedgerHistory*Tests,HistoryCursorCodecTests,ApplicationBoundaryVerificationTests,ProductionArchitectureTests' test
+./mvnw --batch-mode --no-transfer-progress '-Dtest=Ledger*Tests,HistoryCursorCodecTests,AdminFinancialTransaction*Tests,Genesis*Tests,OrdinaryPosting*Tests,FinancialTransactionAndLedgerTests,DatasetControlConstraintTests,SchemaIdentityAndCounterTests,*ArchitectureTests,*VerificationTests,*Contract*Tests' test
+./mvnw --batch-mode --no-transfer-progress clean verify
+```
+
+Pre-change focused baseline passed **164 tests / 6 suites**. Initial cryptographic/architecture verification passed **64 tests / 2 suites**; initial functional PostgreSQL suite passed **42 tests / 1 suite**. The first combined focused command stopped during test compilation because the pinned AssertJ ClassAssert does not supply `isNotAssignableFrom`; no tests executed in that invocation. Replacing it with an assertion on Java's `Class.isAssignableFrom` preserved the intended check. The identical combined command then passed **150 tests / 6 suites**, zero failures/errors/skips, including all 112 new invocations: 41 cursor unit tests, 70 PostgreSQL-fixture invocations (66 exercise database/proxy behavior and four assert existing PageRequest limits), and one explicit entry-contract check.
+
+Combined Ledger/AM-04/History/architecture/capability/contract regression passed **729 tests / 28 suites**, zero failures/errors/skips. Existing positive/negative structural rules and Ledger Phases 1–5/AM-04 behavior remain intact.
+
+Final full `clean verify` passed **1,238 tests / 55 suites**, zero failures/errors/skips, including application-context checks, all existing PostgreSQL/schema/domain/AM-04/reconciliation/posting tests, cursor vectors and architecture/capability/contract suites. Maven produced the executable JAR; packaging isolation validation passed. Existing production files, public APIs, Accounts/History/Administration implementation, posting algorithms, V1/V2/OpenAPI and historical governance remain byte-identical to the starting commit. All eleven new files (six production, five test) and five modified files were reviewed for scope/whitespace; nothing was staged, committed, pushed, merged or published.
+
+Root checks executed successfully with the existing pinned documentation environment/tools:
+
+```sh
+python3 scripts/check_backend_jar.py
+/tmp/finfast-am04-docs-venv/bin/python scripts/check_docs.py
+/tmp/finfast-am04-docs-venv/bin/python -m openapi_spec_validator docs/03-design/contracts/openapi-v1.yaml
+docker compose -f compose.docs.yaml config --quiet
+docker run --rm --network none -v /home/vantien/Projects/cloud/finfast:/repo:ro -w /repo rhysd/actionlint:1.7.7 -color
+git diff --check
+```
+
+Documentation validation passes 27 Markdown files, 473 local links and 88 OpenAPI references with no duplicate YAML keys; the frozen OpenAPI validates. No hosted CI run, real Accounts integration, secret deployment, process restart, History HTTP/security/browser acceptance or performance benchmark was executed. Passing local tests is scoped evidence and does not complete BK-014/BK-015 or release acceptance.
+
+- [Functional/pagination/integrity tests](../../backend/src/test/java/com/finfast/LedgerHistoryIntegrationTests.java): 42 invocations. Empty/initialized histories exclude GENESIS, rejections/audit and unrelated movements; exact signed direction/reference/timestamp/MAX_VALUE, immutable results and safe Treasury labels. Traversals across 205 eligible movements plus unrelated position gaps, tied timestamps and limits 1/2/20/100 verify exact ordered membership without duplicates, omissions or unnecessary final cursors. Tests verify lookahead corruption fails the page, missing/mismatched Account IDs, incompatible kinds, duplicate Number/Customer ownership, inconsistent posting bounds, maximum-position SQL bounds and propagating SQL failures. These are read fixtures, not production Account balance/eligibility evidence.
+- [Cursor integration tests](../../backend/src/test/java/com/finfast/LedgerHistoryCursorIntegrationTests.java): 14 invocations. Malformed/tampered/wrong-key/unknown-version/invalid-bound tokens fail before Account or fact lookups. Account/limit mismatch also fails before lookups; authenticated owner mismatch fails before financial queries. Same-key service/proxy recreation continues the original cursor. The test context has no partial `LedgerQueries` provider and no receipt implementation. Recreation verifies key continuity, not a process/deployment restart.
+- [Snapshot/concurrency tests](../../backend/src/test/java/com/finfast/LedgerHistorySnapshotIntegrationTests.java): 14 invocations. New transfers/allocations cannot enter an old traversal; a new traversal sees them. A commit between first bound and page retrieval leaves bound/rows/identities on the original snapshot. Partial/complete pending postings remain invisible and rollback remains absent. Real observed `pg_blocking_pids` counter contention prevents a disjoint later writer overtaking a held commit; commit/rollback schedules preserve old traversal membership and expose winners only to fresh traversals. Actual proxies and PostgreSQL server/JDBC/resource state verify read-only REPEATABLE READ and reject write/wrong-isolation/unproxied-without-transaction/unbound/mismatched/autocommit/conflicting physical resources. An attempted write fails with SQLSTATE 25006. All concurrency coordination has bounded waits and no sleeps.
+- [Cursor unit vectors](../../backend/src/test/java/com/finfast/ledger/internal/application/service/HistoryCursorCodecTests.java): 41 invocations. Fixed canonical golden vector independently calculated with Python struct/HMAC, round-trip/MAX positions, defensive key copying, same/different-key behavior, modified fields/tags, invalid Base64url/padding/aliases, truncated/oversized input, authenticated unsupported versions and invalid position/page bounds. Production uses standard JCA HMAC-SHA256 and constant-time MAC comparison, not custom cryptographic primitives. Test-only deterministic key bytes establish no production secret provisioning.
+- [Entry-contract verification](../../backend/src/test/java/com/finfast/architecture/ApplicationBoundaryVerificationTests.java): confirms the internal History inbound interface, existing public DTOs and concrete REQUIRED/read-only/REPEATABLE READ/checked-failure rollback declaration. Public `LedgerQueries` signatures, History-only capability permission, graph and existing positive/negative architecture rules are unchanged.
+
+The [test support](../../backend/src/test/java/com/finfast/LedgerHistoryTestSupport.java) reuses existing isolated databases, Spring transaction composition, Ledger fact storage/position allocator and bounded test deadlines. Its Accounts identity SQL explicitly uses the same bound DataSource/snapshot and is strictly test-scoped. This cannot establish Hải's real AM-02 provider correctness or resource participation, current History authentication/authorization, production HMAC key provisioning, deployment restart, public provider/receipt composition or end-to-end acceptance. See [implementation/composition boundaries](../03-design/16-domain-model-and-data-design.md#bk-014-ledger-history-implementation). BK-014 is not Done, BK-015 is not implemented and BK-010 Phase 6 remains unchanged.
+
+## BK-005 registration core verification — 2026-10-25
+
+**Core contribution only; BK-005 is not Done.** This section consolidates the useful evidence from the former standalone BK-005 implementation note, as requested in [PR #30 review](https://github.com/nvawntien/finfast/pull/30#pullrequestreview-5631821820). It does not change FR-001, UC-AUTH-01, AC-001/027/035/037 or their acceptance status. The pre-merge checkout is `feat/BK-005-customer-registration` at `cbeb8e2`, including `develop` at `004fbb5`; the SQL correction and regression below are working-tree changes on that merge. No public Java/REST contract, architecture rule, dependency or migration is changed by this correction.
+
+### Implemented contribution and evidence limits
+
+- [RegisterCustomer](../../backend/src/main/java/com/finfast/identity/internal/application/usecase/RegisterCustomer.java) implements the internal [CustomerRegistration](../../backend/src/main/java/com/finfast/identity/internal/application/port/inbound/CustomerRegistration.java) entry. It validates the [command](../../backend/src/main/java/com/finfast/identity/internal/application/dto/RegistrationCommand.java), normalizes email with `Locale.ROOT`, hashes before acquiring database resources and creates the CUSTOMER User plus Customer/Account through the approved Identity → Customer → Accounts APIs. Its READ COMMITTED `TransactionTemplate` owns completion, rejects a caller-owned transaction and returns only after successful commit.
+- [BcryptRegistrationPasswords](../../backend/src/main/java/com/finfast/identity/internal/adapter/outbound/security/BcryptRegistrationPasswords.java) uses standard BCrypt cost 12 with per-password salt, rejects over 72 UTF-8 bytes without truncation/prehash and preserves the exact password. Input validation rejects invalid email, missing fields, schema-length violations, NUL and malformed surrogate text; diagnostic values are redacted. Cost 4 is used only for repeated test fixtures, while the default cost is tested separately.
+- [JdbcRegistrationUsers](../../backend/src/main/java/com/finfast/identity/internal/adapter/outbound/persistence/JdbcRegistrationUsers.java) writes only `public.app_user`, fixes role to CUSTOMER and relies on PostgreSQL normalized-email uniqueness with targeted `ON CONFLICT ... DO NOTHING`. Expected duplicates map to `EMAIL_ALREADY_REGISTERED`; technical failures escape. [JdbcCustomerProfiles](../../backend/src/main/java/com/finfast/customer/internal/adapter/outbound/persistence/JdbcCustomerProfiles.java) writes only `public.customer`. Both require the same bound writable READ COMMITTED JDBC transaction. Schema qualification removes dependence on the connection's `search_path`.
+- [ProvisionCustomer](../../backend/src/main/java/com/finfast/customer/internal/application/usecase/ProvisionCustomer.java) implements the existing `CustomerProvisioning` API, has a concrete MANDATORY declaration/active-transaction guard, inserts the profile and consumes only `AccountProvisioning`. It validates the returned owner, ACTIVE state and zero balance without generating Account numbers or accessing foreign tables.
+
+[RegistrationValidationTests](../../backend/src/test/java/com/finfast/identity/internal/RegistrationValidationTests.java) contains 24 validation/BCrypt invocations, including locale-independent normalization, Unicode/code-point and 72-byte boundaries, salt/default cost and no persistence/hashing on invalid input. [RegistrationIntegrationTests](../../backend/src/test/java/com/finfast/RegistrationIntegrationTests.java) retains the original 16 PostgreSQL cases and adds one regression that removes `public` from the transaction-local search path and verifies both adapters still persist to the correct public tables.
+
+The integration suite uses disposable migrated PostgreSQL databases, actual Identity/Customer JDBC adapters and a real Spring JDBC transaction manager. The Accounts collaborator is a **test-only SQL fixture**. Existing cases cover committed User/profile/one zero Account, independent-connection visibility, sequential/concurrent case-variant duplicates, failures after each write stage, profile constraint errors, invalid Account projections, precommit/injected commit failures, retry and transaction resource/read-only/isolation guards. The new schema regression is adapter evidence only, not a complete registration.
+
+These tests manually construct the use cases: they exercise real `TransactionTemplate` commit/rollback but **do not prove production Spring Bean composition or interception of `ProvisionCustomer` through a transaction proxy**. No real Accounts provider, HTTP registration, deployed security or browser acceptance is claimed.
+
+### Execution provenance
+
+| Checkpoint | Result and provenance | Limit |
+|---|---|---|
+| Original local execution, 2026-10-23, baseline `31d2425` | Historical full Maven `verify`: **761 tests**, zero failures/errors/skips, including the original 40 BK-005 tests (24 validation + 16 PostgreSQL). Docker build subset: 328 tests; executable JAR isolation check passed. | Retained from the original implementation record, not a rerun against current `develop`; do not add subset counts to the full count. |
+| Hosted CI reviewed by the lead on PR #30 | **1,092 tests PASS**, including those 40 BK-005 tests, as reported in the lead review. The [CI run for `b888559`](https://github.com/nvawntien/finfast/actions/runs/39988462332) has successful backend-tests, backend-package and docs-validation check conclusions. | Separate later CI checkpoint; not the current local run or evidence that the remaining integration is complete. |
+| Current pre-merge verification, 2026-10-25 | **1,404 tests / 66 suites**, zero failures/errors/skips; full `./mvnw --batch-mode --no-transfer-progress verify` and executable packaging succeeded in 8m32s. Includes **41 BK-005 tests** (24 validation + 17 PostgreSQL) and all architecture/capability/negative-fixture suites. The preceding Docker build subset passed 689 tests. | Java 21/Maven Wrapper via the pinned Dockerfile and isolated PostgreSQL Testcontainers; no developer database or `.env`. Full count includes the subset; the extra regression does not explain other tests newly merged from `develop`. |
+
+The original local evidence path was `C:\Users\tangk\AppData\Local\Temp\finfast-bk005-31d2425-verification`; the original two cost-12 encodes took 798 ms in the full run. That sample is not an endpoint SLO. Temporary local artifacts are not shared CI evidence and may be removed by OS cleanup. The current full run uses the existing Docker test helper's build/verify commands, with a temporary copy retaining compiled test classes for the existing JAR checker; no helper or CI configuration change is required. Host `make help` is unavailable because Make is not installed.
+
+Current logs, Surefire XML, compiled tests, JAR and independently summed totals are retained under `C:\Users\tangk\AppData\Local\Temp\finfast-bk005-premerge-20261025`. The existing `scripts/check_backend_jar.py` passed against these copied artifacts: executable Spring Boot JAR, no compiled tests or checked test-only libraries packaged. Documentation checks passed (27 Markdown files, 490 local links, 88 OpenAPI references), frozen OpenAPI schema validation passed, documentation Compose configuration validated and `git diff --check` passed. The helper removed only its labelled runner/image; no persistent database volume was reset. The updated working tree has not been committed/pushed, so hosted CI must rerun on the published correction before merge.
+
+### Remaining BK-005 integration and acceptance
+
+| Requirement | Still required before BK-005 acceptance |
+|---|---|
+| FR-001 / AC-001 | Integrate Hải's real `AccountProvisioning`; verify the actual production Bean composition, same-resource transaction participation/proxy interception and all-or-none User/profile/one zero Account. The inspected checkout still has the provisioning interface without a production implementation. |
+| AC-027 | Implement `POST /api/v1/auth/register` against the frozen [OpenAPI](../03-design/contracts/openapi-v1.yaml), coordinate CSRF/security with BK-007, then test real HTTP success (201), duplicate email (409), invalid input (422), technical failure (503), rollback and exact response/schema/error mapping. Include unexpected privilege/ownership input and security rejection tests; preserve the existing protocol-error exception process. |
+| AC-035 | Real Accounts generation, uniqueness, immutability, restart and never-reuse evidence, owned with Accounts. |
+| AC-037 | Synthetic-data and exposed UI/API scope review during integration; no real credentials, identity documents, extra funds or excluded products. |
+
+The current pre-merge correction does not expose the registration route, implement Accounts/BK-007, fabricate production collaborators or mark canonical acceptance complete. Merge of this contribution remains distinct from BK-005 completion and release acceptance.
 
 ## Test levels and environments
 
@@ -226,6 +761,58 @@ The list above covers **AC-001 through AC-038 exactly once as primary grouped ow
 - Spring proxy/commit: invoke the real application bean through the proxy and the HTTP boundary. Inject failure during method body, JPA flush, required audit/outcome persistence and actual commit. Check checked/unchecked exception rollback policy and ensure the client never receives COMPLETED before confirmed commit (AC-010/011/019/033).
 - Final rejection: validate insufficient funds before writes, commit rejection normally, add funds using a different authorized intent, then replay the first key and confirm its original rejection. Failure to persist that rejection must remain a technical/non-final result (AC-015/033).
 - Independent transaction regression: detect accidental REQUIRES_NEW for any required effect; no committed audit, outcome, entry or balance survives a rolled-back parent. Verify restricted mutation APIs fail when called without an enclosing transaction (AC-010/019/022/023).
+
+### TD-016 candidate read capability execution — 2026-10-23
+
+**Historical pre-decision execution:** these runs verified the five candidate contracts before Tiến's final V1 decision. They remain evidence of that earlier working tree, not the final four-capability test count. Dedicated branch `arch/td-016-cross-module-capability-amendments`, initial clean HEAD/fetched develop `31d2425131766306ccf6a815ca057349bee77bff`. Temurin 21.0.13+9, Boot 4.1.1 and existing PostgreSQL 16.15 Testcontainers/Flyway V1/V2; disposable isolated databases only. No developer DB/Compose volume was used.
+
+From `backend/`, with `JAVA_HOME=/tmp/finfast-architecture-jdk21` and its `bin` prepended to `PATH`, executed:
+
+```sh
+./mvnw --batch-mode --no-transfer-progress clean verify
+./mvnw --batch-mode --no-transfer-progress -Dtest=ReadCapabilityContractTests,ReadCapabilityVerificationTests,ProductionArchitectureTests,RuleVerificationTests,CapabilityVerificationTests,ModuleContractValueTests test
+./mvnw --batch-mode --no-transfer-progress -Dtest=GenesisDatasetInspectionIntegrationTests test
+./mvnw --batch-mode --no-transfer-progress -Dtest=ReadCapabilityContractTests,ReadCapabilityVerificationTests,GenesisDatasetInspectionIntegrationTests,ProductionArchitectureTests,RuleVerificationTests,CapabilityVerificationTests,ModuleContractValueTests test
+./mvnw --batch-mode --no-transfer-progress verify
+```
+
+| Execution | Actual result |
+|---|---|
+| Pre-source-change full baseline | PASS — 721 tests / 35 suites |
+| Initial contract/architecture run | PASS — 157 tests / 6 suites |
+| Initial PostgreSQL inspection run | PASS — 22 tests / 1 suite |
+| Final focused run after Unicode/bound-autocommit review additions | PASS — 182 tests / 7 suites: 39 new contract, 47 new capability, 23 PostgreSQL and 73 existing architecture/contract cases |
+| Final full Maven verify and executable packaging | PASS — 830 tests / 38 suites |
+
+Every run above had zero failures/errors/skips. Contract cases cover immutable copied collections, nulls, exact/Unicode references and bounds, Customer/Treasury ownership shape, positive/MAX money and signed GENESIS/ordinary entry shapes. The 45-case nine-module/five-capability matrix tests interfaces and nested values; two additional cases reject foreign provider implementation and retain History-only LedgerQueries restrictions. Existing positive/negative architecture fixtures, graph/cycle/layer/pure-API protections remain unchanged.
+
+Real Spring/JDBC inspection tests verify fresh absence, exact committed GENESIS/reference/MAX supply, repeated reads, context recreation against the same disposable DB, later ordinary posting, pending setup invisibility, commit/rollback, a held read-only REPEATABLE READ snapshot across concurrent commit, and fresh reads after failed setup. Orphan facts, missing/negative/wrong/extra GENESIS entries, wrong linkage/supply/position/counter/gaps and infinity fail technically without repair. Guards reject unproxied/unbound/mismatched/autocommit resources and read-write/wrong-isolation callers; PostgreSQL itself rejects an attempted write in the read-only snapshot (25006). Bounded futures coordinate independent transaction threads; no mocks prove visibility/rollback.
+
+Root checks passed: `python3 scripts/check_backend_jar.py`, `/tmp/finfast-capability-docs-venv/bin/python scripts/check_docs.py`, `/tmp/finfast-capability-docs-venv/bin/python -m openapi_spec_validator docs/03-design/contracts/openapi-v1.yaml` and `git diff --check`. The temporary documentation environment uses unchanged pinned requirements. Untracked Java whitespace and a complete Markdown inventory were checked separately: zero newly added documentation files, with all original historical evidence retained. All existing production source/APIs, OpenAPI, migrations and build/configuration remain byte-identical to HEAD; only additive capability entries change existing test enforcement.
+
+At that checkpoint, Accounts metadata/listing/Treasury and Admin financial providers were absent and signatures/permissions awaited review. Tiến's subsequent final decision approves AM-01..04 and does not select AM-05, as recorded below. Actual owner integration, role/ownership security, protected setup/recovery and process/deployment restart remain unverified. Context recreation is not process restart; Ledger inspection is not full Accounts/balance/ordinary-entry reconciliation. No BK-009/014/015/016/018 or full AC is Done; production wiring remains absent.
+
+### TD-016 final V1 capability execution — 2026-10-23
+
+**After Tiến's explicit final decision:** AM-01..04 are APPROVED — V1; AM-05 is NOT SELECTED — V1. Removed only its session-created interface/fixture and dedicated permission/test references. Retained the real GENESIS reader and its 23 PostgreSQL tests; reader logic and those tests are unchanged. Customer listings now copy and deterministically sort every row by exact Account Number, with input-preservation/order/immutability coverage. No provider stub or additional workflow was introduced.
+
+Executed from `backend/` with the same Java 21 environment:
+
+```sh
+./mvnw --batch-mode --no-transfer-progress -Dtest=ReadCapabilityContractTests,ReadCapabilityVerificationTests,GenesisDatasetInspectionIntegrationTests,ProductionArchitectureTests,RuleVerificationTests,CapabilityVerificationTests,ModuleContractValueTests test
+./mvnw --batch-mode --no-transfer-progress clean verify
+```
+
+| Final-decision execution | Actual result |
+|---|---|
+| Focused contracts, architecture and PostgreSQL | PASS — 174 tests / 7 suites: 40 contract, 38 capability, 23 PostgreSQL and 73 existing architecture/contract cases |
+| Full clean verification and executable packaging | PASS — 822 tests / 38 suites; zero failures, errors or skips |
+| Capability permissions | Four capabilities × nine modules; interfaces and nested values checked. Only provider/exact consumer allowed; foreign implementation and History-only LedgerQueries misuse rejected |
+| Artifact inspection | Four approved interface classes present; no TreasuryInspection in clean target or executable JAR; no packaged test classes/libraries |
+
+The retained PostgreSQL 16.15 tests use disposable isolated databases and real Spring proxies/connections for committed visibility, rollback, stable read-only REPEATABLE READ snapshots and incompatible-resource rejection. They prove Ledger-owned GENESIS/linkage/counter consistency, not Accounts balances, complete reconciliation, process restart or actual Bootstrap recovery. Accounts AM-02/03 and Ledger AM-04 providers and their owner integrations remain pending; no related backlog item or full acceptance criterion is Done.
+
+Root artifact, documentation, OpenAPI and whitespace checks passed using the same commands/environment recorded above. Original production APIs, financial writers, migrations, OpenAPI, Docker and CI remain unchanged. Existing canonical documentation and AGENTS.md were updated in place; zero new documentation files remain. The earlier 830-test execution is preserved as historical evidence, separate from this final 822-test result.
 
 ## PostgreSQL idempotency proof-of-concept (ARC-04)
 

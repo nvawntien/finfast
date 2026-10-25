@@ -1,10 +1,8 @@
 package com.finfast.ledger.internal.adapter.outbound.persistence;
 
-import com.finfast.common.money.VndAmount;
 import com.finfast.ledger.internal.application.port.outbound.FinancialTransactionStore;
 import com.finfast.ledger.internal.domain.entity.FinancialTransaction;
 import com.finfast.ledger.internal.domain.entity.FinancialTransaction.Entry;
-import com.finfast.ledger.internal.domain.entity.FinancialTransaction.Type;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ResultSetExtractor;
@@ -12,13 +10,9 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -73,46 +67,8 @@ public class JdbcFinancialTransactionRepository implements FinancialTransactionS
                 LEFT JOIN public.ledger_entry e ON e.transaction_id = f.id
                 WHERE f.id = ?
                 ORDER BY e.delta_vnd, e.id
-                """, (ResultSetExtractor<Optional<FinancialTransaction>>) this::reconstruct, transactionId);
-    }
-
-    private Optional<FinancialTransaction> reconstruct(ResultSet rows) throws SQLException {
-        if (!rows.next()) {
-            return Optional.empty();
-        }
-        try {
-            if (!"VND".equals(rows.getString("currency"))) {
-                throw new IllegalArgumentException("Unsupported persisted currency");
-            }
-            if (!rows.getBoolean("finite_time")) {
-                throw new IllegalArgumentException("Nonfinite persisted timestamp");
-            }
-            UUID id = rows.getObject("id", UUID.class);
-            String reference = rows.getString("reference");
-            Type type = Type.valueOf(rows.getString("type"));
-            VndAmount amount = new VndAmount(rows.getLong("amount_vnd"));
-            long sequence = rows.getLong("commit_seq");
-            var recordedAt = rows.getObject("committed_at", OffsetDateTime.class).toInstant();
-            List<Entry> entries = new ArrayList<>();
-            do {
-                UUID entryId = rows.getObject("entry_id", UUID.class);
-                if (entryId != null) {
-                    entries.add(new Entry(entryId, rows.getObject("account_id", UUID.class), rows.getLong("delta_vnd")));
-                }
-            } while (rows.next());
-            if (type == Type.GENESIS && entries.size() != 1) {
-                throw new IllegalArgumentException("Incomplete GENESIS facts");
-            }
-            // This verifies local facts only; actual Treasury/Customer roles belong to the Accounts integration.
-            return Optional.of(switch (type) {
-                case INTERNAL_TRANSFER -> FinancialTransaction.internalTransfer(id, reference, amount, sequence, recordedAt, entries);
-                case DEMO_ALLOCATION -> FinancialTransaction.demoAllocation(id, reference, amount, sequence, recordedAt, entries);
-                case GENESIS -> FinancialTransaction.genesis(id, reference, amount, sequence, recordedAt,
-                        entries.getFirst().accountId(), entries);
-            });
-        } catch (IllegalArgumentException | NullPointerException error) {
-            throw new DataIntegrityViolationException("Invalid or incomplete persisted Ledger facts", error);
-        }
+                """, (ResultSetExtractor<Optional<FinancialTransaction>>) rows ->
+                        FinancialTransactionRows.readAll(rows).stream().findFirst(), transactionId);
     }
 
     private static void requireOne(int count) {

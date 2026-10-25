@@ -44,6 +44,87 @@
 
 `*` A verified course mandate can create a separately required milestone; it **must** be reconciled with scope by the owner, not silently claimed optional or imposed on the initial Core.
 
+## BK-016/BK-018 corrective implementation checkpoint — 2026-10-25
+
+**Independent Administration read contribution; production integration and acceptance pending.**
+`AdminInspectionService` implements the internal inbound port and requires a live
+`CurrentIdentity.requireAdmin()` result before every Accounts, Customer, Ledger or
+audit read. The HTTP controller only delegates and maps application DTOs. Missing,
+blank or mismatched required Customer profiles fail technically; no generated name
+or successful empty fallback conceals provider failures. Audit JSON omits absent
+optional reference/status fields and preserves the frozen response shapes.
+
+The complete endpoint group is deliberately inactive by default. Set
+`finfast.administration.inspection.enabled=true` only after composing genuine
+`CurrentIdentity`, `AdminAccountQueries`, `AdminFinancialTransactionQueries`,
+`AdminAuditQueries` and `CustomerQueries` beans. The gate controls both the scanned
+controller and explicit application configuration; enabling with any dependency
+missing fails startup instead of exposing partially functional endpoints or
+returning readiness 503 responses. No production substitute provider is supplied.
+
+Current source includes Accounts identity/status and Ledger AM-04 implementations,
+but no production Identity, Customer, AM-03 account listing or Admin audit query
+provider, nor complete read-provider composition. The existing audit repository
+remains insert-only for allocations/status changes; implementing the committed
+audit reader and any Account Number/reference enrichment must preserve ownership
+and use approved module APIs rather than foreign SQL. Identity's public contract
+still defines no typed authentication errors: the common application-error
+convention supports distinct 401/403 categories, while real provider/session error
+integration remains pending. Isolated test providers do not establish it.
+
+[Verification evidence](../05-verification/22-test-strategy-and-acceptance.md#bk-016bk-018-corrective-read-verification--2026-10-25)
+is separate from real authentication, PostgreSQL read integration, browser flows
+and full BK-016/BK-018 acceptance. Existing API-ERR-01 exceptional-status integration
+remains open; no frozen OpenAPI, public module API or migration is changed.
+
+## BK-017 implementation checkpoint — 2026-10-24
+
+**IMPLEMENTED — Accounts status mutation and Administration orchestration contribution; runtime/API acceptance pending.** The Accounts internal JDBC provider locks the target row with `FOR UPDATE`, excludes Treasury and requires the caller-owned write transaction. The Administration use case owns the outer `REQUIRED`/READ COMMITTED transaction, validates the authenticated Admin and reason, calls the approved `AccountStatusCommands` capability, and persists the complete status-change audit in the same transaction. Equal status returns `UNCHANGED` without mutation or success audit; audit failure rolls the status change back.
+
+PostgreSQL/Testcontainers evidence covers ACTIVE↔FROZEN changes, same-state behavior, Treasury rejection, blank-reason rejection, audit-trigger rollback and actual transaction/read-only guards. No REST/OpenAPI/schema/migration or BK-015 Receipts change is included. Production bean composition remains pending because the baseline still lacks a real `CurrentIdentity` implementation and the complete Accounts/Administration runtime wiring; this checkpoint does not mark BK-017 Done.
+
+## BK-009 corrective implementation checkpoint — 2026-10-25
+
+**Independent Bootstrap contribution; protected execution and real-provider
+acceptance pending.** Bootstrap no longer registers a startup runner or a public
+GENESIS endpoint. The existing `FINFAST_BOOTSTRAP_ENABLED=true` switch composes
+the application capability only; enabling it never invokes initialization.
+Ordinary startup leaves it inactive. Enabled composition requires the configured
+transaction manager and genuine `AdminProvisioning`, `TreasuryProvisioning`,
+`GenesisPosting` and Ledger `GenesisDatasetInspection` beans. No substitute
+production provider or new operator authorization/command mechanism is supplied.
+
+`DatasetInitializationService` rejects ambient transactions and calls the approved
+AM-01 committed reader before any write. An existing snapshot prevents all
+provisioning, including when configured supply changes. `DatasetSetupWriter` is a
+separate Spring-proxied application helper owning the single REQUIRED / READ
+COMMITTED setup transaction, with rollback for checked and unchecked exceptions.
+It invokes Admin, Treasury and GENESIS in that order; no Pending value is treated
+as commit confirmation. Recovery inspection occurs only after the writer proxy
+has unwound, using the provider's fresh read-only REPEATABLE READ transaction.
+
+Constraint failures are conservative: no committed winner means the original
+failure propagates; a failed inspection propagates uncertainty and retains the
+attempt failure. Even when a committed Ledger winner is observed, the failed
+attempt is reported technically rather than silently accepted. Current approved
+provider APIs have no typed signal identifying a harmless setup uniqueness race;
+Bootstrap cannot attribute arbitrary duplicate/constraint failures safely. An
+explicit later invocation inspects the winner without another write attempt.
+Any future automatic race-success classification needs provider-owner evidence
+and a compatible, reviewed failure signal. Ledger inspection proves only its
+documented GENESIS/linkage/counter scope, never full Accounts/Admin reconciliation.
+
+Admin and Treasury provisioning production implementations and the protected
+operator entry remain absent on both this branch and inspected `develop`.
+Ledger posting/inspection implementations exist, but complete production
+composition is pending. [Verification evidence](../05-verification/22-test-strategy-and-acceptance.md#bk-009-corrective-bootstrap-verification--2026-10-25)
+distinguishes PostgreSQL transaction-boundary probes from real monetary setup,
+concurrent initialization, credential preservation, process restart and supply
+reconciliation. BK-009 remains **Integration Pending / Not Done**. The follow-up
+[develop synchronization verification](../05-verification/22-test-strategy-and-acceptance.md#bk-009-develop-synchronization--2026-10-25)
+records the local integration separately from real-provider acceptance. GitHub CI
+on the integrated commit remains pending until the Tech Lead pushes manually.
+
 ## BK-003 implementation and approval status
 
 Tiến approved the Java contracts and TD-015/016 on 2026-10-22. PR #10 is **MERGED** into `develop` at `8a04ca03505a140930b9bbc976dcdc1148db2693`; the shared Java baseline is active. The later [V1 engineering freeze](../6-governance/25-design-decision-register.md#v1-engineering-design-freeze--2026-10-22) selects TD-001..014 with scoped design/method/topology approval. The subsequent [Product/UX/REST record](../6-governance/25-design-decision-register.md#2026-10-22--v1-product-ux-and-rest-contract-freeze) approves the existing implementation-facing PRD/functional/UX/external API baselines; it changes no task assignment, module ownership or evidence gate. Owner endorsements, provider implementations and financial acceptance do not follow from that approval. Unpushed teammate work remains unknown.
@@ -65,6 +146,8 @@ These task assignments come from the explicit final-freeze instruction. They do 
 
 The consolidated baseline is available on `develop`; all six members may implement approved product/UX/Java/REST behavior and selected mechanisms without routine reapproval, within each assigned/authorized task phase. API-ERR-01 affects only adapter/contract conformance for undocumented foundation error statuses; preserve the YAML and obtain a narrow amendment rather than silently adding them. A failing code test normally requires a code fix. Escalate actual incompatible APIs/security/financial correctness defects for a scoped amendment and stop only the affected path; preserve work and never add duplicate contracts or no-op production providers.
 
+Tiến explicitly **APPROVED — V1 TD-016-AM-01..04 on 2026-10-23** for BK-009 committed Ledger GENESIS inspection, BK-014/015 Account-ID metadata and BK-016/018 Admin reads within existing edges; [exact contracts/status](../03-design/module-contracts-and-boundaries.md#approved-read-capabilities--td-016-am-0104). AM-05 TreasuryInspection is NOT SELECTED — V1 and removed. Tiến retains Ledger inspection/financial projection and Administration ownership; Hải implements Accounts metadata/listing and History integration, Hưng identity/credentials/Customer metadata, Trung protected setup/recovery and Admin read contributions. Existing TreasuryProvisioning/PostingAccounts and schema guards remain; no replacement Treasury read is added. Minh continues existing Transfers/Idempotency contracts; Sĩ consumes frozen REST. Contract design is approved; real providers, production composition, security and feature acceptance remain pending. No backlog item is Done through these contracts.
+
 ## BK-010 continuation — preserve phase boundaries
 
 **Historical Phase 1 review — 2026-10-22:** the reviewed implementation is `44dd3ed34c262c4de23a670af43fa0727054f9a0` (`feat/BK-010-ledger-core`). This identifies the original review evidence, not the current merge status. Its immutable pure model does not perform persistence, lock Accounts, allocate a sequence or prove a database commit. The separately authorized FIX-001/Phase 2 execution is recorded in [test strategy 22](../05-verification/22-test-strategy-and-acceptance.md#bk-010-fix-001-and-phase-2-execution--2026-10-22).
@@ -81,6 +164,81 @@ The consolidated baseline is available on `develop`; all six members may impleme
 | 6 — Integration and Acceptance | **NOT STARTED**. Real Transfers/Idempotency/Administration/Bootstrap/History providers and reviewed read capabilities | Canonical AC/CONS, audit/commit response loss, restart, security, concurrency and benchmark evidence with owners |
 
 The freeze resolves design ambiguity, not unfinished implementation. Phase 3/4 independently implement Ledger contributions; Phase 5 supplies reusable test-only reconciliation, not all of BK-009 or BK-010. Hải's real Accounts/Treasury providers, Trung's protected Bootstrap setup/recovery, Hưng's Admin provisioning, Minh's Transfers/Idempotency and Tiến's separately authorized BK-013 orchestration/audit remain integration obligations. A production all-Accounts/Treasury reader still requires a scoped capability amendment with Hải/Tiến. Phase 6 remains NOT STARTED; do not automatically implement BK-009/011/012/013.
+
+## BK-013 Phase 1 — Administration core and audit domain
+
+**IMPLEMENTED AND VERIFIED — domain and outbound port only, 2026-10-23; owner Tiến.** This separately authorized phase starts from `31d2425131766306ccf6a815ca057349bee77bff`, the merged BK-010 baseline. It does not implement allocation orchestration or mark BK-013 Done.
+
+- [AdminAuditEvent](../../backend/src/main/java/com/finfast/administration/internal/domain/entity/AdminAuditEvent.java) is an immutable, allocation-only record: supplied server-owned audit UUID, trusted Admin UUID, target Account UUID, exact reason, required Financial Transaction UUID and supplied timestamp. Action is fixed to `DEMO_ALLOCATION`, outcome to `SUCCESS`; no before/after status or rejected-allocation variant is represented. Construction validates local facts, not authentication, Account eligibility, transaction existence or commit.
+- Reason validation rejects null/blank, NUL, malformed Unicode and more than 500 Unicode code points before SQL. Valid whitespace, Unicode and timestamps remain exact; no trimming, normalization, truncation, business error catalog or custom exception is added.
+- [AdminAuditStore](../../backend/src/main/java/com/finfast/administration/internal/application/port/outbound/AdminAuditStore.java) exposes only `void insert(AdminAuditEvent event)`. Its adapter must join the Administration-owned transaction and propagate persistence failures; return does not acknowledge commit. No JDBC adapter, transaction implementation or Spring composition was supplied in Phase 1.
+- [AdminAuditEventTests](../../backend/src/test/java/com/finfast/administration/internal/domain/entity/AdminAuditEventTests.java) provide 38 pure test invocations for complete/invalid construction, exact metadata, fixed action/outcome, reason boundaries/NUL/Unicode and immutable state. Baseline Maven `verify` passed 721 tests; focused domain plus existing architecture/capability/module-value checks passed 111 tests, with zero failures/errors/skips, using Java 21.
+
+Final `./mvnw --batch-mode --no-transfer-progress verify` passed **759 tests across 36 suites**, zero failures/errors/skips, using Temurin Java 21.0.12.1+1 and existing isolated PostgreSQL Testcontainers. Executable-JAR/test-isolation checks and the pinned documentation validator passed; no existing source, test, contract, migration, dependency or architecture rule changed. New audit tests are pure domain evidence, not JDBC audit persistence or complete allocation acceptance.
+
+At the Phase 1 checkpoint, Phase 2 had not started. Its separately authorized persistence implementation follows; the Phase 1 model, port and pure tests remain unchanged.
+
+## BK-013 Phase 2 — JDBC Admin audit persistence
+
+**IMPLEMENTED AND VERIFIED — isolated persistence scope, 2026-10-23; owner Tiến.** Starting branch `feat/BK-013-admin-allocation`, HEAD `aa4e4ade6316e9c59090a66bca22c587d2deddea`, clean working tree. Before source changes, Java 21 full baseline verification passed 759 tests with zero failures/errors/skips. BK-013 is not Done; at that Phase 2 checkpoint, Phase 3 and later phases were NOT STARTED and were not authorized by that change.
+
+- [JdbcAdminAuditRepository](../../backend/src/main/java/com/finfast/administration/internal/adapter/outbound/persistence/JdbcAdminAuditRepository.java) implements the existing insert-only port with one parameterized INSERT into `public.admin_audit_event`. Supplied UUIDs and exact validated reason are preserved; action/outcome are fixed to `DEMO_ALLOCATION`/`SUCCESS`. Omitted status columns remain NULL under unchanged V1. Any SQL/constraint failure propagates; an affected-row count other than one fails technically.
+- The supplied instant is truncated to microseconds and bound as a UTC `OffsetDateTime`, without changing the immutable event or using database time. Java conversion errors and PostgreSQL timestamp-range errors propagate. Values before the pgJDBC finite lower bound are rejected before the driver could substitute `-infinity`.
+- Concrete Spring `MANDATORY` with `rollbackFor = Exception.class` joins the external transaction. The Administration-local [JDBC guard](../../backend/src/main/java/com/finfast/administration/internal/adapter/outbound/persistence/AdminAuditJdbcTransaction.java) verifies active/write transaction metadata, the actual bound DataSource connection, disabled autocommit, JDBC read-only mode and READ COMMITTED isolation. It imports no Ledger internal code and starts/commits no transaction. Adapter return remains tentative until the caller's commit.
+- [PostgreSQL integration tests](../../backend/src/test/java/com/finfast/AdminAuditPersistenceIntegrationTests.java) reuse the existing disposable Testcontainer/database/fixture utilities and test-only Spring composition. All 44 new invocations passed; focused Phase 2/domain/architecture/contract verification passed 155 tests. [Execution evidence](../05-verification/22-test-strategy-and-acceptance.md#bk-013-phase-2-jdbc-audit-persistence-execution--2026-10-23) records full verification and limits. No production bean/use-case composition, migration, public API, financial posting, balance write or final outcome was added.
+
+**Phase 3 readiness at the Phase 2 checkpoint:** the audit adapter is available for later authorized Administration orchestration and actual Spring proxy wiring. Integration still needs Hưng's trusted Admin identity, Hải's Account queries and real Accounts provider, Minh's scoped Idempotency/outcomes, and Tiến's existing Ledger `AllocationPosting` contribution, composed on the same DataSource/transaction manager. Protected Admin/Treasury/GENESIS setup remains with Hưng/Hải/Trung. Allocation, audit and final outcome must commit together before success is reported. FKs prove row existence, not current authorization, Account eligibility or correct funding workflow. Full AC-008/010/013/019/032 acceptance remains pending.
+
+## BK-013 Phase 3 — Administration allocation orchestration
+
+**IMPLEMENTED AND VERIFIED — bounded application contribution, 2026-10-23; owner Tiến.** Explicitly authorized after merging TD-016-AM-01..04. Starting branch `feat/BK-013-admin-allocation`, clean HEAD `533f9b80da6afa0bb4dfa8c340905c840473df8f`; the actual Java 21 pre-change baseline passed 904 tests across 40 suites, zero failures/errors/skips. Phase 1/2 source and tests remain unchanged. BK-013 is not Done; Phase 4/5 are not implemented by this change.
+
+- [AllocateDemoFundsService](../../backend/src/main/java/com/finfast/administration/internal/application/usecase/AllocateDemoFundsService.java) owns the concrete REQUIRED/READ COMMITTED boundary with checked/unchecked technical rollback. It requires `CurrentIdentity.requireAdmin()` before inspect/replay, derives exact `(trusted Admin, DEMO_ALLOCATION, key)` scope, and consumes only approved provider APIs plus the existing internal audit port. Replay, conflict and PROCESSING/UNKNOWN perform no new posting/audit/outcome writes.
+- [AllocationCommand](../../backend/src/main/java/com/finfast/administration/internal/application/dto/AllocationCommand.java) accepts typed key, recipient Number, VND and exact reason; no actor/source/canonical JSON/reference is accepted. Persistable strings reject NUL, malformed Unicode and storage overflow without normalization. Zero/blank remain representable for authorized final business rejection; missing required properties and malformed/raw HTTP money are outside this typed boundary. [AllocationError](../../backend/src/main/java/com/finfast/administration/internal/application/usecase/AllocationError.java) reuses approved `INVALID_AMOUNT`/`REASON_REQUIRED` meanings and adds only the safe local `RECIPIENT_NOT_FOUND` business reason; no REST schema/status changes.
+- On Execute, resolve immutable target UUID through `AccountQueries.findCustomerByNumber`; absence finalizes rejection without posting. Read balance/status never decides current eligibility. Call only `AllocationPosting`, letting Ledger/Accounts revalidate locked Treasury/recipient state. Pending posting is followed by exactly one server-owned success audit, then `RequestOutcomes.record` with the original transaction UUID/reference/amount/timestamp. Ledger rejection records only a safe rejection; technical failure escapes. No direct balance/entry/outcome SQL, posting position or Treasury reader is introduced.
+- [AllocationResult](../../backend/src/main/java/com/finfast/administration/internal/application/dto/AllocationResult.java) distinguishes new Pending completion/rejection, original Replay, Conflict and non-final PROCESSING/UNKNOWN. A Pending value is never commit proof: REQUIRED can join a caller transaction, and even service-proxy return can precede that outer caller's commit. Future transport finality must follow successful outermost proxy completion; no controller is supplied.
+- [AllocationCanonicalIntent](../../backend/src/main/java/com/finfast/administration/internal/application/service/AllocationCanonicalIntent.java) produces version 1 compact JSON in the frozen eight-field order, lowercase trusted UUID, `DEMO_ALLOCATION`, fixed `TREASURY`, exact Number, VND, decimal amount, `note:{"tag":"absent"}` and `reason:{"tag":"present","value":<exact text>}`. Existing Jackson encoding preserves valid Unicode and deterministic escapes. Local literal ASCII/Unicode/control vectors are tested. The baseline specifies tags but contains no shared encoder or cross-owner literal vectors; Minh/Tiến must verify these literal tag/escape conventions against Idempotency before real integration. No digest, lock mapping, persistence or arbitrary client JSON is implemented here.
+- Production composition remains absent, matching the Ledger contributions: explicitly proxy the service, Ledger, audit and real providers on one DataSource/transaction manager. The tested shared `JdbcTransactionManager` enables `rollbackOnCommitFailure` for TransactionException faults before commit; production composition must retain that setting. Annotation rollback rules alone do not configure this commit-phase behavior. A real uncertain commit still requires original-key recovery and cannot become a durable business rejection.
+
+[Consumer/canonical tests](../../backend/src/test/java/com/finfast/administration/internal/application/usecase/AllocateDemoFundsServiceTests.java), [literal/boundary vectors](../../backend/src/test/java/com/finfast/administration/internal/application/usecase/AllocationCommandAndCanonicalIntentTests.java), [PostgreSQL orchestration tests](../../backend/src/test/java/com/finfast/AdminAllocationOrchestrationIntegrationTests.java) and [test-only composition](../../backend/src/test/java/com/finfast/AdminAllocationTestSupport.java) cover this contribution. The combined focused regression passed 441 tests across 15 suites. Final full Maven `verify` passed **979 tests across 43 suites**, including 75 new Phase 3 invocations, zero failures/errors/skips; executable-JAR isolation, pinned docs/OpenAPI, Compose configuration and whitespace checks passed. [Execution evidence and limits](../05-verification/22-test-strategy-and-acceptance.md#bk-013-phase-3-allocation-orchestration-execution--2026-10-23) records all runs and the corrected transaction-manager fixture.
+
+**Phase 4 readiness:** application orchestration is available for separately authorized durable Idempotency/replay/concurrency/fault verification. Identity/session security, real Accounts queries/posting, Idempotency advisory coordination/final-row persistence, production proxy composition and protected setup remain owner dependencies. The test outcome map observes afterCommit but writes no `request_outcome` row and proves no durable recovery, collision handling or concurrent uniqueness. Phase 4/5 and full AC-008/010/011/013/015/018/019/032/033/034 acceptance remain pending; the four read capabilities and AM-05 non-selection are unchanged.
+
+### Phase 3 architecture correction — 2026-10-23
+
+The [mandatory architecture convention](../03-design/15-system-architecture.md#33-java-project-and-module-structure-doc-02) refines the internal structure of the same Phase 3 contribution. [AllocateDemoFunds](../../backend/src/main/java/com/finfast/administration/internal/application/port/inbound/AllocateDemoFunds.java) is its sole new inbound contract, preserving `AllocationResult allocate(AllocationCommand)`; the existing concrete service implements it with unchanged REQUIRED/READ COMMITTED/checked-failure rollback. Command/result types move to `application/dto`, the canonicalizer to `application/service`, and the package-private AllocationError catalog remains local to its sole use case. No forwarding/duplicate types, new cross-module capability or financial behavior is introduced.
+
+Consumer and PostgreSQL tests now hold/inject `AllocateDemoFunds`; explicit test composition still creates the concrete implementation behind a CGLIB proxy. All 75 existing Phase 3 invocations and their financial assertions remain. [Boundary verification](../../backend/src/test/java/com/finfast/architecture/ApplicationBoundaryVerificationTests.java) adds 14 positive/negative cases and four reusable production rules, retaining existing graph/capability checks. The correction's actual baseline passed 979 tests across 43 suites; focused clean regression passed 326 tests across 12 suites; final full `verify` passed **997 tests across 44 suites**, all with zero failures/errors/skips. JAR inspection confirms no obsolete DTO/helper classes remain in `application/usecase`, and documentation/OpenAPI/Compose/whitespace checks pass. [Correction execution and limits](../05-verification/22-test-strategy-and-acceptance.md#bk-013-phase-3-interface-first-correction-execution--2026-10-23) records the final verification.
+
+**Full-integration BLOCKER remains:** production transaction-manager/proxy composition must demonstrate the tested shared DataSource/manager and pre-commit safeguards, including `rollbackOnCommitFailure`; the test-only setting does not configure production. Actual failure during commit or uncertainty after a potentially successful commit needs original-key durable recovery. Canonicalization cross-owner vectors and real Identity/Accounts/Idempotency remain integration dependencies. This correction supplies no production composition, Phase 4/5 or full BK-013 acceptance.
+
+The complete architecture convention now applies across all modules and implementation phases, with additional layer/port/adapter/injection enforcement and no production behavior change. That verification passed **1,027 tests across 45 suites**, zero failures/errors/skips; [complete architecture verification evidence](../05-verification/22-test-strategy-and-acceptance.md#complete-architecture-convention-verification) retains commands, the corrected early JAR-check attempt and the existing full-integration blockers. BK-013 remained at its Phase 3 checkpoint at that verification.
+
+## BK-013 Phase 4 — Idempotency, concurrency and failure recovery
+
+**IMPLEMENTED — bounded Administration verification; real-provider integration BLOCKED. BK-013 is not Done; Phase 5 is not started.** Current local inspection finds only public contracts for Identity, Accounts and Idempotency. Ledger posting and Administration audit use their real production implementations in isolated PostgreSQL tests. No production code, provider, capability, endpoint, migration or architecture rule changes in this phase.
+
+[Canonical interoperability tests](../../backend/src/test/java/com/finfast/administration/internal/application/service/AllocationCanonicalInteroperabilityTests.java) add six local literal/UTF-8 checks for ordered typed v1 JSON, combining/precomposed/supplementary Unicode, exact whitespace, JSON escaping, exact Account Number/key and the maximum integral amount. These are Administration vectors, not Minh's missing shared interoperability vectors; malformed HTTP money tokens and version upgrades remain outside this typed boundary.
+
+[Concurrency tests](../../backend/src/test/java/com/finfast/AdminAllocationConcurrencyIntegrationTests.java) add nine schedules covering overlapping identical/changed intent, scripted PROCESSING/UNKNOWN then replay/conflict, separate exact keys, different trusted Admins, operation-scope isolation, a failed winner and interrupted-attempt retry. The [test harness](../../backend/src/test/java/com/finfast/AdminAllocationPhase4TestSupport.java) uses bounded latches/barriers and an explicit decision script around the existing non-durable outcome map. It introduces no idempotency lock algorithm and proves no real PostgreSQL same-scope exclusivity.
+
+[Commit/recovery tests](../../backend/src/test/java/com/finfast/AdminAllocationCommitRecoveryIntegrationTests.java) add ten fault scenarios using the [test-only JDBC observer](../../backend/src/test/java/com/finfast/AllocationJdbcCommitProbe.java) on the same DataSource/manager. They distinguish pre-commit callbacks, rollback failure, failure before delegate COMMIT, an actual deferred PostgreSQL trigger failure at COMMIT, successful COMMIT followed by a synthetic acknowledgement failure, afterCommit failure and caller response loss. Diagnostic cases reproduce unsafe composition: with the default flag false, autocommit restoration commits the pending writes; even with the flag true, failed rollback or an earlier successful COMMIT can leave committed facts despite a caller exception. Spring afterCompletion status is not authoritative proof of the database outcome.
+
+The initial new tests and the reviewed rerun each passed **25 tests / 3 suites**, zero failures/errors/skips. Combined Administration/Ledger/architecture/contract regression passed **514 tests / 20 suites**; final full `verify` passed **1,052 tests / 48 suites**, zero failures/errors/skips, with executable-JAR isolation, documentation/OpenAPI, Compose and whitespace checks passing. [Phase 4 execution evidence and fault matrix](../05-verification/22-test-strategy-and-acceptance.md#bk-013-phase-4-idempotency-concurrency-and-recovery-verification) records verification and exact limits. New PostgreSQL cases verify real Ledger/audit facts and transaction rollback using SQL-based test Accounts; no production Accounts eligibility/conservation claim follows. The fake outcome collaborator writes **zero request_outcome rows** and establishes no durable final outcome or recovery guarantee.
+
+**BLOCKED integration obligations:** Minh's real full-scope coordination/durable outcomes/recovery and shared v1 byte/fingerprint vectors; Hải's real Accounts locking/eligibility/conservation; Hưng's current Identity/session authorization; verified production transaction-manager/proxy composition and uncertain-commit recovery. Preserve original initiator/operation/key/payload, authorize every retry and resolve against the authoritative provider. No automatic new key, technical business rejection, production transaction-manager change or full AC acceptance is introduced. Phase 5 remains dependent on these integrations and separately authorized HTTP/end-to-end acceptance.
+
+## BK-014 — Ledger history contribution
+
+**IMPLEMENTED — Ledger-local history capability, 2026-10-24; BK-014 is not Done.** Starting branch `feat/BK-014-ledger-history-queries`, clean HEAD `1c8552ab3a0b91e4434215a92d8ec8b05697e756`, including merged AM-04. [ReadCustomerHistory](../../backend/src/main/java/com/finfast/ledger/internal/application/port/inbound/ReadCustomerHistory.java) and its application service implement the history half of the frozen `LedgerQueries` contract internally. Reads use committed Customer-only facts, complete domain reconstruction, signed direction, safe Account/Treasury labels, bounded `limit + 1` transaction selection, and TD-004 descending keyset traversal with a fixed authenticated high-water bound. [Design and cursor format](../03-design/16-domain-model-and-data-design.md#bk-014-ledger-history-implementation); [executed verification](../05-verification/22-test-strategy-and-acceptance.md#bk-014-ledger-history-verification--2026-10-24).
+
+No partial public `LedgerQueries` provider is registered: BK-015 receipt behavior remains unimplemented, and the complete provider must later delegate history through its actual transaction proxy. Real AM-02, secure stable HMAC key provisioning and production composition remain pending. Hải retains History application/current authorization/HTTP ownership and full BK-014 acceptance. Accounts SQL, deterministic key material and composition in verification are test-scoped. Existing AM-04, posting algorithms, public Java contracts, schema/OpenAPI and BK-010 Phase 6 status are unchanged.
+
+## BK-018 — Ledger AM-04 contribution
+
+**IMPLEMENTED — Ledger-owned financial reader, 2026-10-24; BK-018 is not Done.** Starting branch `feat/BK-018-ledger-financial-queries`, clean HEAD `d0e75a8edb3191397398cb6d8f955b9a60df1e42`. The approved `AdminFinancialTransactionQueries.listCommitted()` now returns complete immutable GENESIS/transfer/allocation evidence from a committed read-only REPEATABLE READ snapshot, ordered by posting position. Account Numbers resolve through AM-02 only, with per-invocation reuse and technical failure for corrupt/missing identities. [Implementation and resource limitations](../03-design/16-domain-model-and-data-design.md#committed-admin-financial-inspection--td-016-am-04); [executed verification](../05-verification/22-test-strategy-and-acceptance.md#bk-018-ledger-am-04-verification--2026-10-24).
+
+Hải's real `AccountIdentityQueries` is absent on this checkout; all Accounts collaborators and proxy composition in this contribution are test-scoped. Future production wiring requires verified shared DataSource/transaction-manager snapshot participation. Trung's Administration inspection use case/authorization/HTTP integration and full end-to-end acceptance remain separate. No Accounts implementation, Bootstrap, History/Receipts, posting algorithm, allocation/audit orchestration, migration or REST contract is supplied or changed; BK-010 Phase 6 remains NOT STARTED.
 
 ## Example issue template
 
