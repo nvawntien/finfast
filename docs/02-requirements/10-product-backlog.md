@@ -44,6 +44,87 @@
 
 `*` A verified course mandate can create a separately required milestone; it **must** be reconciled with scope by the owner, not silently claimed optional or imposed on the initial Core.
 
+## BK-016/BK-018 corrective implementation checkpoint — 2026-10-25
+
+**Independent Administration read contribution; production integration and acceptance pending.**
+`AdminInspectionService` implements the internal inbound port and requires a live
+`CurrentIdentity.requireAdmin()` result before every Accounts, Customer, Ledger or
+audit read. The HTTP controller only delegates and maps application DTOs. Missing,
+blank or mismatched required Customer profiles fail technically; no generated name
+or successful empty fallback conceals provider failures. Audit JSON omits absent
+optional reference/status fields and preserves the frozen response shapes.
+
+The complete endpoint group is deliberately inactive by default. Set
+`finfast.administration.inspection.enabled=true` only after composing genuine
+`CurrentIdentity`, `AdminAccountQueries`, `AdminFinancialTransactionQueries`,
+`AdminAuditQueries` and `CustomerQueries` beans. The gate controls both the scanned
+controller and explicit application configuration; enabling with any dependency
+missing fails startup instead of exposing partially functional endpoints or
+returning readiness 503 responses. No production substitute provider is supplied.
+
+Current source includes Accounts identity/status and Ledger AM-04 implementations,
+but no production Identity, Customer, AM-03 account listing or Admin audit query
+provider, nor complete read-provider composition. The existing audit repository
+remains insert-only for allocations/status changes; implementing the committed
+audit reader and any Account Number/reference enrichment must preserve ownership
+and use approved module APIs rather than foreign SQL. Identity's public contract
+still defines no typed authentication errors: the common application-error
+convention supports distinct 401/403 categories, while real provider/session error
+integration remains pending. Isolated test providers do not establish it.
+
+[Verification evidence](../05-verification/22-test-strategy-and-acceptance.md#bk-016bk-018-corrective-read-verification--2026-10-25)
+is separate from real authentication, PostgreSQL read integration, browser flows
+and full BK-016/BK-018 acceptance. Existing API-ERR-01 exceptional-status integration
+remains open; no frozen OpenAPI, public module API or migration is changed.
+
+## BK-017 implementation checkpoint — 2026-10-24
+
+**IMPLEMENTED — Accounts status mutation and Administration orchestration contribution; runtime/API acceptance pending.** The Accounts internal JDBC provider locks the target row with `FOR UPDATE`, excludes Treasury and requires the caller-owned write transaction. The Administration use case owns the outer `REQUIRED`/READ COMMITTED transaction, validates the authenticated Admin and reason, calls the approved `AccountStatusCommands` capability, and persists the complete status-change audit in the same transaction. Equal status returns `UNCHANGED` without mutation or success audit; audit failure rolls the status change back.
+
+PostgreSQL/Testcontainers evidence covers ACTIVE↔FROZEN changes, same-state behavior, Treasury rejection, blank-reason rejection, audit-trigger rollback and actual transaction/read-only guards. No REST/OpenAPI/schema/migration or BK-015 Receipts change is included. Production bean composition remains pending because the baseline still lacks a real `CurrentIdentity` implementation and the complete Accounts/Administration runtime wiring; this checkpoint does not mark BK-017 Done.
+
+## BK-009 corrective implementation checkpoint — 2026-10-25
+
+**Independent Bootstrap contribution; protected execution and real-provider
+acceptance pending.** Bootstrap no longer registers a startup runner or a public
+GENESIS endpoint. The existing `FINFAST_BOOTSTRAP_ENABLED=true` switch composes
+the application capability only; enabling it never invokes initialization.
+Ordinary startup leaves it inactive. Enabled composition requires the configured
+transaction manager and genuine `AdminProvisioning`, `TreasuryProvisioning`,
+`GenesisPosting` and Ledger `GenesisDatasetInspection` beans. No substitute
+production provider or new operator authorization/command mechanism is supplied.
+
+`DatasetInitializationService` rejects ambient transactions and calls the approved
+AM-01 committed reader before any write. An existing snapshot prevents all
+provisioning, including when configured supply changes. `DatasetSetupWriter` is a
+separate Spring-proxied application helper owning the single REQUIRED / READ
+COMMITTED setup transaction, with rollback for checked and unchecked exceptions.
+It invokes Admin, Treasury and GENESIS in that order; no Pending value is treated
+as commit confirmation. Recovery inspection occurs only after the writer proxy
+has unwound, using the provider's fresh read-only REPEATABLE READ transaction.
+
+Constraint failures are conservative: no committed winner means the original
+failure propagates; a failed inspection propagates uncertainty and retains the
+attempt failure. Even when a committed Ledger winner is observed, the failed
+attempt is reported technically rather than silently accepted. Current approved
+provider APIs have no typed signal identifying a harmless setup uniqueness race;
+Bootstrap cannot attribute arbitrary duplicate/constraint failures safely. An
+explicit later invocation inspects the winner without another write attempt.
+Any future automatic race-success classification needs provider-owner evidence
+and a compatible, reviewed failure signal. Ledger inspection proves only its
+documented GENESIS/linkage/counter scope, never full Accounts/Admin reconciliation.
+
+Admin and Treasury provisioning production implementations and the protected
+operator entry remain absent on both this branch and inspected `develop`.
+Ledger posting/inspection implementations exist, but complete production
+composition is pending. [Verification evidence](../05-verification/22-test-strategy-and-acceptance.md#bk-009-corrective-bootstrap-verification--2026-10-25)
+distinguishes PostgreSQL transaction-boundary probes from real monetary setup,
+concurrent initialization, credential preservation, process restart and supply
+reconciliation. BK-009 remains **Integration Pending / Not Done**. The follow-up
+[develop synchronization verification](../05-verification/22-test-strategy-and-acceptance.md#bk-009-develop-synchronization--2026-10-25)
+records the local integration separately from real-provider acceptance. GitHub CI
+on the integrated commit remains pending until the Tech Lead pushes manually.
+
 ## BK-003 implementation and approval status
 
 Tiến approved the Java contracts and TD-015/016 on 2026-10-22. PR #10 is **MERGED** into `develop` at `8a04ca03505a140930b9bbc976dcdc1148db2693`; the shared Java baseline is active. The later [V1 engineering freeze](../6-governance/25-design-decision-register.md#v1-engineering-design-freeze--2026-10-22) selects TD-001..014 with scoped design/method/topology approval. The subsequent [Product/UX/REST record](../6-governance/25-design-decision-register.md#2026-10-22--v1-product-ux-and-rest-contract-freeze) approves the existing implementation-facing PRD/functional/UX/external API baselines; it changes no task assignment, module ownership or evidence gate. Owner endorsements, provider implementations and financial acceptance do not follow from that approval. Unpushed teammate work remains unknown.

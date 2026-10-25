@@ -1,7 +1,12 @@
 package com.finfast;
 
+import com.finfast.accounts.internal.adapter.outbound.persistence.JdbcAccountRepository;
+import com.finfast.administration.internal.adapter.inbound.http.AdminInspectionController;
+import com.finfast.administration.internal.application.port.inbound.AdminInspectionUseCase;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
 import org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
@@ -11,9 +16,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.json.JsonCompareMode;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-
-import com.finfast.accounts.internal.adapter.outbound.persistence.JdbcAccountRepository;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -28,6 +31,20 @@ class FinfastApplicationTests {
 
     @MockitoBean
     JdbcAccountRepository jdbcAccountRepository;
+
+    @Test
+    void incompleteAdminInspectionIsNotRegisteredByProductionScanning(@Autowired ApplicationContext context,
+            @Autowired MockMvc mvc,
+            @Autowired @Qualifier("requestMappingHandlerMapping") RequestMappingHandlerMapping mappings) throws Exception {
+        assertThat(context.getBeansOfType(AdminInspectionController.class)).isEmpty();
+        assertThat(context.getBeansOfType(AdminInspectionUseCase.class)).isEmpty();
+        for (String path : java.util.List.of("/api/v1/admin/accounts", "/api/v1/admin/financial-transactions",
+                "/api/v1/admin/audit-events")) {
+            assertThat(mappings.getHandlerMethods().keySet())
+                    .noneMatch(mapping -> mapping.getPatternValues().contains(path));
+            mvc.perform(get(path)).andExpect(status().isNotFound());
+        }
+    }
 
     @Test
     void contextLoads(@Autowired ApplicationContext context) {

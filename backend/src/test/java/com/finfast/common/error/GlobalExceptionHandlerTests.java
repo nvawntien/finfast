@@ -153,6 +153,7 @@ class GlobalExceptionHandlerTests {
                 Arguments.of(ErrorCode.Category.NOT_FOUND, 404),
                 Arguments.of(ErrorCode.Category.CONFLICT, 409),
                 Arguments.of(ErrorCode.Category.FORBIDDEN, 403),
+                Arguments.of(ErrorCode.Category.UNAUTHORIZED, 401),
                 Arguments.of(ErrorCode.Category.UNPROCESSABLE, 422));
     }
 

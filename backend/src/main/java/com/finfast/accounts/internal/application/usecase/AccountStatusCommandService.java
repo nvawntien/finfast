@@ -16,7 +16,8 @@ import java.util.UUID;
 
 /**
  * Service implementing status changes for Customer Accounts.
- * Requires an existing transaction and coordinates row locking with posting operations.
+ * Requires an existing transaction and coordinates row locking
+ * with posting operations.
  */
 @Service
 public class AccountStatusCommandService implements AccountStatusCommands {
@@ -28,25 +29,37 @@ public class AccountStatusCommandService implements AccountStatusCommands {
     }
 
     @Override
-    @Transactional(propagation = Propagation.MANDATORY)
-    public Change changeCustomerStatus(UUID accountId, CustomerAccount.Status desiredStatus) {
+    @Transactional(
+            propagation = Propagation.MANDATORY,
+            rollbackFor = Exception.class
+    )
+    public Change changeCustomerStatus(
+            UUID accountId,
+            CustomerAccount.Status desiredStatus
+    ) {
         Objects.requireNonNull(accountId, "accountId");
         Objects.requireNonNull(desiredStatus, "desiredStatus");
 
         Account account = repository.lockById(accountId)
-                .orElseThrow(() -> new ApplicationException(AccountErrorCode.ACCOUNT_NOT_FOUND));
+                .orElseThrow(() ->
+                        new ApplicationException(AccountErrorCode.ACCOUNT_NOT_FOUND)
+                );
 
         if (account.type() == AccountType.TREASURY) {
-            throw new ApplicationException(AccountErrorCode.TREASURY_STATUS_IMMUTABLE);
+            throw new ApplicationException(
+                    AccountErrorCode.TREASURY_STATUS_IMMUTABLE
+            );
         }
 
         CustomerAccount.Status before = account.status();
+
         if (before == desiredStatus) {
             return new Change(accountId, before, desiredStatus);
         }
 
         account.changeStatus(desiredStatus);
         repository.updateStatus(accountId, desiredStatus);
+
         return new Change(accountId, before, desiredStatus);
     }
 }
