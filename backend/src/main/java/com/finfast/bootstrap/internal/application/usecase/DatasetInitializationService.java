@@ -1,86 +1,66 @@
 package com.finfast.bootstrap.internal.application.usecase;
 
-import com.finfast.accounts.api.TreasuryProvisioning;
-import com.finfast.bootstrap.internal.application.port.inbound.GenesisDatasetInspection;
 import com.finfast.bootstrap.internal.application.port.inbound.InitializeDatasetUseCase;
-import com.finfast.common.money.VndAmount;
-import com.finfast.identity.api.AdminProvisioning;
-import com.finfast.ledger.api.GenesisPosting;
+import com.finfast.bootstrap.internal.application.service.DatasetSetupWriter;
+import com.finfast.ledger.api.GenesisDatasetInspection;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.transaction.IllegalTransactionStateException;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.Objects;
-import java.util.UUID;
+import java.util.Optional;
 
+/** Coordinates committed inspection and an externally intercepted setup writer; owns no transaction. */
 public class DatasetInitializationService implements InitializeDatasetUseCase {
+    private final DatasetSetupWriter writer;
+    private final GenesisDatasetInspection inspection;
 
-    private final AdminProvisioning adminProvisioning;
-    private final TreasuryProvisioning treasuryProvisioning;
-    private final GenesisPosting genesisPosting;
-    private final GenesisDatasetInspection genesisDatasetInspection;
-    private final long initialSupplyValue;
-    private final TransactionTemplate transactionTemplate;
-
-    public DatasetInitializationService(
-            AdminProvisioning adminProvisioning,
-            TreasuryProvisioning treasuryProvisioning,
-            GenesisPosting genesisPosting,
-            GenesisDatasetInspection genesisDatasetInspection,
-            long initialSupplyValue) {
-        this(adminProvisioning, treasuryProvisioning, genesisPosting, genesisDatasetInspection, initialSupplyValue, null);
-    }
-
-    public DatasetInitializationService(
-            AdminProvisioning adminProvisioning,
-            TreasuryProvisioning treasuryProvisioning,
-            GenesisPosting genesisPosting,
-            GenesisDatasetInspection genesisDatasetInspection,
-            long initialSupplyValue,
-            TransactionTemplate transactionTemplate) {
-
-        this.adminProvisioning = Objects.requireNonNull(adminProvisioning, "adminProvisioning");
-        this.treasuryProvisioning = Objects.requireNonNull(treasuryProvisioning, "treasuryProvisioning");
-        this.genesisPosting = Objects.requireNonNull(genesisPosting, "genesisPosting");
-        this.genesisDatasetInspection = Objects.requireNonNull(genesisDatasetInspection, "genesisDatasetInspection");
-
-        if (initialSupplyValue <= 0) {
-            throw new IllegalArgumentException("Initial supply must be strictly positive");
-        }
-        this.initialSupplyValue = initialSupplyValue;
-        this.transactionTemplate = transactionTemplate;
+    public DatasetInitializationService(DatasetSetupWriter writer, GenesisDatasetInspection inspection) {
+        this.writer = Objects.requireNonNull(writer, "writer");
+        this.inspection = Objects.requireNonNull(inspection, "inspection");
     }
 
     @Override
-    @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
     public void initializeDataset() {
-        // a. Call genesisDatasetInspection.isGenesisInitialized() first. If true, return early.
-        if (genesisDatasetInspection.isGenesisInitialized()) {
+        requireOutsideTransaction();
+        if (findCommitted().isPresent()) {
+            // This verifies Ledger facts only. Never re-provision or change the original supply/credentials.
             return;
         }
-
         try {
-            // b. Proceed with calling AdminProvisioning, TreasuryProvisioning, and GenesisPosting.
-            adminProvisioning.ensureConfiguredAdmin();
-            UUID treasuryAccountId = treasuryProvisioning.openTreasury();
-            VndAmount initialSupply = new VndAmount(this.initialSupplyValue);
-            genesisPosting.initialize(treasuryAccountId, initialSupply);
-        } catch (DataIntegrityViolationException ex) {
-            // c. Catch DataIntegrityViolationException. Verify dataset in a separate, fresh transaction.
-            if (isGenesisInitializedInNewTransaction()) {
-                return;
+            writer.initialize();
+        } catch (DataIntegrityViolationException failedAttempt) {
+            // The writer proxy has already unwound. Never inspect its aborted write transaction.
+            requireOutsideTransaction();
+            Optional<GenesisDatasetInspection.InitializedDataset> committed;
+            try {
+                committed = findCommitted();
+            } catch (RuntimeException inspectionFailure) {
+                if (inspectionFailure != failedAttempt) {
+                    inspectionFailure.addSuppressed(failedAttempt);
+                }
+                throw inspectionFailure;
             }
-            throw ex;
+            if (committed.isPresent()) {
+                // None of the approved provisioning APIs identifies a specific harmless uniqueness race.
+                // A winner alone cannot excuse an unrelated constraint failure. An explicit later
+                // invocation will inspect that dataset without performing a second write attempt.
+                throw new IllegalStateException(
+                        "Setup attempt failed; a committed Ledger dataset exists and must not be reseeded",
+                        failedAttempt);
+            }
+            throw failedAttempt;
         }
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
-    public boolean isGenesisInitializedInNewTransaction() {
-        if (transactionTemplate != null) {
-            Boolean result = transactionTemplate.execute(status -> genesisDatasetInspection.isGenesisInitialized());
-            return Boolean.TRUE.equals(result);
+    private Optional<GenesisDatasetInspection.InitializedDataset> findCommitted() {
+        return Objects.requireNonNull(inspection.findCommitted(), "committed inspection result");
+    }
+
+    private static void requireOutsideTransaction() {
+        if (TransactionSynchronizationManager.isActualTransactionActive()
+                || TransactionSynchronizationManager.isSynchronizationActive()) {
+            throw new IllegalTransactionStateException("Dataset setup coordination requires no ambient transaction");
         }
-        return genesisDatasetInspection.isGenesisInitialized();
     }
 }
