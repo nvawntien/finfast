@@ -23,7 +23,7 @@ public final class JdbcRegistrationUsers implements RegistrationUsers {
     public void insertCustomer(UUID userId, String normalizedEmail, String passwordHash) {
         requireTransaction();
         int inserted = jdbc.update("""
-                INSERT INTO app_user (id, email_normalized, password_hash, role)
+                INSERT INTO public.app_user (id, email_normalized, password_hash, role)
                 VALUES (?, ?, ?, 'CUSTOMER') ON CONFLICT (email_normalized) DO NOTHING
                 """, userId, normalizedEmail, passwordHash);
         if (inserted != 1) { throw new ApplicationException(RegistrationError.EMAIL_ALREADY_REGISTERED); }

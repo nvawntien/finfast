@@ -31,6 +31,6 @@ public final class JdbcCustomerProfiles implements CustomerProfiles {
             }
             return null;
         });
-        jdbc.update("INSERT INTO customer (id, user_id, display_name) VALUES (?, ?, ?)", customerId, userId, displayName);
+        jdbc.update("INSERT INTO public.customer (id, user_id, display_name) VALUES (?, ?, ?)", customerId, userId, displayName);
     }
 }

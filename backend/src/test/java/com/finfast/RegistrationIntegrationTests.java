@@ -128,6 +128,21 @@ class RegistrationIntegrationTests extends PostgresTestSupport {
     }
 
     @Test
+    void registrationAdaptersWritePublicTablesWithoutPublicInSearchPath() {
+        UUID userId = UUID.randomUUID();
+        UUID customerId = UUID.randomUUID();
+        new TransactionTemplate(manager).executeWithoutResult(status -> {
+            jdbc.execute("SET LOCAL search_path TO pg_catalog");
+            users.insertCustomer(userId, "schema@example.test", "synthetic-test-hash");
+            profiles.insert(customerId, userId, "Synthetic Schema");
+        });
+        assertThat(jdbc.queryForObject("SELECT email_normalized FROM public.app_user WHERE id = ?",
+                String.class, userId)).isEqualTo("schema@example.test");
+        assertThat(jdbc.queryForObject("SELECT user_id FROM public.customer WHERE id = ?",
+                UUID.class, customerId)).isEqualTo(userId);
+    }
+
+    @Test
     void caseVariantDuplicateHasNoExtraProfileOrAccount() {
         var register = registration(this::accountFixture);
         register.register(command("ALICE@example.test"));
