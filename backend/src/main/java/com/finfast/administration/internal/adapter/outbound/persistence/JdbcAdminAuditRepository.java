@@ -42,10 +42,12 @@ public class JdbcAdminAuditRepository implements AdminAuditStore {
         }
         int inserted = jdbc.update("""
                 INSERT INTO public.admin_audit_event
-                    (id, admin_user_id, target_account_id, action, reason, outcome, transaction_id, created_at)
-                VALUES (?, ?, ?, 'DEMO_ALLOCATION', ?, 'SUCCESS', ?, ?)
-                """, event.id(), event.adminUserId(), event.targetAccountId(), event.reason(),
-                event.transactionId(), createdAt);
+                    (id, admin_user_id, target_account_id, action, reason, outcome,
+                     transaction_id, before_status, after_status, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, event.id(), event.adminUserId(), event.targetAccountId(), event.action().name(),
+                event.reason(), event.outcome().name(), event.transactionId(), event.beforeStatus(),
+                event.afterStatus(), createdAt);
         if (inserted != 1) {
             throw new DataIntegrityViolationException("Expected exactly one inserted Admin audit row");
         }
