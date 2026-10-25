@@ -36,6 +36,7 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -95,6 +96,26 @@ class AuthenticationHttpIntegrationTests {
     }
     private record Browser(String cookie, String token) { }
 
+    @Autowired Probe probe;
+
+    @Test void publicRegistrationRequiresHeaderCsrfAndSameOriginBeforeInvokingAdapter() throws Exception {
+        int before = probe.registrations.get();
+        var browser = csrf(null);
+        var other = csrf(null);
+        assertThat(request("POST", "/api/v1/auth/register", browser.cookie(), null, "{}", null).statusCode()).isEqualTo(403);
+        assertThat(request("POST", "/api/v1/auth/register", browser.cookie(), "invalid", "{}", null).statusCode()).isEqualTo(403);
+        assertThat(request("POST", "/api/v1/auth/register", browser.cookie(), other.token(), "{}", null).statusCode()).isEqualTo(403);
+        String encoded = java.net.URLEncoder.encode(browser.token(), java.nio.charset.StandardCharsets.UTF_8);
+        assertThat(request("POST", "/api/v1/auth/register?_csrf=" + encoded, browser.cookie(), null, "{}", null).statusCode()).isEqualTo(403);
+        assertThat(request("POST", "/api/v1/auth/register", browser.cookie(), browser.token(), "{}", "https://foreign.example.test").statusCode()).isEqualTo(403);
+        assertThat(get("/api/v1/auth/register", browser.cookie()).statusCode()).isEqualTo(401);
+        assertThat(probe.registrations.get()).isEqualTo(before);
+        assertThat(request("POST", "/api/v1/auth/register", browser.cookie(), browser.token(), "{}",
+                "http://127.0.0.1:" + port).statusCode()).isEqualTo(200);
+        assertThat(probe.registrations.get()).isEqualTo(before + 1);
+        assertThat(get("/api/v1/auth/session", browser.cookie()).statusCode()).isEqualTo(401);
+    }
+
     @Test void loginRotatesSessionAndCsrfAndExposesOnlyMinimalIdentity() throws Exception {
         var before = csrf(null);
         var response = login(before, email.toUpperCase(java.util.Locale.ROOT), PASSWORD);
@@ -108,7 +129,9 @@ class AuthenticationHttpIntegrationTests {
         assertThat(identity.get("role").asString()).isEqualTo("CUSTOMER");
         assertThat(response.body()).doesNotContain(email, PASSWORD, "password", "customerId", "$2a$");
         assertThat(get("/api/v1/auth/session", before.cookie()).statusCode()).isEqualTo(401);
-        assertThat(get("/api/v1/auth/session", after).statusCode()).isEqualTo(200);
+        var session = get("/api/v1/auth/session", after);
+        assertThat(session.statusCode()).isEqualTo(200);
+        assertThat(JSON.readTree(session.body())).isEqualTo(identity);
         get("/api/v1/auth/logout", after); // GET must not mutate authentication state.
         assertThat(get("/api/v1/auth/session", after).statusCode()).isEqualTo(200);
         assertThat(request("POST", "/api/v1/auth/logout", after, before.token(), null, null).statusCode()).isEqualTo(403);
@@ -214,8 +237,14 @@ class AuthenticationHttpIntegrationTests {
     }
     @RestController @Profile("auth")
     static class Probe {
+        final AtomicInteger registrations = new AtomicInteger();
         private final CurrentIdentity identity;
         Probe(CurrentIdentity identity) { this.identity = identity; }
+        // Security routing probe only: no BK-005 implementation or real registration response.
+        @PostMapping("/api/v1/auth/register") Object register() {
+            registrations.incrementAndGet();
+            return Map.of("probe", "registration-adapter-reached");
+        }
         @GetMapping("/api/v1/accounts/_test/current") Object customer() { return identity.requireCustomer(); }
         @GetMapping("/api/v1/admin/_test/current") Object admin() { return identity.requireAdmin(); }
         @PostMapping("/api/v1/request-outcomes/resolve") Object wrongRole() { return identity.requireCustomer(); }

@@ -34,6 +34,21 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class AuthenticationTests {
+    @ParameterizedTest
+    @ValueSource(strings = {"csrf", "register", "login", "logout", "session"})
+    void everyAuthOperationRejectsInsecureTransportBeforeInvokingTheEndpoint(String operation) throws Exception {
+        String method = operation.equals("csrf") || operation.equals("session") ? "GET" : "POST";
+        String path = "/api/v1/auth/" + operation;
+        var request = new MockHttpServletRequest(method, path);
+        request.setServletPath(path);
+        var response = new MockHttpServletResponse();
+        AtomicBoolean invoked = new AtomicBoolean();
+        new AuthTransportFilter(true).doFilter(request, response, (req, res) -> invoked.set(true));
+        assertThat(response.getStatus()).isEqualTo(403);
+        assertThat(response.getContentAsString()).contains("FORBIDDEN", "Access denied.");
+        assertThat(invoked).isFalse();
+    }
+
     private final LoginCredentials credentials = mock(LoginCredentials.class);
     private final CustomerQueries customers = mock(CustomerQueries.class);
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(4);
