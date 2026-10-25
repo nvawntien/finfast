@@ -92,4 +92,3 @@ public class AdminInspectionService implements AdminInspectionUseCase {
         return profile.displayName();
     }
 }
-

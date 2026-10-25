@@ -18,4 +18,3 @@ public record AdminAccountView(
         Objects.requireNonNull(balanceVnd, "balanceVnd");
     }
 }
-

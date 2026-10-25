@@ -18,4 +18,3 @@ public interface AdminInspectionUseCase {
 
     List<AdminAuditRecordView> getAuditEvents();
 }
-

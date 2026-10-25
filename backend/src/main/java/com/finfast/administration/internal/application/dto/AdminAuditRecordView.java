@@ -24,4 +24,3 @@ public record AdminAuditRecordView(
         Objects.requireNonNull(outcome, "outcome");
     }
 }
-

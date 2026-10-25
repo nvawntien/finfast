@@ -419,6 +419,141 @@ Executed from `backend/`:
 
 The evidence covers the approved internal contracts and database transaction semantics only. There is no production `CurrentIdentity` implementation or complete runtime Bean composition for Accounts/Administration on this baseline, so no HTTP authentication, endpoint, deployment-secret or end-to-end acceptance is claimed. No OpenAPI, migration, BK-015 Receipts or public Java contract was changed. BK-017 remains incomplete until the responsible Identity/Accounts/runtime owners provide and integrate those real dependencies.
 
+## BK-009 corrective Bootstrap verification — 2026-10-25
+
+**Independent Bootstrap correction; BK-009 acceptance remains pending.** Preflight
+verified a clean `feat/BK-009-bootstrap-treasury-genesis` checkout, local/remote/PR
+#36 HEAD `6a9ddaed6811f1dceb8014dfec8b0e4930507c80` and target `develop`.
+Live Git fetch found `origin/develop` at
+`b3f0539886875f0e969ce9a8dea7431bd3d0e356`, eight commits ahead of the feature's
+merge base; the feature has eleven commits of its own. The develop-only changes
+are the Administration read contribution and related common error/tests/docs;
+Bootstrap's approved provisioning/GENESIS APIs are unchanged. No pull was needed,
+and no merge/rebase/commit is performed. Synchronize develop and rerun CI on the
+integrated result before final merge.
+
+The startup runner and duplicate boolean inspection contract are removed. Tests
+exercise the existing inbound entry, approved Ledger AM-01 API, nontransactional
+coordinator and separate REQUIRED / READ COMMITTED writer with checked-exception
+rollback. Configuration requires the existing transaction manager and all four
+provider APIs; the existing enable switch only composes beans. No operator
+invocation, REST endpoint, fake production provider or new property is supplied.
+
+Executed from `backend/`, using cached repository-pinned Temurin Java
+21.0.12.1+1 at `/tmp/finfast-pr35-java21` in `JAVA_HOME` and `PATH`:
+
+```sh
+./mvnw --batch-mode --no-transfer-progress '-Dtest=DatasetInitializationServiceTest,Genesis*Tests,*ArchitectureTests,*VerificationTests' clean test
+./mvnw --batch-mode --no-transfer-progress '-Dtest=DatasetInitializationServiceTest,BootstrapConfigurationTests,BootstrapTransactionBoundaryIntegrationTests,*ArchitectureTests,*VerificationTests' clean test
+./mvnw --batch-mode --no-transfer-progress '-Dtest=DatasetInitializationServiceTest,BootstrapConfigurationTests,BootstrapTransactionBoundaryIntegrationTests,*ArchitectureTests,*VerificationTests' test
+./mvnw --batch-mode --no-transfer-progress '-Dtest=BootstrapConfigurationTests' test
+./mvnw --batch-mode --no-transfer-progress clean verify
+```
+
+The pre-edit baseline passed **224 tests**, zero failures/errors/skips. The
+corrected focused run passed **210 tests / nine suites**, zero failures/errors/skips:
+20 isolated application tests, ten configuration/startup/entry checks, 23 real
+PostgreSQL transaction-boundary probes and 157 existing architecture checks.
+The final startup/route rerun passed all ten configuration tests. Full
+`clean verify` passed **1,303 tests / 61 suites**, zero failures/errors/skips, in
+3 minutes 34 seconds, including all existing GENESIS/committed-inspection,
+Ledger/Accounts/Administration, schema and architecture regressions; Maven
+produced the executable JAR. Executable packaging/isolation verification passed,
+and JAR inspection confirmed the deleted runner and duplicate inspection class
+are absent while the new writer and approved Ledger API are packaged.
+Repository-root OpenAPI/reference/Markdown validation, docs Compose configuration,
+tracked diff whitespace and all three new Java files' whitespace/final-newline
+checks passed. No dependency/build setting, migration, frozen REST contract or
+foreign production implementation was changed.
+
+The [PostgreSQL probes](../../backend/src/test/java/com/finfast/bootstrap/internal/application/BootstrapTransactionBoundaryIntegrationTests.java)
+use a disposable pinned PostgreSQL 16.15 container, a separate database per test,
+actual Bootstrap configuration/Spring proxies and the real JDBC transaction
+manager. Module providers and the inspection reader are explicitly test-scoped
+fixtures over `bootstrap_probe`, not banking tables or real provisioning. They
+verify Admin→Treasury→GENESIS call order in one physical READ COMMITTED write
+transaction, fresh read-only REPEATABLE READ inspection transactions, rollback
+before recovery after SQLSTATE 23505/25P02, provider/checked/pre-commit failures,
+rollback-only detection, failed inspection uncertainty, required result
+validation, ambient/unproxied transaction rejection and explicit retry. A
+synthetic acknowledgement failure after a physical probe commit propagates
+while the committed probe rows remain visible; no rollback or success is claimed
+from that exception. Changed-supply/context-recreation tests prove no repeated
+fixture provisioning, not credential preservation or process restart.
+
+Startup coverage calls the real `SpringApplication.run()` path with the Bootstrap
+gate enabled, test-only dependencies, no external datasource and an ephemeral
+loopback HTTP port. It verifies no provider invocation, no runner and no Bootstrap
+HTTP handler. Initial test attempts failed because the first startup fixture
+incorrectly selected non-web mode despite the existing MVC-dependent global
+handler, and the SQL-state assertion initially selected pgJDBC's deepest prior
+constraint cause rather than the current aborted-query exception. Both fixtures
+were corrected without changing foreign production code or weakening assertions.
+
+Race handling deliberately retains technical failure: a winner observed after
+rollback is no proof that an arbitrary failed provisioning constraint was a
+harmless duplicate. No approved provider API identifies that condition. Bootstrap
+reports the failed attempt with its cause and never posts again during recovery;
+a later explicit invocation can observe the winner and perform no writes. Failed
+inspection retains the attempt error as suppressed context. Connection/timeout,
+UnexpectedRollbackException and uncertain commit failures are never accepted as
+success. Any future automatic race-success classification remains an owner
+integration decision, without speculative provider API changes here.
+
+Real atomic Admin/Treasury/GENESIS commit, concurrent first initialization,
+interrupted monetary setup, persistent-dataset process restart, credential
+preservation, supply reconciliation and protected operator execution remain
+pending. Existing Ledger GENESIS/inspection suites retain their own evidence
+scope; Bootstrap adds no foreign implementation or SQL. The only non-Bootstrap
+production change restores `LedgerQueries.java`'s incidental blank line to the
+exact current develop baseline, without a signature change.
+
+### BK-009 develop synchronization — 2026-10-25
+
+The subsequent synchronization task explicitly authorized local commits. The
+reviewed twelve-file corrective working tree was preserved in local commit
+`c082755632b86d017843e02e6159c50caf2ed4a5` on
+`feat/BK-009-bootstrap-treasury-genesis`, whose original local/remote/PR #36 HEAD
+was `6a9ddaed6811f1dceb8014dfec8b0e4930507c80`. A second fetch confirmed
+`origin/develop` at `b3f0539886875f0e969ce9a8dea7431bd3d0e356` and an unchanged
+remote feature HEAD. `git merge --no-commit --no-ff origin/develop` merged cleanly;
+there were no unmerged paths or conflict markers. Both documents retained the
+valid BK-009 and develop checkpoints, including BK-013/014/016/017/018 evidence.
+
+All Bootstrap tests remain byte-identical to the preserved correction. Bootstrap
+production changed only by deleting a pre-existing EOF blank line in
+`InitializeDatasetUseCase`; behavior and signatures are unchanged. Incoming
+non-Bootstrap logic, APIs, migrations, build configuration
+and architecture enforcement remain unchanged from develop. Initial staged
+whitespace verification detected an inherited extra EOF blank line in each of
+`AdminAccountView`, `AdminAuditRecordView`, `AdminFinancialTransactionView`,
+`AdminInspectionUseCase` and `AdminInspectionService`. Tiến explicitly authorized
+removing exactly those five blank lines; a byte comparison verifies each file is
+otherwise identical to develop. No whitespace rule or test was disabled.
+
+Integration verification uses the same pinned Java 21 JDK as the corrective run:
+
+```sh
+./mvnw --batch-mode --no-transfer-progress '-Dtest=DatasetInitializationServiceTest,BootstrapConfigurationTests,BootstrapTransactionBoundaryIntegrationTests,Genesis*Tests,*ArchitectureTests,*VerificationTests' clean test
+./mvnw --batch-mode --no-transfer-progress clean verify
+```
+
+The integrated focused run passed **274 tests / twelve suites**, zero
+failures/errors/skips: 53 Bootstrap checks, 63 existing GENESIS/inspection cases
+and 158 architecture/capability/layer checks. Full `clean verify` passed
+**1,363 tests / 64 suites**, zero failures/errors/skips, in 3 minutes 20 seconds.
+The executable JAR isolation check passed; the removed startup runner and
+duplicate inspection class remain absent. Pinned OpenAPI validation and
+`scripts/check_docs.py` passed (27 Markdown files, 480 local links, 88 OpenAPI
+references), as did docs Compose configuration, staged whitespace and the full
+PR diff whitespace check against develop. No test or architecture rule changed.
+
+These local checks do not establish hosted CI or complete BK-009 acceptance.
+Actual Admin/Treasury providers, protected operator invocation, real monetary
+atomicity/concurrency, credential preservation, process restart and full supply
+reconciliation retain their existing owners and pending status. No push or
+GitHub PR approval/closure/merge is performed by this synchronization task.
+
 ## BK-018 Ledger AM-04 verification — 2026-10-24
 
 **Ledger provider implemented; real Accounts and Administration integration pending.** Started on clean `feat/BK-018-ledger-financial-queries` at `d0e75a8edb3191397398cb6d8f955b9a60df1e42`. Verification uses Temurin Java 21.0.12.1+1, the existing Maven Wrapper/Boot dependencies and pinned PostgreSQL 16.15 Testcontainers image, with unchanged Flyway V1/V2 in disposable isolated databases. The host default is Java 26; a cached Temurin JDK was extracted into `/tmp/finfast-am04-java21` for these invocations. No developer database or persistent Compose volume is used.
