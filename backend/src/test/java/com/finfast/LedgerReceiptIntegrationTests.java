@@ -163,23 +163,30 @@ class LedgerReceiptIntegrationTests extends LedgerHistoryTestSupport {
                 .isInstanceOf(IllegalStateException.class).hasMessageContaining("identity JDBC failure");
 
         identities.lookup = identities::read;
-        ledgerContext.getBean(CustomerReceiptQueryService.class);
         CustomerReceiptFacts failingFacts = (accountId, reference) -> {
             throw new IllegalStateException("facts JDBC failure");
         };
         ReadCustomerReceipt failing = new CustomerReceiptQueryService(failingFacts, identities);
         assertThatThrownBy(() -> readTransaction().execute(status -> failing.receipt(source, fact.reference())))
-                .hasRootCauseMessage("facts JDBC failure");
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("facts JDBC failure");
     }
 
     @Test
     void propagatesIncompleteLedgerFacts() {
         seedDataset(1);
-        var fact = append(Type.INTERNAL_TRANSFER, 25L, "receipt-incomplete-facts", TIME, source, destination);
-        ledgerJdbc.update("DELETE FROM public.ledger_entry WHERE transaction_id = ? AND account_id = ?",
-                fact.id(), destination);
+        String reference = inTransaction(() -> {
+            UUID transactionId = fixtures.transaction(
+                    "reference", "receipt-incomplete-facts",
+                    "type", "INTERNAL_TRANSFER",
+                    "amount_vnd", 25L,
+                    "commit_seq", 2L,
+                    "committed_at", java.time.OffsetDateTime.ofInstant(TIME, java.time.ZoneOffset.UTC));
+            fixtures.entry(transactionId, source, -25L);
+            return "receipt-incomplete-facts";
+        });
 
-        assertThatThrownBy(() -> receipts.receipt(source, fact.reference()))
+        assertThatThrownBy(() -> receipts.receipt(source, reference))
                 .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
     }
 
