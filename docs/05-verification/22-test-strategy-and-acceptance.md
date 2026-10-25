@@ -340,6 +340,72 @@ The first `make help` attempt ran from backend/ and failed because its Makefile 
 | Tiến and provider owners: transaction composition | **BLOCKED** — production wiring absent. Same DataSource/manager and actual outer proxies, safe pre-commit/rollback-failure handling, during-commit classification and authoritative uncertain-commit recovery; rollbackOnCommitFailure alone is insufficient |
 | Phase 5 and acceptance | **NOT STARTED** — depends on the above integrations and separately authorized HTTP/CSRF/raw-input/outcome mapping, restart/network-loss/E2E and full financial AC evidence |
 
+## BK-016/BK-018 corrective read verification — 2026-10-25
+
+**Independent Administration read contribution; real authentication/provider
+integration and end-to-end acceptance remain pending.** Git preflight verified
+clean `feat/BK-016-admin-read-apis`, local/remote/PR #35 HEAD
+`5dfffc492a2642033ac8c2f72a77c497b971b355`, target `develop` at
+`bb7b5ce911446b86c0d51583d22ab15f8d25cc05`, and `0 / 6` develop-only/branch-only
+commits. No pull or develop merge was needed. GitHub CLI authentication was
+unavailable; the connected GitHub metadata and remote Git refs agreed.
+
+Verification uses Temurin Java 21.0.12.1+1 extracted into
+`/tmp/finfast-pr35-java21` from the cached, repository-pinned JDK image; host Java
+26 is not used. From `backend/`, with that JDK in `JAVA_HOME` and `PATH`:
+
+```sh
+./mvnw --batch-mode --no-transfer-progress '-Dtest=AdminInspectionControllerTest,AdminInspectionServiceTest,*ArchitectureTests,*VerificationTests' test
+./mvnw --batch-mode --no-transfer-progress '-Dtest=AdminInspection*Test*,FinfastApplicationTests,GlobalExceptionHandlerTests,*ArchitectureTests,*VerificationTests' clean test
+./mvnw --batch-mode --no-transfer-progress '-Dtest=AdminInspection*Test*,FinfastApplicationTests,GlobalExceptionHandlerTests,*ArchitectureTests,*VerificationTests' test
+./mvnw --batch-mode --no-transfer-progress clean verify
+```
+
+The pre-edit baseline passed **170 tests**, zero failures/errors/skips. The final
+focused run passed **260 tests / 11 suites**, zero failures/errors/skips: 28
+application, 20 HTTP/Jackson, eight activation/dependency, four full-application
+context, 42 shared-error and 158 architecture/capability/layer/negative-fixture
+checks. Direct inbound invocation and the real controller/config/application chain
+both authorize before private reads. Tests cover missing/wrong-role identity,
+null actors, technical failures, Customer consistency, all three financial types,
+signed MAX_VALUE decimal strings, exact timestamp/field sets and actual omission
+of optional audit properties via `JsonNode.has`. Production scanning registers
+neither use case nor controller/route by default; activation without any one of
+the five required dependencies fails context startup.
+
+Final full `clean verify` passed **1,310 tests / 61 suites**, zero
+failures/errors/skips, in 3 minutes 29 seconds; Maven produced the executable JAR.
+This includes existing PostgreSQL 16.15 Testcontainers allocation
+orchestration/concurrency/commit-recovery, audit persistence/constraints, status
+change, Ledger AM-04/history/posting/reconciliation and schema regressions in
+isolated databases. Their passing results preserve their existing provider and
+transaction evidence scope; they do not establish the new Admin HTTP read
+pipeline with real Identity/Customer/audit readers.
+
+Repository-root checks passed: `python3 scripts/check_backend_jar.py`, pinned
+`openapi_spec_validator` and `scripts/check_docs.py`,
+`docker compose -f compose.docs.yaml config --quiet`, `git diff --check`, and
+whitespace/final-newline checks for both new Java files. JAR inspection confirms
+the new configuration is packaged and removed Admin handler/DTO/exception classes
+are absent. Public module APIs, Accounts/Ledger/Identity/Customer implementations,
+V1/V2 migrations, frozen OpenAPI and build configuration are unchanged.
+
+Initial attempts exposed a stale incremental nested-class artifact
+(`PostingResult$Rejected.class`, resolved by clean compilation), an incorrectly
+unstubbed Mockito null-result fixture and ambiguous MVC/Actuator mapping injection
+in the new context test. The fixtures now explicitly return null and qualify the
+MVC mapping. No existing financial implementation, architecture rule or assertion
+was weakened to resolve these failures.
+
+All new read-provider/security collaborators are test-only. They establish no
+real session/logout/expiry/RBAC integration or PostgreSQL Admin read pipeline.
+Production Identity/Customer/AM-03/audit readers and complete Ledger composition
+remain pending; existing audit persistence stays insert-only. The new common
+UNAUTHORIZED category supports a safe 401 convention without asserting a typed
+Identity error contract. API-ERR-01 still governs exceptional statuses absent
+from the frozen operation response lists. No OpenAPI/public module API/migration
+change or BK-016/BK-018 acceptance completion is claimed.
+
 ## BK-017 Freeze/unfreeze verification — 2026-10-24
 
 **PARTIAL IMPLEMENTATION EVIDENCE — Accounts status provider and Administration orchestration.** The focused PostgreSQL/Testcontainers suite uses isolated PostgreSQL 16 databases, the real JDBC transaction manager and actual Spring proxies. It verifies ACTIVE→FROZEN and FROZEN→ACTIVE, complete status audit action/outcome/before/after fields, same-state `UNCHANGED` without an audit row, Treasury exclusion, blank-reason rejection, audit-trigger rollback, and rejection of missing/read-only/unproxied caller transactions.
@@ -441,6 +507,52 @@ pending. Existing Ledger GENESIS/inspection suites retain their own evidence
 scope; Bootstrap adds no foreign implementation or SQL. The only non-Bootstrap
 production change restores `LedgerQueries.java`'s incidental blank line to the
 exact current develop baseline, without a signature change.
+
+### BK-009 develop synchronization — 2026-10-25
+
+The subsequent synchronization task explicitly authorized local commits. The
+reviewed twelve-file corrective working tree was preserved in local commit
+`c082755632b86d017843e02e6159c50caf2ed4a5` on
+`feat/BK-009-bootstrap-treasury-genesis`, whose original local/remote/PR #36 HEAD
+was `6a9ddaed6811f1dceb8014dfec8b0e4930507c80`. A second fetch confirmed
+`origin/develop` at `b3f0539886875f0e969ce9a8dea7431bd3d0e356` and an unchanged
+remote feature HEAD. `git merge --no-commit --no-ff origin/develop` merged cleanly;
+there were no unmerged paths or conflict markers. Both documents retained the
+valid BK-009 and develop checkpoints, including BK-013/014/016/017/018 evidence.
+
+All Bootstrap tests remain byte-identical to the preserved correction. Bootstrap
+production changed only by deleting a pre-existing EOF blank line in
+`InitializeDatasetUseCase`; behavior and signatures are unchanged. Incoming
+non-Bootstrap logic, APIs, migrations, build configuration
+and architecture enforcement remain unchanged from develop. Initial staged
+whitespace verification detected an inherited extra EOF blank line in each of
+`AdminAccountView`, `AdminAuditRecordView`, `AdminFinancialTransactionView`,
+`AdminInspectionUseCase` and `AdminInspectionService`. Tiến explicitly authorized
+removing exactly those five blank lines; a byte comparison verifies each file is
+otherwise identical to develop. No whitespace rule or test was disabled.
+
+Integration verification uses the same pinned Java 21 JDK as the corrective run:
+
+```sh
+./mvnw --batch-mode --no-transfer-progress '-Dtest=DatasetInitializationServiceTest,BootstrapConfigurationTests,BootstrapTransactionBoundaryIntegrationTests,Genesis*Tests,*ArchitectureTests,*VerificationTests' clean test
+./mvnw --batch-mode --no-transfer-progress clean verify
+```
+
+The integrated focused run passed **274 tests / twelve suites**, zero
+failures/errors/skips: 53 Bootstrap checks, 63 existing GENESIS/inspection cases
+and 158 architecture/capability/layer checks. Full `clean verify` passed
+**1,363 tests / 64 suites**, zero failures/errors/skips, in 3 minutes 20 seconds.
+The executable JAR isolation check passed; the removed startup runner and
+duplicate inspection class remain absent. Pinned OpenAPI validation and
+`scripts/check_docs.py` passed (27 Markdown files, 480 local links, 88 OpenAPI
+references), as did docs Compose configuration, staged whitespace and the full
+PR diff whitespace check against develop. No test or architecture rule changed.
+
+These local checks do not establish hosted CI or complete BK-009 acceptance.
+Actual Admin/Treasury providers, protected operator invocation, real monetary
+atomicity/concurrency, credential preservation, process restart and full supply
+reconciliation retain their existing owners and pending status. No push or
+GitHub PR approval/closure/merge is performed by this synchronization task.
 
 ## BK-018 Ledger AM-04 verification — 2026-10-24
 

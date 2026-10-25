@@ -12,6 +12,6 @@ public interface ErrorCode {
     Category category();
 
     enum Category {
-        INVALID_REQUEST, NOT_FOUND, CONFLICT, FORBIDDEN, UNPROCESSABLE
+        INVALID_REQUEST, NOT_FOUND, CONFLICT, FORBIDDEN, UNPROCESSABLE, UNAUTHORIZED
     }
 }
