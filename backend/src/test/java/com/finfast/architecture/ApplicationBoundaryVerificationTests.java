@@ -46,6 +46,25 @@ class ApplicationBoundaryVerificationTests {
     private static final String ROOT = "finfast.architecture.fixtures";
 
     @Test
+    void adminInspectionEntryUsesItsInboundContractAndControllerOnlyDependsOnThatContract() {
+        var entry = com.finfast.administration.internal.application.port.inbound.AdminInspectionUseCase.class;
+        var implementation = com.finfast.administration.internal.application.usecase.AdminInspectionService.class;
+        var controller = com.finfast.administration.internal.adapter.inbound.http.AdminInspectionController.class;
+        assertThat(entry.isInterface()).isTrue();
+        assertThat(entry).isAssignableFrom(implementation);
+        assertThat(entry.getDeclaredMethods()).hasSize(3);
+        assertThat(entry.getDeclaredAnnotations()).isEmpty();
+        assertThat(controller.getConstructors()).hasSize(1);
+        assertThat(controller.getConstructors()[0].getParameterTypes()).containsExactly(entry);
+        assertThat(implementation.getConstructors()).hasSize(1);
+        assertThat(implementation.getConstructors()[0].getParameterTypes()).containsExactly(
+                com.finfast.identity.api.CurrentIdentity.class, com.finfast.accounts.api.AdminAccountQueries.class,
+                AdminFinancialTransactionQueries.class,
+                com.finfast.administration.internal.application.port.outbound.AdminAuditQueries.class,
+                com.finfast.customer.api.CustomerQueries.class);
+    }
+
+    @Test
     void historyContributionUsesAnInternalInboundContractUntilReceiptCompositionIsAvailable() throws Exception {
         assertThat(ReadCustomerHistory.class.isInterface()).isTrue();
         assertThat(ReadCustomerHistory.class).isAssignableFrom(CustomerHistoryQueryService.class);

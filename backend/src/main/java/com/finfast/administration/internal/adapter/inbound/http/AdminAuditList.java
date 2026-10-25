@@ -7,7 +7,7 @@ import java.util.Objects;
 
 public record AdminAuditList(List<AdminAuditEventResponse> items) {
     public AdminAuditList {
-        items = items == null ? List.of() : List.copyOf(items);
+        items = List.copyOf(items);
     }
 
     public static AdminAuditList from(List<AdminAuditRecordView> views) {

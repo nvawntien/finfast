@@ -8,7 +8,7 @@ import java.util.List;
 
 /**
  * Inbound port for administration inspection read operations.
- * Enforces strict decoupling between controllers and module internal services.
+ * Every invocation requires a trusted current ADMIN before any provider read.
  */
 public interface AdminInspectionUseCase {
 

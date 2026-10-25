@@ -18,7 +18,7 @@ public record AdminFinancialTransactionView(
         Objects.requireNonNull(amountVnd, "amountVnd");
         Objects.requireNonNull(currency, "currency");
         Objects.requireNonNull(committedAt, "committedAt");
-        entries = entries == null ? List.of() : List.copyOf(entries);
+        entries = List.copyOf(entries);
     }
 
     public record EntryView(String accountNumber, String deltaVnd) {

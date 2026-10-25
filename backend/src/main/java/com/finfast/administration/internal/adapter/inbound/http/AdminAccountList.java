@@ -7,7 +7,7 @@ import java.util.Objects;
 
 public record AdminAccountList(List<AdminAccountResponse> items) {
     public AdminAccountList {
-        items = items == null ? List.of() : List.copyOf(items);
+        items = List.copyOf(items);
     }
 
     public static AdminAccountList from(List<AdminAccountView> views) {

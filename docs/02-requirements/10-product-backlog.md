@@ -44,6 +44,39 @@
 
 `*` A verified course mandate can create a separately required milestone; it **must** be reconciled with scope by the owner, not silently claimed optional or imposed on the initial Core.
 
+## BK-016/BK-018 corrective implementation checkpoint — 2026-10-25
+
+**Independent Administration read contribution; production integration and acceptance pending.**
+`AdminInspectionService` implements the internal inbound port and requires a live
+`CurrentIdentity.requireAdmin()` result before every Accounts, Customer, Ledger or
+audit read. The HTTP controller only delegates and maps application DTOs. Missing,
+blank or mismatched required Customer profiles fail technically; no generated name
+or successful empty fallback conceals provider failures. Audit JSON omits absent
+optional reference/status fields and preserves the frozen response shapes.
+
+The complete endpoint group is deliberately inactive by default. Set
+`finfast.administration.inspection.enabled=true` only after composing genuine
+`CurrentIdentity`, `AdminAccountQueries`, `AdminFinancialTransactionQueries`,
+`AdminAuditQueries` and `CustomerQueries` beans. The gate controls both the scanned
+controller and explicit application configuration; enabling with any dependency
+missing fails startup instead of exposing partially functional endpoints or
+returning readiness 503 responses. No production substitute provider is supplied.
+
+Current source includes Accounts identity/status and Ledger AM-04 implementations,
+but no production Identity, Customer, AM-03 account listing or Admin audit query
+provider, nor complete read-provider composition. The existing audit repository
+remains insert-only for allocations/status changes; implementing the committed
+audit reader and any Account Number/reference enrichment must preserve ownership
+and use approved module APIs rather than foreign SQL. Identity's public contract
+still defines no typed authentication errors: the common application-error
+convention supports distinct 401/403 categories, while real provider/session error
+integration remains pending. Isolated test providers do not establish it.
+
+[Verification evidence](../05-verification/22-test-strategy-and-acceptance.md#bk-016bk-018-corrective-read-verification--2026-10-25)
+is separate from real authentication, PostgreSQL read integration, browser flows
+and full BK-016/BK-018 acceptance. Existing API-ERR-01 exceptional-status integration
+remains open; no frozen OpenAPI, public module API or migration is changed.
+
 ## BK-017 implementation checkpoint — 2026-10-24
 
 **IMPLEMENTED — Accounts status mutation and Administration orchestration contribution; runtime/API acceptance pending.** The Accounts internal JDBC provider locks the target row with `FOR UPDATE`, excludes Treasury and requires the caller-owned write transaction. The Administration use case owns the outer `REQUIRED`/READ COMMITTED transaction, validates the authenticated Admin and reason, calls the approved `AccountStatusCommands` capability, and persists the complete status-change audit in the same transaction. Equal status returns `UNCHANGED` without mutation or success audit; audit failure rolls the status change back.

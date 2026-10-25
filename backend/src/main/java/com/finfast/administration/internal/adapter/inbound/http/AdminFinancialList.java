@@ -7,7 +7,7 @@ import java.util.Objects;
 
 public record AdminFinancialList(List<AdminTransactionResponse> items) {
     public AdminFinancialList {
-        items = items == null ? List.of() : List.copyOf(items);
+        items = List.copyOf(items);
     }
 
     public static AdminFinancialList from(List<AdminFinancialTransactionView> views) {

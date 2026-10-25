@@ -1,12 +1,13 @@
 package com.finfast.administration.internal.adapter.inbound.http;
 
-import com.finfast.administration.internal.adapter.inbound.http.dto.AdminAuditEventView;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.finfast.administration.internal.application.dto.AdminAuditRecordView;
 
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
 
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public record AdminAuditEventResponse(
         Instant timestamp,
         UUID administratorId,
@@ -28,21 +29,6 @@ public record AdminAuditEventResponse(
     }
 
     public static AdminAuditEventResponse from(AdminAuditRecordView view) {
-        Objects.requireNonNull(view, "view");
-        return new AdminAuditEventResponse(
-                view.timestamp(),
-                view.administratorId(),
-                view.action(),
-                view.target(),
-                view.reason(),
-                view.outcome(),
-                view.reference(),
-                view.beforeStatus(),
-                view.afterStatus()
-        );
-    }
-
-    public static AdminAuditEventResponse from(AdminAuditEventView view) {
         Objects.requireNonNull(view, "view");
         return new AdminAuditEventResponse(
                 view.timestamp(),
