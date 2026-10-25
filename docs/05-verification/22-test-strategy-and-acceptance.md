@@ -340,6 +340,72 @@ The first `make help` attempt ran from backend/ and failed because its Makefile 
 | Tiến and provider owners: transaction composition | **BLOCKED** — production wiring absent. Same DataSource/manager and actual outer proxies, safe pre-commit/rollback-failure handling, during-commit classification and authoritative uncertain-commit recovery; rollbackOnCommitFailure alone is insufficient |
 | Phase 5 and acceptance | **NOT STARTED** — depends on the above integrations and separately authorized HTTP/CSRF/raw-input/outcome mapping, restart/network-loss/E2E and full financial AC evidence |
 
+## BK-016/BK-018 corrective read verification — 2026-10-25
+
+**Independent Administration read contribution; real authentication/provider
+integration and end-to-end acceptance remain pending.** Git preflight verified
+clean `feat/BK-016-admin-read-apis`, local/remote/PR #35 HEAD
+`5dfffc492a2642033ac8c2f72a77c497b971b355`, target `develop` at
+`bb7b5ce911446b86c0d51583d22ab15f8d25cc05`, and `0 / 6` develop-only/branch-only
+commits. No pull or develop merge was needed. GitHub CLI authentication was
+unavailable; the connected GitHub metadata and remote Git refs agreed.
+
+Verification uses Temurin Java 21.0.12.1+1 extracted into
+`/tmp/finfast-pr35-java21` from the cached, repository-pinned JDK image; host Java
+26 is not used. From `backend/`, with that JDK in `JAVA_HOME` and `PATH`:
+
+```sh
+./mvnw --batch-mode --no-transfer-progress '-Dtest=AdminInspectionControllerTest,AdminInspectionServiceTest,*ArchitectureTests,*VerificationTests' test
+./mvnw --batch-mode --no-transfer-progress '-Dtest=AdminInspection*Test*,FinfastApplicationTests,GlobalExceptionHandlerTests,*ArchitectureTests,*VerificationTests' clean test
+./mvnw --batch-mode --no-transfer-progress '-Dtest=AdminInspection*Test*,FinfastApplicationTests,GlobalExceptionHandlerTests,*ArchitectureTests,*VerificationTests' test
+./mvnw --batch-mode --no-transfer-progress clean verify
+```
+
+The pre-edit baseline passed **170 tests**, zero failures/errors/skips. The final
+focused run passed **260 tests / 11 suites**, zero failures/errors/skips: 28
+application, 20 HTTP/Jackson, eight activation/dependency, four full-application
+context, 42 shared-error and 158 architecture/capability/layer/negative-fixture
+checks. Direct inbound invocation and the real controller/config/application chain
+both authorize before private reads. Tests cover missing/wrong-role identity,
+null actors, technical failures, Customer consistency, all three financial types,
+signed MAX_VALUE decimal strings, exact timestamp/field sets and actual omission
+of optional audit properties via `JsonNode.has`. Production scanning registers
+neither use case nor controller/route by default; activation without any one of
+the five required dependencies fails context startup.
+
+Final full `clean verify` passed **1,310 tests / 61 suites**, zero
+failures/errors/skips, in 3 minutes 29 seconds; Maven produced the executable JAR.
+This includes existing PostgreSQL 16.15 Testcontainers allocation
+orchestration/concurrency/commit-recovery, audit persistence/constraints, status
+change, Ledger AM-04/history/posting/reconciliation and schema regressions in
+isolated databases. Their passing results preserve their existing provider and
+transaction evidence scope; they do not establish the new Admin HTTP read
+pipeline with real Identity/Customer/audit readers.
+
+Repository-root checks passed: `python3 scripts/check_backend_jar.py`, pinned
+`openapi_spec_validator` and `scripts/check_docs.py`,
+`docker compose -f compose.docs.yaml config --quiet`, `git diff --check`, and
+whitespace/final-newline checks for both new Java files. JAR inspection confirms
+the new configuration is packaged and removed Admin handler/DTO/exception classes
+are absent. Public module APIs, Accounts/Ledger/Identity/Customer implementations,
+V1/V2 migrations, frozen OpenAPI and build configuration are unchanged.
+
+Initial attempts exposed a stale incremental nested-class artifact
+(`PostingResult$Rejected.class`, resolved by clean compilation), an incorrectly
+unstubbed Mockito null-result fixture and ambiguous MVC/Actuator mapping injection
+in the new context test. The fixtures now explicitly return null and qualify the
+MVC mapping. No existing financial implementation, architecture rule or assertion
+was weakened to resolve these failures.
+
+All new read-provider/security collaborators are test-only. They establish no
+real session/logout/expiry/RBAC integration or PostgreSQL Admin read pipeline.
+Production Identity/Customer/AM-03/audit readers and complete Ledger composition
+remain pending; existing audit persistence stays insert-only. The new common
+UNAUTHORIZED category supports a safe 401 convention without asserting a typed
+Identity error contract. API-ERR-01 still governs exceptional statuses absent
+from the frozen operation response lists. No OpenAPI/public module API/migration
+change or BK-016/BK-018 acceptance completion is claimed.
+
 ## BK-017 Freeze/unfreeze verification — 2026-10-24
 
 **PARTIAL IMPLEMENTATION EVIDENCE — Accounts status provider and Administration orchestration.** The focused PostgreSQL/Testcontainers suite uses isolated PostgreSQL 16 databases, the real JDBC transaction manager and actual Spring proxies. It verifies ACTIVE→FROZEN and FROZEN→ACTIVE, complete status audit action/outcome/before/after fields, same-state `UNCHANGED` without an audit row, Treasury exclusion, blank-reason rejection, audit-trigger rollback, and rejection of missing/read-only/unproxied caller transactions.
