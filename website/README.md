@@ -703,3 +703,131 @@ Final artifacts: `.cache/phase6c-review-full-browser/` and
 Browser tests use the existing ignored port-3003 config; the user's port-3000 server
 is preserved. Existing 6A/6B working changes and the unrelated `.gitignore` change
 were preserved. No backend/contracts, dependency, commit or push changes were made.
+
+## Phase 7 - Real backend integration readiness (2026-10-25)
+
+**BLOCKED: no implemented Customer HTTP endpoints in the current checkout.**
+Inspected branch `feature/BK-019`, commit `210862a` (transfer and recovery). At this
+checkpoint tracked files were clean; `.agents/` was already untracked and untouched.
+Phase 6 gate passes for the frontend baseline: the final artifacts record 222 browser
+and 8 MSW/production cases passed, alongside the recorded 319 unit/integration cases.
+Focused review of the committed vault/store/provider/service found no new supported
+P1/P2 finding. This is not backend integration acceptance or a durability certification.
+
+### Endpoint implementation inventory
+
+All paths below are under `/api/v1`. These are source findings, not observed HTTP
+404 responses. Approved interfaces and test fixtures do not establish live endpoints.
+
+| Contract endpoint | Current implementation evidence | Integration state |
+| --- | --- | --- |
+| GET `/auth/csrf` | No HTTP handler, CSRF/security filter configuration | Blocked |
+| POST `/auth/register` | Identity/Customer/Account APIs only; no registration HTTP adapter | Blocked |
+| POST `/auth/login` | No login HTTP adapter or server-session implementation | Blocked |
+| POST `/auth/logout` | No logout HTTP adapter or session invalidation implementation | Blocked |
+| GET `/auth/session` | `CurrentIdentity` is an internal interface, not an endpoint | Blocked |
+| GET `/accounts/me` | `AccountQueries` interface; no Customer account HTTP handler | Blocked |
+| GET `/accounts/me/history` | No history HTTP handler | Blocked |
+| GET `/transactions/{reference}/receipt` | No receipt HTTP handler | Blocked |
+| POST `/transfers` | Ledger posting internals exist; no Transfers HTTP/application adapter | Blocked |
+| POST `/request-outcomes/resolve` | `RequestOutcomes` interface; no resolve HTTP handler | Blocked |
+
+Evidence: [backend source](../backend/src/main/java/com/finfast),
+[CurrentIdentity](../backend/src/main/java/com/finfast/identity/api/CurrentIdentity.java),
+[AccountQueries](../backend/src/main/java/com/finfast/accounts/api/AccountQueries.java),
+[RequestOutcomes](../backend/src/main/java/com/finfast/idempotency/api/RequestOutcomes.java),
+[backend dependencies](../backend/pom.xml) and [documentation readiness](../docs/README.md).
+Targeted production-source searches found no controller/request mapping/router or
+SecurityFilterChain. `GlobalExceptionHandler` is ControllerAdvice, not a route.
+The `transfers` and `transactions` production packages are absent. Actuator health is
+configured by framework dependencies; its runtime health is unverified and would not
+establish availability of any Customer endpoint.
+
+### Integration classification and blockers
+
+| Area | Verified frontend/source behavior | Missing evidence / action |
+| --- | --- | --- |
+| Endpoint and DTO | Frontend services call the frozen Customer routes; existing decoder tests validate bodies/statuses | Backend owners must supply handlers; no real response mismatch can yet be classified |
+| Cookie / CSRF | Fetch includes credentials, obtains fresh CSRF for POST and uses X-CSRF-TOKEN; contract cookie is FINFAST_SESSION | Verify actual cookie flags, rotation, expiry, Origin/CSRF rejection and POST logout with real server |
+| Origin / routing | API client uses the page origin; Vite has no API proxy, backend defaults to 8080 | Supply an approved same-origin reverse proxy/test setup. Standalone Vite on 3000 does not connect to backend 8080; do not weaken CORS/CSRF or guess a remote target |
+| Authorization | Client guards and owner/epoch isolation are tested | Prove server CUSTOMER/ADMIN checks and account/history/receipt/outcome ownership |
+| Error handling | Protocol/network errors fail closed; no real-to-mock fallback or automatic transfer retry | Verify actual HTTP status/ErrorResponse, committed reference, 422 rejection and uncertain resolve behavior |
+| Environment | Docker command unavailable in this shell; no isolated real test endpoint/fixtures confirmed | Backend team supplies runnable isolated test deployment/database and synthetic users; never test against developer persistent data |
+
+No real register/login/logout/account/history/receipt/transfer/resolve tests were run:
+their implementations and an approved isolated environment are unavailable. No
+financial POST, database startup, production access, MSW-backed substitute or backend
+change was performed. Existing mock tests remain regression evidence only. No frontend
+runtime correction is justified by a real response mismatch yet, so this checkpoint
+changes documentation only rather than inventing APIs or adding unused adapters.
+
+Resume with the implemented endpoints and isolated synthetic dataset: first verify
+CSRF/session/cookie behavior without financial mutations, then registration and role
+authorization, account/history/receipt reads, and finally simulated transfer/resolve
+with original-key replay, lost-response recovery and server-side posting evidence.
+Keep real integration results separate from MSW/unit results and preserve all frozen
+request/response contracts. Cross-origin deployment, TLS, backend idempotency and
+real server recovery remain unverified blockers, not passing frontend checks.
+
+Checkpoint validation: typecheck, production build, production bundle isolation and
+all 319 unit/integration tests reran and passed (0 failed). Git whitespace and README
+local links/fences passed. Browser 222/222 and MSW/production 8/8 are the existing final
+Phase 6 artifacts checked above, not new runs; runtime code has not changed. Real
+backend integration: 0 executed, blocked, not passed. No new integration tests against
+nonexistent handlers were claimed. Only this README changed; no commit or push.
+
+### BK-007 authentication integration preparation
+
+Scope: only CSRF, login, logout and session. Read-only inspection of local
+`origin/feat/BK-007-authentication-sessions` at `e92c161` finds actual handlers there;
+these are not present in the current BK-019 backend checkout. Remote source readiness
+does not establish a running service or supersede the local-checkout inventory above.
+
+| API | BK-007 implementation / frontend compatibility |
+| --- | --- |
+| GET `/api/v1/auth/csrf` | SessionController returns `{token}`. Frontend sends the returned masked token unchanged in `X-CSRF-TOKEN`; it does not unmask or persist it |
+| POST `/api/v1/auth/login` | JsonLoginFilter accepts JSON `{email,password}` and returns SessionInfo `{userId,role,displayName?}`. Frontend matches these fields, includes browser credentials and requires validated response data |
+| POST `/api/v1/auth/logout` | Security filter invalidates session, deletes `FINFAST_SESSION`, returns `{message}`. Frontend obtains fresh CSRF after login rotation, uses POST and does not claim successful logout after network failure |
+| GET `/api/v1/auth/session` | SessionController returns minimal identity or 401 ErrorResponse. Frontend derives role from this response; pending revalidation invalidates protected data |
+
+`application-auth.yml` enables cookie-only `FINFAST_SESSION`, HttpOnly, Secure,
+SameSite=Lax and 30-minute timeout. Browser cookie handling is intentional: frontend
+must not read/set this cookie or copy it into localStorage/sessionStorage. The auth
+profile also requires HTTPS and rejects foreign-origin mutations. No permissive CORS
+or insecure-cookie override is provided by this preparation.
+
+For an operator-provided **isolated synthetic test environment**, serve the built
+`dist/` and the real `/api/v1/auth/*` routes behind the same HTTPS origin. Use
+`npm.cmd run build`; the output excludes MSW. Alternatively normal `npm.cmd run dev`
+may sit behind that approved HTTPS gateway, but standalone HTTP Vite on port 3000
+does not proxy to backend port 8080 and is not the integration setup. The gateway and
+backend must agree on the trusted request scheme/host so HTTPS/Origin checks remain
+effective; that deployment configuration must be supplied and verified by the backend
+operator. Do not spoof Origin, disable certificate checking, or relax auth protections.
+Use a fresh browser context with no previous mock worker; do not run `dev:mock`.
+Do not substitute a remote API origin into the client: it intentionally uses page origin.
+
+Error mapping: login 401/503, session 401 and logout 401 JSON ErrorResponse map to
+existing HTTP error handling. A non-JSON response, unexpected status or malformed body
+fails closed as a protocol error; none triggers mock fallback or automatic mutation
+retry. BK-007 security filters can emit 403 for TLS/Origin/CSRF denial, while these
+auth operations do not enumerate 403 in the frozen OpenAPI. That is a backend/contract
+integration question, not authorization to expand frontend status allowlists. Such a
+403 is currently a protocol error and must not be described as a confirmed bad password
+or successful logout. CSRF GET errors likewise must not dispatch the subsequent POST.
+
+No request/response mismatch justifies a frontend runtime edit at this checkpoint.
+Runtime prerequisites: an auth-profile backend instance, isolated database with a
+pre-provisioned synthetic login (registration is outside this four-API scope), matching
+HTTPS routing and trusted certificates. None is assumed available. Once supplied,
+verify pre-login CSRF/session, login cookie rotation, authenticated session, refreshed
+CSRF, POST logout and post-logout 401. Inspect flags/header presence without logging
+cookie/token/password values. Route-based browser tests and MSW regression are frontend
+test doubles, never evidence that this real backend sequence has passed.
+
+Preparation verification: 91 related unit/integration tests, 30 Identity browser
+cases across three viewports and 8 MSW/production browser cases passed, 0 failed.
+Typecheck, production build and production isolation passed. Browser artifacts are
+`.cache/bk007-auth-browser/` and `.cache/bk007-auth-mock/`. No real BK-007 runtime test
+was executed. Only this documentation was changed; backend and runtime frontend code
+remain unchanged. No checkout, merge, dependency installation, commit or push.
