@@ -18,6 +18,8 @@ import org.springframework.test.json.JsonCompareMode;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
+import com.finfast.accounts.internal.adapter.outbound.persistence.JdbcAccountStatusRepository;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -31,6 +33,10 @@ class FinfastApplicationTests {
 
     @MockitoBean
     JdbcAccountRepository jdbcAccountRepository;
+
+    // This context intentionally excludes DataSource/Flyway; status mutation is not under test here.
+    @MockitoBean
+    JdbcAccountStatusRepository jdbcAccountStatusRepository;
 
     @Test
     void incompleteAdminInspectionIsNotRegisteredByProductionScanning(@Autowired ApplicationContext context,

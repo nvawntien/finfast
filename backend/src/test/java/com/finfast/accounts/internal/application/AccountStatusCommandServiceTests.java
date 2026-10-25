@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class AccountStatusCommandServiceTests {
 
-    private InMemoryAccountRepository repository;
+    private InMemoryAccountStatusRepository repository;
     private AccountStatusCommandService service;
 
     private static final UUID ACCOUNT_ID = UUID.randomUUID();
@@ -25,7 +25,7 @@ class AccountStatusCommandServiceTests {
 
     @BeforeEach
     void setUp() {
-        repository = new InMemoryAccountRepository();
+        repository = new InMemoryAccountStatusRepository();
         service = new AccountStatusCommandService(repository);
     }
 
@@ -40,7 +40,7 @@ class AccountStatusCommandServiceTests {
         assertThat(change.after()).isEqualTo(CustomerAccount.Status.FROZEN);
         assertThat(change.changed()).isTrue();
 
-        Account updated = repository.findById(ACCOUNT_ID).orElseThrow();
+        Account updated = repository.findById(ACCOUNT_ID);
         assertThat(updated.status()).isEqualTo(CustomerAccount.Status.FROZEN);
     }
 

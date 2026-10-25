@@ -6,7 +6,7 @@ import com.finfast.accounts.internal.application.dto.AccountStatusSnapshot;
 import java.util.Optional;
 import java.util.UUID;
 
-/** Accounts-local persistence boundary for the locked status mutation. */
+/** Accounts-owned persistence boundary for the locked status mutation. */
 public interface AccountStatusRepository {
     Optional<AccountStatusSnapshot> lockById(UUID accountId);
 

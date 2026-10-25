@@ -40,6 +40,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 
 import com.finfast.accounts.internal.adapter.outbound.persistence.JdbcAccountRepository;
+import com.finfast.accounts.internal.adapter.outbound.persistence.JdbcAccountStatusRepository;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -68,6 +69,9 @@ class HttpTracingIntegrationTests {
 
     @MockitoBean
     JdbcAccountRepository jdbcAccountRepository;
+
+    @MockitoBean
+    JdbcAccountStatusRepository jdbcAccountStatusRepository;
 
     private static final JsonMapper JSON = JsonMapper.builder()
             .enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION).build();
