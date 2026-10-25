@@ -2,8 +2,13 @@ package com.finfast.architecture;
 
 import com.finfast.administration.internal.application.dto.AllocationCommand;
 import com.finfast.administration.internal.application.dto.AllocationResult;
+import com.finfast.administration.internal.application.dto.StatusChangeCommand;
+import com.finfast.administration.internal.application.dto.StatusChangeResult;
 import com.finfast.administration.internal.application.port.inbound.AllocateDemoFunds;
+import com.finfast.administration.internal.application.port.inbound.ChangeCustomerStatus;
 import com.finfast.administration.internal.application.usecase.AllocateDemoFundsService;
+import com.finfast.administration.internal.application.usecase.ChangeCustomerStatusService;
+import com.finfast.accounts.api.AccountStatusCommands;
 import com.finfast.ledger.api.AllocationPosting;
 import com.finfast.ledger.api.AdminFinancialTransactionQueries;
 import com.finfast.ledger.api.FinancialPosting;
@@ -12,6 +17,7 @@ import com.finfast.ledger.internal.application.usecase.AllocationPostingService;
 import com.finfast.ledger.internal.application.usecase.AdminFinancialTransactionQueryService;
 import com.finfast.ledger.internal.application.usecase.GenesisPostingService;
 import com.finfast.ledger.internal.application.usecase.TransferPostingService;
+import com.finfast.accounts.internal.application.usecase.AccountStatusCommandService;
 import com.finfast.ledger.internal.application.port.inbound.ReadCustomerHistory;
 import com.finfast.ledger.internal.application.port.inbound.ReadCustomerReceipt;
 import com.finfast.ledger.internal.application.usecase.CustomerHistoryQueryService;
@@ -109,6 +115,23 @@ class ApplicationBoundaryVerificationTests {
         assertThat(transaction.propagation()).isEqualTo(Propagation.REQUIRED);
         assertThat(transaction.isolation()).isEqualTo(Isolation.READ_COMMITTED);
         assertThat(transaction.rollbackFor()).containsExactly(Exception.class);
+    }
+
+    @Test
+    void statusChangeUsesAdministrationEntryAndAccountsStatusCapability() throws Exception {
+        assertThat(ChangeCustomerStatus.class.isInterface()).isTrue();
+        assertThat(ChangeCustomerStatus.class).isAssignableFrom(ChangeCustomerStatusService.class);
+        var entry = ChangeCustomerStatus.class.getMethod("change", StatusChangeCommand.class);
+        assertThat(entry.getReturnType()).isEqualTo(StatusChangeResult.class);
+        assertThat(ChangeCustomerStatus.class.getDeclaredAnnotations()).isEmpty();
+        var transaction = ChangeCustomerStatusService.class.getMethod("change", StatusChangeCommand.class)
+                .getAnnotation(Transactional.class);
+        assertThat(transaction).isNotNull();
+        assertThat(transaction.propagation()).isEqualTo(Propagation.REQUIRED);
+        assertThat(transaction.isolation()).isEqualTo(Isolation.READ_COMMITTED);
+        assertThat(transaction.rollbackFor()).containsExactly(Exception.class);
+        assertThat(AccountStatusCommands.class).isAssignableFrom(AccountStatusCommandService.class);
+        assertThat(AccountStatusCommands.class.getDeclaredAnnotations()).isEmpty();
     }
 
     @Test

@@ -44,6 +44,12 @@
 
 `*` A verified course mandate can create a separately required milestone; it **must** be reconciled with scope by the owner, not silently claimed optional or imposed on the initial Core.
 
+## BK-017 implementation checkpoint — 2026-10-24
+
+**IMPLEMENTED — Accounts status mutation and Administration orchestration contribution; runtime/API acceptance pending.** The Accounts internal JDBC provider locks the target row with `FOR UPDATE`, excludes Treasury and requires the caller-owned write transaction. The Administration use case owns the outer `REQUIRED`/READ COMMITTED transaction, validates the authenticated Admin and reason, calls the approved `AccountStatusCommands` capability, and persists the complete status-change audit in the same transaction. Equal status returns `UNCHANGED` without mutation or success audit; audit failure rolls the status change back.
+
+PostgreSQL/Testcontainers evidence covers ACTIVE↔FROZEN changes, same-state behavior, Treasury rejection, blank-reason rejection, audit-trigger rollback and actual transaction/read-only guards. No REST/OpenAPI/schema/migration or BK-015 Receipts change is included. Production bean composition remains pending because the baseline still lacks a real `CurrentIdentity` implementation and the complete Accounts/Administration runtime wiring; this checkpoint does not mark BK-017 Done.
+
 ## BK-003 implementation and approval status
 
 Tiến approved the Java contracts and TD-015/016 on 2026-10-22. PR #10 is **MERGED** into `develop` at `8a04ca03505a140930b9bbc976dcdc1148db2693`; the shared Java baseline is active. The later [V1 engineering freeze](../6-governance/25-design-decision-register.md#v1-engineering-design-freeze--2026-10-22) selects TD-001..014 with scoped design/method/topology approval. The subsequent [Product/UX/REST record](../6-governance/25-design-decision-register.md#2026-10-22--v1-product-ux-and-rest-contract-freeze) approves the existing implementation-facing PRD/functional/UX/external API baselines; it changes no task assignment, module ownership or evidence gate. Owner endorsements, provider implementations and financial acceptance do not follow from that approval. Unpushed teammate work remains unknown.

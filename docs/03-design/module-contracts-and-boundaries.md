@@ -273,6 +273,8 @@ exception is introduced. These static checks do not implement runtime security.
 | Administration status / Tiến + Hải | AccountStatusCommands; internal audit writer | Account protection shared with posting; status + audit or neither; same status UNCHANGED |
 | Protected setup / Trung | AdminProvisioning; TreasuryProvisioning + GenesisPosting → PostingAccounts | Atomic Treasury/GENESIS/dataset linkage, exactly once; verify restart, no reseed |
 
+**BK-017 implementation checkpoint — 2026-10-24:** Accounts now has an internal JDBC status provider that locks a target Account row and implements the approved `AccountStatusCommands` capability; Administration has the concrete status-change inbound use case and complete status-audit persistence. The outer Administration entry is `REQUIRED`/READ COMMITTED with checked-failure rollback, while Accounts status mutation and audit persistence join through `MANDATORY` guards on the same DataSource/transaction manager. Equal status is `UNCHANGED`, Treasury status is immutable, and audit failure rolls back the status change. No provider Bean is registered in production while the baseline lacks a real `CurrentIdentity` implementation and complete Accounts runtime composition; no fake provider or fallback identity is introduced.
+
 The later TD-002 selected realization is outer concrete application `REQUIRED`, restricted
 mutation/coordination collaborators guarded by an existing transaction (normally concrete
 `MANDATORY`) on their concrete public implementation methods. **No transaction
