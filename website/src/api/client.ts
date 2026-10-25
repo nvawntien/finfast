@@ -79,7 +79,8 @@ export function createHttpClient({ baseUrl, fetchImpl = (input, init) => globalT
           throw new ApiError('protocol', { status: response.status, ...errorOptions() });
         }
         if (!response.ok) {
-          if (!isRecord(data) || typeof data.code !== 'string' || typeof data.message !== 'string'
+          if (!isRecord(data) || Object.keys(data).some(key => !['code', 'message', 'outcome'].includes(key))
+            || typeof data.code !== 'string' || typeof data.message !== 'string'
             || (data.outcome !== undefined && (typeof data.outcome !== 'string'
               || !['REJECTED', 'PROCESSING', 'UNKNOWN'].includes(data.outcome)))) {
             throw new ApiError('protocol', { status: response.status, ...errorOptions() });
@@ -116,7 +117,7 @@ export function createHttpClient({ baseUrl, fetchImpl = (input, init) => globalT
         const result = await send(url.href, { method, body, headers }, customerOperations[operation]);
         if (financial) {
           const allowed = result.status === 202 ? ['PROCESSING', 'UNKNOWN']
-            : operation === 'POST /transfers' ? ['COMPLETED'] : ['COMPLETED', 'REJECTED'];
+            : operation === 'POST /transfers' ? ['COMPLETED'] : ['COMPLETED', 'REJECTED', 'PROCESSING', 'UNKNOWN'];
           if (!isRecord(result.data) || typeof result.data.outcome !== 'string' || !allowed.includes(result.data.outcome)) {
             throw new ApiError('protocol', { status: result.status, ...errorOptions() });
           }

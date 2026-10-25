@@ -1,5 +1,6 @@
 import { CustomerDashboard } from '../features/account/CustomerDashboard';
 import { HistoryPage, ReceiptPage } from '../features/history/HistoryPages';
+import { TransferPage } from '../features/transfers/TransferPage';
 import { IdentityPage } from '../features/auth/IdentityPage';
 import { CustomerGuard } from '../features/auth/SessionProvider';
 import { Navigate, Route, Routes } from 'react-router';
@@ -14,7 +15,7 @@ export function AppRoutes() {
       <Route path="login" element={<IdentityPage key="login" />} />
       <Route element={<CustomerGuard />}>
         <Route path="customer" element={<CustomerDashboard />} />
-        <Route path="customer/transfer" element={<PlaceholderPage title="Chuyển tiền nội bộ" screen="CHUYỂN TIỀN" description="Chức năng chuyển tiền chưa khả dụng trong giai đoạn này." />} />
+        <Route path="customer/transfer" element={<TransferPage />} />
         <Route path="customer/history" element={<HistoryPage />} />
         <Route path="customer/receipts/:reference" element={<ReceiptPage />} />
       </Route>

@@ -32,11 +32,11 @@ for (const [path, title] of routes) {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(title);
     await expect(page).toHaveTitle(`${title} | FinFast`);
     await expect(page.getByRole('complementary', { name: 'Thông báo mô phỏng' })).toBeVisible();
-    if (path === '/customer/transfer' || path === '/unknown-route') await expect(page.getByRole('heading', { name: 'Màn hình chưa được triển khai' })).toBeVisible();
+    if (path === '/unknown-route') await expect(page.getByRole('heading', { name: 'Màn hình chưa được triển khai' })).toBeVisible();
     if (path === '/customer') await expect(page.getByTestId('account-number')).toHaveText(mockAccount.accountNumber);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
-    expect(apiRequests.every(url => url.endsWith('/api/v1/auth/session') || (path === '/customer' && url.endsWith('/api/v1/accounts/me'))
+    expect(apiRequests.every(url => url.endsWith('/api/v1/auth/session') || ((path === '/customer' || path === '/customer/transfer') && url.endsWith('/api/v1/accounts/me'))
       || (path === '/customer/history' && url.includes('/api/v1/accounts/me/history?'))
       || (path.startsWith('/customer/receipts/') && url.endsWith('/receipt')))).toBe(true);
     expect(errors).toEqual([]);

@@ -123,6 +123,8 @@ export function createMockApi(origin: string) {
         if (!isRecord(data) || data.operationType !== 'INTERNAL_TRANSFER') {
           return HttpResponse.json({ code: 'FORBIDDEN', message: 'Customer mock only.' }, { status: 403 });
         }
+        if (typeof data.idempotencyKey !== 'string' || !data.idempotencyKey
+          || Object.keys(data).some(key => !['operationType', 'idempotencyKey'].includes(key))) return HttpResponse.error();
         return nonfinal();
       }),
       // Fail closed for unhandled APIs AND other origins; never silently hit a real backend.

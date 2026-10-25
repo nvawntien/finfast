@@ -84,3 +84,30 @@ test('frozen principal reads paginated history and an owned receipt through MSW'
   await expect(page.getByRole('article', { name: 'Biên nhận đã cam kết' })).toContainText('MOCK-FROZEN-ACCOUNT');
   await expect(page.getByRole('status').filter({ hasText: 'Chế độ Mock API' })).toBeVisible();
 });
+
+test('transfer preview uses MSW account reads but creates no financial command', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByLabel('Email', { exact: false }).fill('customer@example.test');
+  await page.getByLabel('Mật khẩu (bắt buộc)', { exact: true }).fill('mock-only-password');
+  await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
+  await page.getByRole('link', { name: /Mở trang chuyển tiền/ }).click();
+  const financial: string[] = [];
+  page.on('request', request => { if (/\/api\/v1\/(transfers|request-outcomes)/.test(request.url())) financial.push(request.url()); });
+  await page.getByLabel('Số tài khoản nhận (bắt buộc)').fill('MOCK-RECIPIENT');
+  await page.getByLabel('Số tiền VND (bắt buộc)').fill('200000');
+  await page.getByRole('checkbox', { name: /Kèm ghi chú/ }).check();
+  await page.getByRole('button', { name: 'Kiểm tra thông tin', exact: true }).click();
+  await expect(page.getByText('Ghi chú rỗng', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Gửi chuyển tiền', exact: true })).toBeEnabled();
+  await expect(page.getByRole('status').filter({ hasText: 'Chế độ Mock API' })).toBeVisible();
+  expect(financial).toEqual([]);
+  await page.getByRole('button', { name: 'Gửi chuyển tiền', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Chưa xác định kết quả' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Tạo yêu cầu mới' })).toHaveCount(0);
+  expect(financial).toHaveLength(1);
+  await page.getByRole('button', { name: 'Tra cứu kết quả', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Chưa xác định kết quả' })).toBeVisible();
+  expect(financial).toHaveLength(2);
+  expect(financial[1]).toContain('/request-outcomes/resolve');
+  await expect(page.getByRole('status').filter({ hasText: 'Chế độ Mock API' })).toBeVisible();
+});

@@ -1,4 +1,5 @@
 import { SessionProvider } from './features/auth/SessionProvider';
+import { TransferProvider } from './features/transfers/TransferProvider';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router';
@@ -10,7 +11,7 @@ import './styles/global.css';
 prepareEnvironment().then(mockEnabled => createRoot(document.getElementById('root')!).render(
   <StrictMode>
     {mockEnabled && <aside role="status">Chế độ Mock API — dữ liệu giả lập, chưa kết nối backend.</aside>}
-    <BrowserRouter><SessionProvider><AppRoutes /></SessionProvider></BrowserRouter>
+    <BrowserRouter><SessionProvider><TransferProvider><AppRoutes /></TransferProvider></SessionProvider></BrowserRouter>
   </StrictMode>,
 )).catch(() => {
   // Fail closed; never fall back to real APIs when mock initialization fails.

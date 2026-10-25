@@ -1,8 +1,8 @@
-# FinFast Customer Web — BK-019 Phases 1–5
+# FinFast Customer Web — BK-019 Phases 1–6C
 
 Frontend foundation, shared HTTP client, opt-in Mock API, Identity UI and Customer Dashboard.
 Registration/login and server-session checks are implemented. Customer routes require
-a CUSTOMER session; Dashboard, History and Receipt read server-owned data. Transfer remains a placeholder.
+a CUSTOMER session; Dashboard, History and Receipt read server-owned data. Transfer supports explicit submission, validated outcomes and explicit recovery of unresolved intents.
 Synthetic fixtures live only in the development/test mock module. Only simulated funds
 are in scope; no Admin UI is included.
 
@@ -255,8 +255,8 @@ CSS Modules isolate components; CSS variables own design tokens. Native links an
 React Router declarative routing provide keyboard navigation. Layout owns shared
 landmarks and focus management. `PlaceholderPage` is intentionally shared until
 actual feature behavior needs separate modules. Do not create speculative API wrappers
-or unused folders. History/Receipt share `src/features/history/`. Future phases introduce `src/features/transfers/`
-as behavior is implemented.
+or unused folders. History/Receipt share `src/features/history/`. Transfer preview lives
+in `src/features/transfers/`; dispatch and explicit outcome recovery are implemented.
 
 | Route | Screen |
 | --- | --- |
@@ -264,7 +264,7 @@ as behavior is implemented.
 | `/register` | S01 registration; success requires separate login |
 | `/login` | S02 login and expired-session notice |
 | `/customer` | S03 Customer Dashboard; server-owned account overview |
-| `/customer/transfer` | S04 transfer placeholder |
+| `/customer/transfer` | S04 review, explicit submit and outcome; no automatic retry |
 | `/customer/history` | S05 committed history with opaque cursor pagination |
 | `/customer/receipts/:reference` | S06 authorized immutable receipt lookup |
 | Other paths | 404 with navigation home |
@@ -543,3 +543,163 @@ screen reader, actual browser zoom and Firefox/WebKit checks remain outstanding.
 Artifacts are ignored under `.cache/phase5-focused-browser/`, `.cache/phase5-full-browser/`,
 `.cache/phase5-full-mock/` and `.cache/phase5-identity-fix/`. No backend/contracts,
 dependencies, deployment resources, commits or pushes were changed.
+
+## Phase 6A - Transfer Form (preview only)
+
+Historical Phase 6A checkpoint; Phase 6B below now enables explicit submission.
+
+`src/features/transfers/` implements UX S04 entry and review using only
+`recipientAccountNumber`, positive whole-string `amountVnd`, and optional exact `note`.
+The explicit note checkbox preserves omission versus an included empty string. No
+recipient format, note length cap, fee, recipient name lookup or extra request field
+is invented. The shared account service/store supplies loading, errors, GET retry
+and FROZEN read-only state. Client self-transfer/funds prechecks use FR-004 and the
+last account snapshot; they do not prove recipient eligibility or funds at commit.
+
+`reviewTransfer` returns a frozen snapshot of TransferRequest fields for display.
+It performs no request, generates no idempotency key, stores nothing persistently and
+creates no financial command/outcome. The review screen's send button is disabled
+with a visible explanation. Editing preserves exact input. Logout/revalidation/expiry
+and navigation discard the local draft through the existing session guard.
+
+Phase 6B must own explicit submission, original payload/key pairing, CSRF/session
+transport, concurrency and unknown-outcome recovery before enabling send. No partial
+financial state machine or fake successful result is implemented in Phase 6A.
+Design: [Transfer form](design-system/finfast/pages/transfer-form.md).
+
+### Phase 6A verification - 2026-10-24
+
+- Focused draft unit tests: 28 passed; focused form browser tests: 15 passed.
+- Full unit/integration regression: 236 passed, 0 failed (9 files).
+- Full Chrome browser regression: 150 passed, 0 failed across mobile/tablet/desktop.
+- MSW and production browser regression: 8 passed, 0 failed; preview generates no
+  transfer/outcome command. Typecheck, production build and bundle isolation passed.
+- Keyboard/error-summary/review/edit focus, axe and 200% text reflow passed. Mobile
+  and desktop confirmation screenshots were inspected. No outstanding P1/P2/P3
+  finding identified within Phase 6A self-review.
+- Git/new-file whitespace and local Markdown links/fences passed. Make is unavailable;
+  repository documentation checker could not run because `markdown_it` is missing.
+
+Artifacts: `.cache/phase6a-focused-browser/`, `.cache/phase6a-full-browser/` and
+`.cache/phase6a-full-mock/`. Backend integration, manual screen reader/browser zoom
+and Firefox/WebKit remain unverified. Financial execution/recovery is deliberately
+outside Phase 6A; these checks do not establish transfer correctness on a server.
+
+## Phase 6B - Transfer state machine
+
+Historical Phase 6B checkpoint; Phase 6C below supersedes its in-memory-only recovery limitations.
+
+`TransferProvider` retains owner-scoped intents above routes; `transferStore.ts`
+locks submission synchronously and freezes the exact request payload with its key
+before CSRF/network awaits. `service.ts` reuses the existing cookie/CSRF HTTP client.
+Only validated 200/COMPLETED with a committed reference confirms success; only a
+validated financial 422 confirms REJECTED. 202 preserves PROCESSING/UNKNOWN;
+409, timeout, network, 503 and malformed responses cannot certify a final result.
+There is no automatic mutation retry. Extra ErrorResponse fields are now rejected
+by the shared decoder, matching OpenAPI `additionalProperties: false`.
+
+Logout, revalidation and principal changes invalidate the request scope, hide private
+intent data and ignore late completions. Returning as the original owner preserves
+the unresolved payload/key. Only a deliberate new intent after a final result can
+generate another key. Completion refreshes account data and links to History/Receipt.
+Design: [Transfer states](design-system/finfast/pages/transfer-state.md).
+
+Phase 6C still owns lookup, safe resend and durable recovery. Intents currently live
+only in memory: reload/crash can lose them despite the UI warning and beforeunload
+confirmation. No cross-tab coordination or server atomicity is claimed. MSW returns
+UNKNOWN after explicit submission; it does not simulate ledger posting or certify
+real backend integration. Never automatically fall back to mock when the server fails.
+
+### Phase 6B verification - 2026-10-25
+
+- Phase 6A was already implemented and had passing artifacts, but remained uncommitted
+  at task start (HEAD `fc19d57`). Its existing working changes were preserved.
+- Added 50 unit/integration cases for decoding, immutable intent, duplicate submission,
+  timeout/abort/stream failure, session scope and principal isolation. Added 30 browser
+  cases (10 scenarios across mobile/tablet/desktop); extended the real MSW submit check.
+- Full unit/integration: 286 passed, 0 failed. Full Chrome browser regression:
+  180 passed, 0 failed, including Phases 1-6A. MSW/production browser: 8 passed, 0 failed.
+- Typecheck, production build and production bundle isolation passed. Git whitespace,
+  changed/new-file whitespace and lightweight Markdown links/fences passed.
+- Self-review tightened ErrorResponse validation to reject extra fields; no remaining
+  P1/P2 finding identified in Phase 6B. Real backend commit/idempotency integration,
+  Firefox/WebKit, manual screen reader and native browser zoom remain unverified.
+- Make is unavailable; the repository documentation checker cannot run because
+  `markdown_it` is missing. Lightweight checks do not replace that checker.
+
+Artifacts: `.cache/phase6b-full-browser/`, `.cache/phase6b-full-mock/`. Browser regression
+used an ignored config on port 3003 because the user's dev server occupied port 3000;
+that server was not stopped or reused. No backend/contracts/dependencies, commit or
+push were changed. Durable recovery and cross-tab coordination remain Phase 6C work.
+
+## Phase 6C - Transfer recovery
+
+The existing HTTP client sends `POST /request-outcomes/resolve` only on an explicit
+user action, with exactly `operationType: INTERNAL_TRANSFER` and the original
+`idempotencyKey`. There is no polling, automatic retry, automatic transfer resend or
+replacement key. The original exact payload remains immutable. Resolve validates
+the body on HTTP 200 too: COMPLETED requires a reference, REJECTED is final, and
+PROCESSING/UNKNOWN remain non-final. Lookup HTTP errors never certify a business
+rejection; 422 is outside this endpoint's approved status set and is a protocol error.
+401 expires only the current session scope; stale responses cannot expire a new one.
+
+`recoveryVault.ts` stores only the principal, original key and exact TransferRequest
+payload, plus a versioned local integrity fingerprint. AES-256-GCM uses a fresh key
+and nonce per record, owner-bound additional authenticated data, and a nonextractable
+CryptoKey stored atomically with ciphertext in IndexedDB before transfer dispatch.
+No credentials, cookie, CSRF token, password, balance or server outcome is persisted.
+Simulation/live records are separated. Only a server-confirmed CUSTOMER principal
+can select its record in the UI; reauthentication as that same owner may recover it.
+Reload restores an uncertain intent, never a cached claim of success.
+
+The local SHA-256 format is explicitly namespaced `finfast-browser-recovery:v1`.
+It binds owner, operation, key, exact recipient/amount and tagged omitted/present
+note; fixed-vector tests cover field order and omission. It is **not** TD-003's
+server fingerprint: the trusted source Account ID needed by that encoder is not
+exposed in AccountOverview. Resolve has no fingerprint request field, so none is
+invented or sent. Server canonical comparison and authorization remain authoritative.
+
+Web Locks serialize submit, resolve and final-result cleanup per owner across tabs.
+Other tabs reread IndexedDB on payload-free BroadcastChannel invalidations; events
+received while busy are reconciled afterwards. Cleanup invalidates stale reads and
+compares the full original intent before deletion. Missing Web Locks/Web Crypto/
+BroadcastChannel, unreadable records and write failures fail closed; there is no
+unsafe localStorage lease fallback. Session invalidations hide account/intent data
+and a follow-up session check handles cookie rotation during an already-pending GET.
+
+Records remain until an explicit new intent after a verified final result. Encryption
+does not defend against same-origin XSS or an attacker controlling the browser/profile:
+same-origin code can use the stored key. Browser eviction, user-cleared storage,
+private-mode lifetime, OS/power-loss durability and dataset resets are not guaranteed
+by this implementation. Tests exercise reload and page loss, not a real OS crash.
+No frontend-only exactly-once guarantee is claimed; real backend atomicity, owner
+authorization, durable outcomes and idempotency still need HTTP/database integration.
+
+### Phase 6C verification and focused review - 2026-10-25
+
+- Initial full regression artifacts recorded passed: 317 unit/integration, 219 Chrome
+  browser cases, 8 MSW/production browser cases. Earlier focused runs exposed Windows
+  text-encoding errors and an HMR-interrupted test; both were corrected before that run.
+- Follow-up review fixed two P2 consistency races: storage invalidations dropped while
+  a tab was busy, and a late hydration read resurrecting an intent after final cleanup.
+  Added two unit regressions and a browser regression for missing Web Locks. That
+  capability now fails closed before exposing the form; no uncoordinated fallback.
+- Focused follow-up: 83 unit/integration and 14 mobile recovery browser cases passed.
+- Final full regression after fixes: **319 unit/integration, 222 Chrome browser and
+  8 MSW/production browser tests passed; 0 failed**. Browser coverage includes all
+  earlier phases and mobile/tablet/desktop. Typecheck, production build and bundle
+  isolation passed. No remaining P1/P2 identified within this review's scope.
+- Coverage includes immutable key/payload, resolve body/status validation, timeout,
+  principal changes, stale completion, encrypted reload, page closure with POST pending,
+  concurrent tab submit/resolve, corruption, quota failure and final cleanup races.
+- Git whitespace and lightweight Markdown links/fences passed. Make remains unavailable;
+  repository documentation checker cannot run because `markdown_it` is missing.
+- Real backend integration, native OS/browser crash durability, eviction, Firefox/WebKit,
+  manual screen reader and native browser zoom remain unverified. AES-GCM/local
+  coordination do not establish server-side authorization or exactly-once posting.
+
+Final artifacts: `.cache/phase6c-review-full-browser/` and
+`.cache/phase6c-review-full-mock/`; focused artifacts: `.cache/phase6c-review-focused/`.
+Browser tests use the existing ignored port-3003 config; the user's port-3000 server
+is preserved. Existing 6A/6B working changes and the unrelated `.gitignore` change
+were preserved. No backend/contracts, dependency, commit or push changes were made.
