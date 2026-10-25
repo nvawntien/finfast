@@ -13,6 +13,7 @@ import org.springframework.aop.support.AopUtils;
 import org.springframework.transaction.IllegalTransactionStateException;
 
 import java.util.Optional;
+import java.util.UUID;
 import java.time.temporal.ChronoUnit;
 import java.time.Instant;
 
@@ -45,6 +46,7 @@ class LedgerReceiptIntegrationTests extends LedgerHistoryTestSupport {
         var fact = append(Type.INTERNAL_TRANSFER, 25L, "receipt-transfer", TIME, source, destination);
 
         var sourceReceipt = receipts.receipt(source, fact.reference()).orElseThrow();
+        assertThat(identities.calls).containsEntry(source, 1).containsEntry(destination, 1);
         var destinationReceipt = queries.receipt(destination, fact.reference()).orElseThrow();
 
         assertThat(sourceReceipt).isEqualTo(new LedgerQueries.Receipt(fact.reference(), LedgerQueries.Type.INTERNAL_TRANSFER,
@@ -102,6 +104,83 @@ class LedgerReceiptIntegrationTests extends LedgerHistoryTestSupport {
         });
         assertThat(ledgerContext.getBean(org.springframework.transaction.PlatformTransactionManager.class))
                 .isSameAs(manager);
+    }
+
+    @Test
+    void rejectsMismatchedParticipantIdentityTechnically() {
+        seedDataset(1);
+        var fact = append(Type.INTERNAL_TRANSFER, 25L, "receipt-wrong-participant", TIME, source, destination);
+        identities.lookup = id -> Optional.of(new com.finfast.accounts.api.AccountIdentityQueries.Identity(
+                UUID.randomUUID(), new com.finfast.accounts.api.AccountNumber("9999999999"),
+                com.finfast.accounts.api.AccountIdentityQueries.Kind.CUSTOMER, Optional.of(owner(id))));
+
+        assertThatThrownBy(() -> receipts.receipt(source, fact.reference()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("participant identity");
+    }
+
+    @Test
+    void rejectsMismatchedCounterpartyIdentityTechnically() {
+        seedDataset(1);
+        var fact = append(Type.INTERNAL_TRANSFER, 25L, "receipt-wrong-counterparty", TIME, source, destination);
+        identities.lookup = id -> id.equals(destination)
+                ? Optional.of(new com.finfast.accounts.api.AccountIdentityQueries.Identity(
+                    UUID.randomUUID(), new com.finfast.accounts.api.AccountNumber("9999999999"),
+                    com.finfast.accounts.api.AccountIdentityQueries.Kind.CUSTOMER, Optional.of(owner(id))))
+                : identities.read(id);
+
+        assertThatThrownBy(() -> receipts.receipt(source, fact.reference()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("counterparty identity");
+    }
+
+    @Test
+    void rejectsMissingOrInvalidCounterpartyIdentityTechnically() {
+        seedDataset(1);
+        var fact = append(Type.INTERNAL_TRANSFER, 25L, "receipt-bad-counterparty", TIME, source, destination);
+
+        identities.lookup = id -> id.equals(destination) ? Optional.empty() : identities.read(id);
+        assertThatThrownBy(() -> receipts.receipt(source, fact.reference()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("counterparty");
+
+        identities.lookup = id -> id.equals(destination)
+                ? Optional.of(new com.finfast.accounts.api.AccountIdentityQueries.Identity(
+                    id, new com.finfast.accounts.api.AccountNumber("9999999999"),
+                    com.finfast.accounts.api.AccountIdentityQueries.Kind.TREASURY, Optional.empty()))
+                : identities.read(id);
+        assertThatThrownBy(() -> receipts.receipt(source, fact.reference()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("counterparty");
+    }
+
+    @Test
+    void propagatesIdentityAndFactProviderFailures() {
+        seedDataset(1);
+        var fact = append(Type.INTERNAL_TRANSFER, 25L, "receipt-provider-failure", TIME, source, destination);
+        identities.lookup = id -> { throw new IllegalStateException("identity JDBC failure"); };
+        assertThatThrownBy(() -> receipts.receipt(source, fact.reference()))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("identity JDBC failure");
+
+        identities.lookup = identities::read;
+        ledgerContext.getBean(CustomerReceiptQueryService.class);
+        CustomerReceiptFacts failingFacts = (accountId, reference) -> {
+            throw new IllegalStateException("facts JDBC failure");
+        };
+        ReadCustomerReceipt failing = new CustomerReceiptQueryService(failingFacts, identities);
+        assertThatThrownBy(() -> readTransaction().execute(status -> failing.receipt(source, fact.reference())))
+                .hasRootCauseMessage("facts JDBC failure");
+    }
+
+    @Test
+    void propagatesIncompleteLedgerFacts() {
+        seedDataset(1);
+        var fact = append(Type.INTERNAL_TRANSFER, 25L, "receipt-incomplete-facts", TIME, source, destination);
+        ledgerJdbc.update("DELETE FROM public.ledger_entry WHERE transaction_id = ? AND account_id = ?",
+                fact.id(), destination);
+
+        assertThatThrownBy(() -> receipts.receipt(source, fact.reference()))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
     }
 
     private String snapshotId() {

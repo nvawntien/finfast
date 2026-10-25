@@ -36,21 +36,28 @@ public class CustomerReceiptQueryService implements ReadCustomerReceipt {
         Objects.requireNonNull(reference, "reference");
         requireReadSnapshot();
 
-        Optional<Identity> participant = accounts.findById(participantAccountId);
-        if (participant.isEmpty() || participant.get().kind() != Kind.CUSTOMER
-                || participant.get().customerId().isEmpty()) {
+        Optional<Identity> participantResult = accounts.findById(participantAccountId);
+        if (participantResult.isEmpty()) {
+            return Optional.empty();
+        }
+        Identity participant = validateIdentity(participantAccountId, participantResult.get(), "participant");
+        if (participant.kind() != Kind.CUSTOMER || participant.customerId().isEmpty()) {
             return Optional.empty();
         }
         Optional<FinancialTransaction> fact = facts.find(participantAccountId, reference);
         if (fact.isEmpty()) {
             return Optional.empty();
         }
-        return Optional.of(toReceipt(participantAccountId, fact.get()));
+        return Optional.of(toReceipt(participantAccountId, reference, participant, fact.get()));
     }
 
-    private Receipt toReceipt(UUID participantAccountId, FinancialTransaction fact) {
+    private Receipt toReceipt(UUID participantAccountId, String requestedReference,
+                              Identity participant, FinancialTransaction fact) {
         if (fact.type() == FinancialTransaction.Type.GENESIS || fact.entries().size() != 2) {
             throw new IllegalStateException("Customer receipt requires one complete ordinary movement");
+        }
+        if (!fact.reference().equals(requestedReference)) {
+            throw new IllegalStateException("Receipt facts reference does not match the requested reference");
         }
         var participantEntry = fact.entries().stream()
                 .filter(entry -> entry.accountId().equals(participantAccountId))
@@ -60,9 +67,8 @@ public class CustomerReceiptQueryService implements ReadCustomerReceipt {
                 .filter(entry -> !entry.accountId().equals(participantAccountId))
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("Receipt facts omit the counterparty"));
-        Identity participant = accounts.findById(participantAccountId)
-                .orElseThrow(() -> new IllegalStateException("Missing participant Account identity"));
         Identity counterparty = accounts.findById(otherEntry.accountId())
+                .map(identity -> validateIdentity(otherEntry.accountId(), identity, "counterparty"))
                 .orElseThrow(() -> new IllegalStateException("Missing counterparty Account identity"));
         validateKinds(fact.type(), participantEntry.deltaVnd(), participant, counterparty);
 
@@ -73,6 +79,13 @@ public class CustomerReceiptQueryService implements ReadCustomerReceipt {
             case DEMO_ALLOCATION -> com.finfast.ledger.api.LedgerQueries.Type.DEMO_ALLOCATION;
             case GENESIS -> throw new IllegalStateException("GENESIS cannot be a Customer receipt");
         }, fact.amount(), label(source), label(destination), fact.recordedAt());
+    }
+
+    private static Identity validateIdentity(UUID requestedAccountId, Identity identity, String role) {
+        if (!requestedAccountId.equals(identity.accountId())) {
+            throw new IllegalStateException("Receipt " + role + " identity does not match the requested Account");
+        }
+        return identity;
     }
 
     private static void validateKinds(FinancialTransaction.Type type, long participantDelta,
