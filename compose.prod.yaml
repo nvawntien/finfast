@@ -1,18 +1,24 @@
+# Use only with a dedicated --env-file; never reuse the development .env.
+name: finfast-prod
+
 services:
   db:
-    image: postgres:16-alpine
+    image: postgres:16.15-alpine3.24@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-finfast}
-      POSTGRES_USER: ${POSTGRES_USER:-finfast}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${PROD_DB_NAME:?Set PROD_DB_NAME in the dedicated production env file}
+      POSTGRES_USER: finfast_admin
+      POSTGRES_PASSWORD: ${PROD_DB_ADMIN_PASSWORD:?Set a unique production admin password}
+      # Used only by the protected role-provisioning command in the runbook.
+      MIGRATION_PASSWORD: ${PROD_DB_MIGRATION_PASSWORD:?Set a unique migration password}
+      RUNTIME_PASSWORD: ${PROD_DB_RUNTIME_PASSWORD:?Set a unique runtime password}
     volumes:
       - pgdata_prod:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 12
       start_period: 10s
 
   backend:
@@ -23,18 +29,30 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    # Private foundation only. Public ingress requires reviewed TLS/auth integration.
     ports:
-      - "8080:8080"
+      - "127.0.0.1:${PROD_HTTP_PORT:-18080}:8080"
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/finfast
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-finfast}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${PROD_DB_NAME:?Set PROD_DB_NAME}
+      SPRING_DATASOURCE_USERNAME: finfast_runtime
+      SPRING_DATASOURCE_PASSWORD: ${PROD_DB_RUNTIME_PASSWORD:?Set a unique runtime password}
+      SPRING_FLYWAY_URL: jdbc:postgresql://db:5432/${PROD_DB_NAME:?Set PROD_DB_NAME}
+      SPRING_FLYWAY_USER: finfast_migration
+      SPRING_FLYWAY_PASSWORD: ${PROD_DB_MIGRATION_PASSWORD:?Set a unique migration password}
+      SPRING_FLYWAY_CLEAN_DISABLED: "true"
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health
+      MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: never
       APP_ENV: production
-      DEPLOYMENT_VERSION: 1.0.0
+      DEPLOYMENT_VERSION: ${PROD_DEPLOYMENT_VERSION:?Set the source revision or release tag}
       FINFAST_CONSOLE_ANSI: never
       FINFAST_BOOTSTRAP_ENABLED: "false"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--max-time", "3", "http://127.0.0.1:8080/actuator/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 18
+      start_period: 30s
 
 volumes:
   pgdata_prod:
-
