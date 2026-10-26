@@ -236,6 +236,10 @@ This is a later, additive approval. PRD 09 was originally created as a draft on 
 | External course/cloud/deployment evidence | Hưng EV-001; Sĩ EV-002; Trung deployment | Verify rubric/resources, private durable DB/TLS/secrets/privileges/backups/restart before deployment acceptance |
 | Actual performance | Minh BK-023 with Trung/Sĩ | Execute unchanged PRD §9 and separate diagnostics; EV-003 remains awaiting measurement |
 
+### BK-007 security-denial contract review — 2026-10-25
+
+**PENDING TECH LEAD DECISION.** PR #31 requests a scoped amendment proposal for undocumented security 403 responses. [API 17 lists exact affected operations, current responses, denial causes and proposed additions](../03-design/17-api-contracts.md#bk-007-security-denial-amendment-proposal--pending-tech-lead-review): five auth operations; the Receipt operation's shared-filter gap is separately flagged for its owner. Tiến owns the decision with Hưng/Sĩ and the affected Receipt owner. No approval, YAML modification, API-ERR-01 closure, BK-007 Done or final security acceptance is implied. Ordinary BK-007 routing/coupling/fail-closed fixes and testing continue within the approved security baseline.
+
 ### Contributor implementation and amendment policy
 
 Once this documentation baseline merges into `develop`, all six members may implement their assigned, authorized tasks/phases without another routine product/UX/API/architecture approval: Tiến Ledger/Administration/architecture/release; Minh Idempotency/Transfers/concurrency/recovery; Hưng Identity/Customer/authentication/security; Hải Accounts/History/Receipts/Account status behavior; Trung Bootstrap/GENESIS orchestration/Admin reads/deployment; Sĩ frontend/browser UX/E2E. Preserve the exact backlog assignment and module ownership; Hải's BK-017 assignment does not transfer Administration outer-transaction/audit ownership from Tiến.
