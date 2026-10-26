@@ -18,6 +18,134 @@ The [decision register](../6-governance/25-design-decision-register.md#engineeri
 
 Use genuine isolated PostgreSQL 16/Testcontainers for locking, visibility, uniqueness, row guards, partial writes, commit/restart and aggregate SQL semantics. Unit fakes prove consumer logic only. Documentation tooling validates references/schema, not transaction behavior. Keep every historical execution record below tied to its original review/revision; do not present it as a new run.
 
+## BK-008 corrective implementation evidence — 2026-10-26
+
+The original corrective checkout was clean `feat/BK-008-accounts` at
+`54adbc98e61dcf0bf746f618d9d8c67f604212f8`, with the completed merge of fetched
+`origin/develop` `f534907f6cc965a179ea11fba51c37ee5d2ad859` preserved. No merge was
+pending and develop had no commits missing from the feature branch. Correct
+existing Accounts work, the shared status capability and frozen contracts/schema
+are retained. The original results below describe that corrective checkpoint.
+The approved REST follow-up starts from clean, reviewed
+`f8d6652f7a052a42a8712f06231dac20156e3acb` on the same branch, with fetched develop
+still at `f534907f6cc965a179ea11fba51c37ee5d2ad859` and no pending merge or missing
+develop commits. New-commit hosted CI and final acceptance are not claimed.
+
+| Review finding | Root cause and correction | Evidence |
+|---|---|---|
+| Customer identity / disclosure | Authentication name was parsed as a Customer UUID. The HTTP adapter now projects `customerId` as UUID from the actual authenticated CUSTOMER principal, checks role/owner and accepts no client identity inputs. No Identity import/module edge is added | `AccountOverviewControllerTests`; real login/session `AccountOverviewSecurityIntegrationTests` with distinct User/Customer IDs, ACTIVE/FROZEN, ADMIN, invalid/expired/logout sessions, missing Account and foreign identity inputs |
+| Startup / security activation | An always-scanned banking controller conflicted with the foundation profile's unchanged security guard. Restrict the controller to `auth`; do not weaken Identity guards | `AccountsHttpActivationTests` covers absent profile, forced unprotected endpoint, profile without chain, complete chain and disabled servlet filter; existing foundation and Identity activation regressions |
+| Transaction resource / mutation integrity | General Accounts JDBC mutations lacked the existing status adapter's bound-connection/read-only/isolation guard. Reuse that guard and concrete MANDATORY proxies; retain exactly-one-row UPDATE checks and add an exactly-one-row INSERT check | `AccountsPersistenceIntegrationTests`, `AccountsPostingIntegrationTests`; wrong resource/read-only/isolation/unbound transactions, suppressed insert, zero-row writes, second-update failure and caught inner failure |
+| Missing real financial evidence | In-memory tests did not prove database isolation, locking or durable rollback | `AccountsConcurrencyIntegrationTests` observes actual PostgreSQL backend blocking, double-spend/Treasury competition, both UUID sign-bit boundaries, reverse direction, both freeze orderings and concurrent credits; PostgreSQL posting tests exercise outer-body/precommit/deferred-COMMIT failures |
+| Provider compatibility | Registration and Ledger tests previously used test Accounts collaborators | `AccountsRegistrationIntegrationTests` uses real BK-005 Identity/Customer/Accounts providers; `AccountsLedgerCompositionIntegrationTests` uses real GENESIS/allocation/transfer providers, exact balances/facts/counter rollback and existing reconciliation verifier. Composition stays test-scoped |
+| Existing review fixes | Long.MIN_VALUE generation, unsigned comparator, UPDATE row counts, package conventions and unrestricted Surefire were already corrected and are preserved. POM formatting is repaired without adding another dependency | Existing Accounts unit tests, PostgreSQL boundary/row-count tests, architecture/capability/layer suites and complete Maven verification |
+
+Environment: Java 21.0.12.1 from the repository's pinned Temurin JDK image,
+Spring Boot 4.1.1, PostgreSQL 16.15 Testcontainers using the existing image digest,
+and unchanged Flyway V1/V2. A fresh isolated database is used for each non-HTTP
+invocation; HTTP runs in its own isolated database with real embedded Tomcat,
+login, header CSRF and servlet session cookies. No developer database is used.
+
+| New PostgreSQL integration suite | Executed invocations |
+|---|---:|
+| `AccountsPersistenceIntegrationTests` | 15 |
+| `AccountsPostingIntegrationTests` | 16 |
+| `AccountsConcurrencyIntegrationTests` | 10 |
+| `AccountsRegistrationIntegrationTests` | 5 |
+| `AccountsLedgerCompositionIntegrationTests` | 4 |
+| `AccountOverviewSecurityIntegrationTests` | 9 |
+| Total | 59 |
+
+The concurrency suite contains nine synchronized race invocations using latches,
+bounded timeouts and `pg_blocking_pids` on separate PostgreSQL connections, plus
+one SQL/Java UUID ordering comparison. Both MSB and LSB signed
+boundaries are compared to PostgreSQL UUID ordering, and held-lock relationships
+prove actual sequential acquisition in both transfer directions. A separate
+`FOR UPDATE NOWAIT` probe returns SQLSTATE 55P03 for the lower UUID while the
+higher UUID is unavailable, ruling out lock-queue soft blocking as false evidence. All new financial
+contexts contain genuine Spring-managed Accounts providers/proxies on one
+DataSource/transaction manager. A real deferred constraint failure at COMMIT
+prevents Registration or posting from returning a committed success. This proves
+known rollback cases; ambiguous commits still require caller-owned recovery and
+are never reclassified as business rejection.
+
+Initial focused runs exposed obsolete test references to the removed request
+attribute constant; a no-database Identity startup fixture missing JDBC;
+a missing-Account fixture attempting a V2-prohibited DELETE; a programmatically
+registered controller still suppressed by its class profile; and a deferred
+COMMIT assertion expecting DataAccessException instead of TransactionSystemException.
+The strengthened NOWAIT probe also initially expected a CannotAcquireLockException
+wrapper, while this pinned Spring version wraps PostgreSQL 55P03 in
+UncategorizedSQLException; the corrected assertion checks that actual wrapper and
+the exact server SQLSTATE. The fixtures/assertions were corrected to exercise the
+intended paths, preserving V2 and security guards. These failed runs are not counted as PASS.
+
+Original corrective local commands/results, before the REST amendment:
+
+| Executed check | Observed result |
+|---|---|
+| `cd backend && ./mvnw --batch-mode --no-transfer-progress clean verify` | PASS: 1,560 tests across 85 suites, zero failures/errors/skips; executable JAR packaged |
+| Accounts unit/adapter mapping suites | PASS: 45 invocations; local domain/application/mapping evidence |
+| Six new PostgreSQL suites above | PASS: 59 invocations, including 9 real security HTTP cases |
+| Existing `AuthenticationHttpIntegrationTests` | PASS: 17 real security HTTP invocations; session/CSRF/role regressions |
+| Accounts / Identity activation and foundation context suites | PASS: 5 / 8 / 4 invocations respectively |
+| Architecture/capability/layer suites | PASS: 159 invocations; existing negative fixtures retained, approved Accounts entry relationships added |
+| Existing Bootstrap suites | PASS: 53 invocations; existing Ledger and other regressions included in the full run |
+| `python3 scripts/check_backend_jar.py` | PASS: executable packaging and test-code/dependency isolation |
+| Pinned `openapi_spec_validator`, `scripts/check_docs.py`, docs Compose config and `git diff --check` | PASS: schema, 27 Markdown files / 501 links / 88 OpenAPI references, Compose and whitespace |
+
+No excluded, disabled or skipped tests are used to manufacture a result. The first
+complete run passed 1,560 cases; a subsequent full run with the stronger NOWAIT
+probe failed two wrapper assertions. The final clean rerun above passed all 1,560
+with the corrected exact SQLSTATE assertions. Hosted CI was not run.
+
+### Approved REST amendment follow-up — 2026-10-26
+
+**APPROVED — explicit Tech Lead authority.** The prior BK-008 technical-response
+contract blocker is resolved by the scoped
+[decision](../6-governance/25-design-decision-register.md#2026-10-26--bk-008-account-overview-technical-error-response-amendment).
+Only GET `/api/v1/accounts/me` gains 500 and 503 using the existing generic
+`ErrorResponse`; its exact response set is now 200/401/403/500/503. Success/request
+shapes, security and the shared `GlobalExceptionHandler` are unchanged. A structural
+comparison to the reviewed OpenAPI baseline checks that removing just those two
+response entries reconstructs the original specification exactly.
+
+`unexpectedQueryFailureUsesSafeInternalErrorWithoutAnAuthorizationOrFinancialOutcome`
+logs in through real BK-007 CSRF/session handling, injects an unexpected runtime
+failure through the existing test-only Account query spy, and verifies HTTP 500,
+JSON with exactly code/message, `INTERNAL_ERROR`, a nonempty public message and
+no private exception/SQL/stack/password/secret/Customer/Account details. Existing
+`technicalPersistenceFailureUsesSharedErrorAndCannotBecomeDenialOrEmptySuccess`
+continues to verify actual HTTP 503 `SERVICE_UNAVAILABLE`. Both run through the
+embedded server, real security chain and existing shared serialization/handler.
+The original 59 Accounts PostgreSQL/HTTP cases are retained; this adds one, making
+60 across the six suites, with 10 in Account Overview security HTTP.
+
+Latest amendment verification, Java 21.0.12.1 / Spring Boot 4.1.1 / isolated
+PostgreSQL 16.15, executed locally on the final amendment tree:
+
+| Executed check | Observed result |
+|---|---|
+| `cd backend && ./mvnw --batch-mode --no-transfer-progress -Dtest=AccountOverviewSecurityIntegrationTests test` | PASS: 10 tests, zero failures/errors/skips, including actual HTTP 500 and 503 |
+| `cd backend && ./mvnw --batch-mode --no-transfer-progress clean verify` | PASS: 1,561 tests across 85 suites, zero failures/errors/skips; executable JAR packaged |
+| Six Accounts PostgreSQL/HTTP suites | PASS: original 59 cases retained plus the new 500 case, 60 total |
+| Architecture/capability/layer suites | PASS: 159 tests, unchanged rules and negative fixtures |
+| `python3 scripts/check_backend_jar.py` | PASS: executable packaging and test-code/dependency isolation |
+| Pinned OpenAPI validator and `scripts/check_docs.py` | PASS: valid schema, local links/references and no duplicate YAML keys |
+| Structural OpenAPI comparison, docs Compose configuration and `git diff --check` | PASS: only the two authorized response entries differ; whitespace and configuration valid |
+
+All existing security, Ledger, Bootstrap and other regressions remain enabled and
+pass in the full run. No production implementation or test exclusion changes.
+Hosted CI for the amendment commit has not been run; publishing the commit and
+requiring its matching workflow to pass remain final review actions.
+
+API-ERR-01 remains open for other affected operations. Pending BK-007/Receipt
+amendments are not approved by this decision. Registration HTTP, production
+Ledger/Bootstrap composition, real AdminProvisioning, full audit/idempotency
+workflow, restart/browser/performance and final canonical acceptance remain
+downstream obligations, not blockers to this independent approved amendment.
+BK-008 is not marked Done and no whole-system production-readiness claim is made.
+
 ## BK-010 FIX-001 and Phase 2 execution — 2026-10-22
 
 **Executed locally on the authorized feature-branch working tree:** Java 21.0.12.1, Spring Boot 4.1.1 and the existing PostgreSQL 16.15 Testcontainers image `postgres@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea`. Fresh isolated test databases apply unchanged V1/V2; no developer database or persistent volume is used.

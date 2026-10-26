@@ -44,6 +44,34 @@
 
 `*` A verified course mandate can create a separately required milestone; it **must** be reconciled with scope by the owner, not silently claimed optional or imposed on the initial Core.
 
+## BK-008 corrective implementation checkpoint — 2026-10-26
+
+**Accounts contribution implemented; final acceptance remains pending.** PR #26's
+existing provisioning, queries, paired balance mutation and status capability are
+retained. Account Overview is registered only with `auth`, projects the typed
+Customer ID from BK-007's server-held principal at the HTTP boundary and preserves
+owner reads for ACTIVE/FROZEN Accounts. It neither consumes Identity internals nor
+adds an Accounts → Identity edge. Identity's security activation guard, sessions,
+CSRF and HTTPS policy remain unchanged. Missing/inaccessible Account responses use
+the existing shared security ErrorResponse; Treasury is excluded.
+
+Accounts mutations require the caller's bound, writable READ COMMITTED JDBC
+transaction; actual Spring proxies enforce MANDATORY. The new PostgreSQL suites
+cover provisioning, uniqueness, rollback/commit failures, unsigned UUID lock
+ordering, competing spending/allocation, freeze races and lost-update prevention.
+Real Registration/Customer/Accounts and Ledger/Accounts providers are composed only
+in tests; no new Registration HTTP, production Ledger wiring, Admin provisioning,
+audit/idempotency orchestration or Bootstrap workflow is supplied by this change.
+See [executed evidence and review findings](../05-verification/22-test-strategy-and-acceptance.md#bk-008-corrective-implementation-evidence--2026-10-26).
+
+**Scoped REST amendment approved — 2026-10-26:** Account Overview now declares
+200/401/403/500/503. The added technical responses use existing generic
+ErrorResponse and preserve the shared handler, successful schema and security.
+[Explicit Tech Lead decision](../6-governance/25-design-decision-register.md#2026-10-26--bk-008-account-overview-technical-error-response-amendment).
+The prior BK-008 500/503 contract blocker is resolved; API-ERR-01 remains open for
+other affected operations. New-commit hosted CI, downstream production composition
+and final AC/CONS/release acceptance remain separate; BK-008 is not marked Done.
+
 ## BK-016/BK-018 corrective implementation checkpoint — 2026-10-25
 
 **Independent Administration read contribution; production integration and acceptance pending.**

@@ -1,5 +1,9 @@
 package com.finfast;
 
+import com.finfast.accounts.internal.adapter.outbound.persistence.JdbcAccountRepository;
+import com.finfast.administration.internal.adapter.inbound.http.AdminInspectionController;
+import com.finfast.administration.internal.application.port.inbound.AdminInspectionUseCase;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -9,11 +13,12 @@ import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.ApplicationContext;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.json.JsonCompareMode;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
-import com.finfast.administration.internal.adapter.inbound.http.AdminInspectionController;
-import com.finfast.administration.internal.application.port.inbound.AdminInspectionUseCase;
+
+import com.finfast.accounts.internal.adapter.outbound.persistence.JdbcAccountStatusRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -25,6 +30,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 // Preserve the Step 2 checks without connecting to any external database.
 @ImportAutoConfiguration(exclude = {DataSourceAutoConfiguration.class, FlywayAutoConfiguration.class})
 class FinfastApplicationTests {
+
+    @MockitoBean
+    JdbcAccountRepository jdbcAccountRepository;
+
+    // This context intentionally excludes DataSource/Flyway; status mutation is not under test here.
+    @MockitoBean
+    JdbcAccountStatusRepository jdbcAccountStatusRepository;
 
     @Test
     void incompleteAdminInspectionIsNotRegisteredByProductionScanning(@Autowired ApplicationContext context,

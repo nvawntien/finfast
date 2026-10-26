@@ -33,9 +33,14 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.env.Environment;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import tools.jackson.core.StreamReadFeature;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
+
+
+import com.finfast.accounts.internal.adapter.outbound.persistence.JdbcAccountRepository;
+import com.finfast.accounts.internal.adapter.outbound.persistence.JdbcAccountStatusRepository;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -61,6 +66,12 @@ import static org.awaitility.Awaitility.await;
 @Import(HttpTracingFixtures.Configuration.class)
 @Timeout(20)
 class HttpTracingIntegrationTests {
+
+    @MockitoBean
+    JdbcAccountRepository jdbcAccountRepository;
+
+    @MockitoBean
+    JdbcAccountStatusRepository jdbcAccountStatusRepository;
 
     private static final JsonMapper JSON = JsonMapper.builder()
             .enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION).build();
