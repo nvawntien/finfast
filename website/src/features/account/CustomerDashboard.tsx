@@ -13,6 +13,7 @@ const errorMessages: Record<Extract<AccountState, { status: 'error' }>['reason']
   protocol: 'Thông tin tài khoản trả về không hợp lệ. Chưa thể hiển thị số dư. Vui lòng thử lại sau.',
   forbidden: 'Bạn không có quyền xem tài khoản này. Không có dữ liệu tài khoản nào được hiển thị.',
   network: 'Không thể kết nối để tải tài khoản. Kiểm tra kết nối rồi thử lại.',
+  server: 'Dịch vụ tài khoản đang gặp sự cố. Chưa thể hiển thị số dư. Vui lòng thử lại sau.',
   timeout: 'Yêu cầu tải tài khoản đã hết thời gian chờ. Bạn có thể thử lại.',
 };
 function MoneyText({ value }: { value: MoneyVnd }) {

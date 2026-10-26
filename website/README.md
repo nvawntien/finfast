@@ -83,8 +83,9 @@ try {
   ordinary registration/history 422 is not a final financial result. Transfer 202
   stays PROCESSING/UNKNOWN; resolve 200 can contain REJECTED. Missing outcome 404,
   503, timeout and network failure do not authorize a new-key replacement.
-- `API-ERR-01` remains unresolved: undocumented 400/500 are surfaced as protocol
-  errors without altering the frozen specification. The frozen auth operation
+- Account GET accepts 500/503 ErrorResponse under the approved 2026-10-26 BK-008
+  amendment. Other undocumented 400/500 remain protocol errors (`API-ERR-01`)
+  without altering the frozen specification. The frozen auth operation
   status lists also do not specify CSRF denial; mock auth CSRF failure deliberately
   produces a transport error, not a newly invented HTTP response contract.
 - Response payloads remain `unknown`; this transport is not a complete DTO validator.
@@ -776,7 +777,40 @@ Phase 6 artifacts checked above, not new runs; runtime code has not changed. Rea
 backend integration: 0 executed, blocked, not passed. No new integration tests against
 nonexistent handlers were claimed. Only this README changed; no commit or push.
 
-### BK-007 authentication integration preparation
+### Phase 7A account amendment and compatibility (2026-10-26)
+
+This checkpoint supersedes the remote-readiness snapshot below: `origin/develop`
+at `e3dc6ef` includes BK-007 `5161b27` and BK-008 `c8954ab`. Source inspection
+confirms four authentication HTTP APIs plus Account Overview; this is not runtime
+acceptance. Account ownership now uses the authenticated principal's Customer ID,
+and security denials return JSON ErrorResponse.
+
+The approved BK-008 amendment adds 500/503 only to `GET /api/v1/accounts/me`, both
+using ErrorResponse. The client preserves their HTTP classification; Dashboard
+shows a service-error message, hides balances, retains the session and permits
+manual GET retry. Malformed error envelopes remain protocol errors. No automatic
+retry, mock fallback or financial outcome is introduced.
+
+The local docs baseline predates this amendment and is intentionally unchanged.
+The status inventory test applies only these two approved Account statuses on top
+of that baseline, with provenance in `e3dc6ef`:
+`docs/03-design/contracts/openapi-v1.yaml`, API 17's BK-008 technical-error amendment
+and the 2026-10-26 decision register entry. Other endpoint status checks remain exact;
+the pending auth/receipt security-403 proposal is not implemented by the frontend.
+
+Normal dev and production do not start MSW. The same-origin HTTPS, auth-profile
+backend and isolated synthetic test-account prerequisites below still apply; Vite
+has no backend proxy. Browser interception/MSW tests are not real-backend evidence.
+
+Phase 7A verification: 144 targeted tests passed; final full regression passed
+324 unit/integration tests, 228 Chrome browser cases across three viewports and
+8 MSW/production browser cases, with zero final failures. Typecheck, production
+build and bundle isolation passed. Browser artifacts are in ignored
+`.cache/phase7a-browser/` and `.cache/phase7a-mock/`. `make help` was unavailable
+on this Windows host; existing npm scripts were used. No real backend was started
+or tested, and no new P1/P2 finding remained in the scoped frontend self-review.
+
+### BK-007 authentication integration preparation (historical 2026-10-25)
 
 Scope: only CSRF, login, logout and session. Read-only inspection of local
 `origin/feat/BK-007-authentication-sessions` at `e92c161` finds actual handlers there;

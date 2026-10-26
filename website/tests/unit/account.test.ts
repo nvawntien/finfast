@@ -71,8 +71,29 @@ describe('account integration with the existing client and per-principal MSW', (
     expect(fetchImpl.mock.calls[0]?.[1]).toMatchObject({ method: 'GET', credentials: 'include', cache: 'no-store' });
     expect(new Headers(fetchImpl.mock.calls[0]?.[1]?.headers).has('X-CSRF-TOKEN')).toBe(false);
   });
-  it.each([204, 404, 500])('does not invent an empty success or new status mapping for %s', async status => {
+  it.each([204, 404])('does not invent an empty success or new status mapping for %s', async status => {
     server.use(http.get(`${origin}/api/v1/accounts/me`, () => status === 204 ? new HttpResponse(null, { status }) : HttpResponse.json({ code: 'ERROR', message: 'Synthetic' }, { status })));
+    await expect(service.read(new AbortController().signal)).rejects.toMatchObject({ kind: 'protocol', status });
+  });
+  it.each([[500, 'INTERNAL_ERROR'], [503, 'SERVICE_UNAVAILABLE']] as const)('maps approved %s without expiring session or automatic retry', async (status, code) => {
+    const session = createSessionStore(identity); await session.login(mockCredentials);
+    const response = deferred<Response>();
+    const read = vi.fn(async () => (await response.promise).clone());
+    server.use(http.get(`${origin}/api/v1/accounts/me`, read));
+    const store = createAccountStore(session, service); cleanup.push(store.connect());
+    expect(store.getSnapshot()).toEqual({ status: 'loading' });
+    response.resolve(HttpResponse.json({ code, message: 'Synthetic server failure' }, { status }));
+    await vi.waitFor(() => expect(store.getSnapshot()).toEqual({ status: 'error', reason: 'server' }));
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(session.getSnapshot().status).toBe('authenticated');
+    await expect(service.read(new AbortController().signal)).rejects.toMatchObject({ kind: 'http', status, code, financialOutcome: undefined });
+    server.resetHandlers();
+    const retry = store.reload(); expect(store.getSnapshot()).toEqual({ status: 'loading' });
+    await retry; expect(store.getSnapshot()).toMatchObject({ status: 'ready', account: mockAccount });
+    expect(session.getSnapshot().status).toBe('authenticated');
+  });
+  it.each([500, 503])('still rejects malformed ErrorResponse for approved %s', async status => {
+    server.use(http.get(`${origin}/api/v1/accounts/me`, () => HttpResponse.json({ message: 'Missing code' }, { status })));
     await expect(service.read(new AbortController().signal)).rejects.toMatchObject({ kind: 'protocol', status });
   });
 });
@@ -201,6 +222,7 @@ describe('Dashboard request ownership and session boundaries', () => {
   });
   it.each([
     [new ApiError('http', { status: 403 }), 'forbidden'], [new ApiError('network'), 'network'],
+    [new ApiError('http', { status: 500 }), 'server'], [new ApiError('http', { status: 503 }), 'server'],
     [new ApiError('timeout'), 'timeout'], [new ApiError('protocol', { status: 401 }), 'protocol'], [new AccountDataError(true), 'empty'],
   ] as const)('maps failure without retrying or showing stale balances', async (error, reason) => {
     const h = await harness(); h.requests[0]!.resolve(account('A', '10'));

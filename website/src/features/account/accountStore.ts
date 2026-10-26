@@ -3,7 +3,7 @@ import type { createSessionStore } from '../auth/sessionStore';
 import { AccountDataError, type AccountOverview, type createAccountService } from './service';
 
 export type AccountState = { status: 'loading' } | { status: 'ready'; account: AccountOverview }
-  | { status: 'error'; reason: 'empty' | 'protocol' | 'forbidden' | 'network' | 'timeout' };
+  | { status: 'error'; reason: 'empty' | 'protocol' | 'forbidden' | 'server' | 'network' | 'timeout' };
 const loading: AccountState = { status: 'loading' };
 
 /** Private to a mounted Dashboard; no persistent cache, retries or cross-principal data. */
@@ -33,6 +33,7 @@ export function createAccountStore(session: ReturnType<typeof createSessionStore
       }
       const reason = error instanceof AccountDataError && error.empty ? 'empty'
         : error instanceof ApiError && error.kind === 'http' && error.status === 403 ? 'forbidden'
+        : error instanceof ApiError && error.kind === 'http' && (error.status === 500 || error.status === 503) ? 'server'
         : error instanceof ApiError && error.kind === 'timeout' ? 'timeout'
         : error instanceof ApiError && error.kind === 'protocol' ? 'protocol' : 'network';
       state = { status: 'error', reason }; notify();

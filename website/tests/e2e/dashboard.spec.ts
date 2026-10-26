@@ -73,10 +73,11 @@ test('loading and keyboard refresh clear previous balances until GET completes',
   } finally { gate.resolve(); }
 });
 
-for (const scenario of ['empty', 'invalid', 'forbidden', 'network'] as const) {
+for (const scenario of ['empty', 'invalid', 'forbidden', 'network', '500', '503'] as const) {
   test(`${scenario}: explicit failure, no fake zero balance, manual GET retry`, async ({ page }) => {
     const api = await setup(page);
     api.setRead(route => scenario === 'network' ? route.abort()
+      : scenario === '500' || scenario === '503' ? route.fulfill({ status: Number(scenario), json: { code: scenario === '500' ? 'INTERNAL_ERROR' : 'SERVICE_UNAVAILABLE', message: 'Synthetic server failure' } })
       : scenario === 'forbidden' ? route.fulfill({ status: 403, json: { code: 'FORBIDDEN', message: 'Synthetic denial' } })
       : scenario === 'empty' ? route.fulfill({ body: 'null', contentType: 'application/json' })
       : route.fulfill({ json: { ...mockAccount, type: 'TREASURY' } }));
@@ -85,6 +86,11 @@ for (const scenario of ['empty', 'invalid', 'forbidden', 'network'] as const) {
     await expect(page.getByTestId('available-balance')).toHaveCount(0);
     if (scenario === 'empty') await expect(page.getByRole('alert')).toContainText('phản hồi rỗng');
     if (scenario === 'forbidden') await expect(page.getByRole('alert')).toContainText('không có quyền');
+    if (scenario === '500' || scenario === '503') {
+      await expect(page.getByRole('alert')).toContainText('Dịch vụ tài khoản đang gặp sự cố');
+      await expect(page).toHaveURL(/\/customer$/);
+      await expect(page.getByRole('button', { name: 'Đăng xuất', exact: true })).toBeVisible();
+    }
     await expect(page.getByText('Chế độ Mock API', { exact: false })).toHaveCount(0);
     const before = api.calls(); api.setRead();
     await page.getByRole('button', { name: 'Thử lại', exact: true }).click();

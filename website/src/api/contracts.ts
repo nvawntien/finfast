@@ -5,7 +5,8 @@ export const customerOperations = {
   'POST /auth/login': [200, 401, 503],
   'POST /auth/logout': [200, 401],
   'GET /auth/session': [200, 401],
-  'GET /accounts/me': [200, 401, 403],
+  // Approved BK-008 amendment 2026-10-26 (develop e3dc6ef), scoped to this GET.
+  'GET /accounts/me': [200, 401, 403, 500, 503],
   'POST /transfers': [200, 202, 401, 403, 409, 422, 503],
   'POST /request-outcomes/resolve': [200, 202, 401, 403, 404, 409, 503],
   'GET /accounts/me/history': [200, 401, 403, 422],
