@@ -44,6 +44,34 @@
 
 `*` A verified course mandate can create a separately required milestone; it **must** be reconciled with scope by the owner, not silently claimed optional or imposed on the initial Core.
 
+## BK-008 corrective implementation checkpoint — 2026-10-26
+
+**Accounts contribution implemented; final acceptance remains pending.** PR #26's
+existing provisioning, queries, paired balance mutation and status capability are
+retained. Account Overview is registered only with `auth`, projects the typed
+Customer ID from BK-007's server-held principal at the HTTP boundary and preserves
+owner reads for ACTIVE/FROZEN Accounts. It neither consumes Identity internals nor
+adds an Accounts → Identity edge. Identity's security activation guard, sessions,
+CSRF and HTTPS policy remain unchanged. Missing/inaccessible Account responses use
+the existing shared security ErrorResponse; Treasury is excluded.
+
+Accounts mutations require the caller's bound, writable READ COMMITTED JDBC
+transaction; actual Spring proxies enforce MANDATORY. The new PostgreSQL suites
+cover provisioning, uniqueness, rollback/commit failures, unsigned UUID lock
+ordering, competing spending/allocation, freeze races and lost-update prevention.
+Real Registration/Customer/Accounts and Ledger/Accounts providers are composed only
+in tests; no new Registration HTTP, production Ledger wiring, Admin provisioning,
+audit/idempotency orchestration or Bootstrap workflow is supplied by this change.
+See [executed evidence and review findings](../05-verification/22-test-strategy-and-acceptance.md#bk-008-corrective-implementation-evidence--2026-10-26).
+
+**Scoped REST amendment approved — 2026-10-26:** Account Overview now declares
+200/401/403/500/503. The added technical responses use existing generic
+ErrorResponse and preserve the shared handler, successful schema and security.
+[Explicit Tech Lead decision](../6-governance/25-design-decision-register.md#2026-10-26--bk-008-account-overview-technical-error-response-amendment).
+The prior BK-008 500/503 contract blocker is resolved; API-ERR-01 remains open for
+other affected operations. New-commit hosted CI, downstream production composition
+and final AC/CONS/release acceptance remain separate; BK-008 is not marked Done.
+
 ## BK-016/BK-018 corrective implementation checkpoint — 2026-10-25
 
 **Independent Administration read contribution; production integration and acceptance pending.**
@@ -232,11 +260,11 @@ The initial new tests and the reviewed rerun each passed **25 tests / 3 suites**
 
 **IMPLEMENTED — Ledger-local history capability, 2026-10-24; BK-014 is not Done.** Starting branch `feat/BK-014-ledger-history-queries`, clean HEAD `1c8552ab3a0b91e4434215a92d8ec8b05697e756`, including merged AM-04. [ReadCustomerHistory](../../backend/src/main/java/com/finfast/ledger/internal/application/port/inbound/ReadCustomerHistory.java) and its application service implement the history half of the frozen `LedgerQueries` contract internally. Reads use committed Customer-only facts, complete domain reconstruction, signed direction, safe Account/Treasury labels, bounded `limit + 1` transaction selection, and TD-004 descending keyset traversal with a fixed authenticated high-water bound. [Design and cursor format](../03-design/16-domain-model-and-data-design.md#bk-014-ledger-history-implementation); [executed verification](../05-verification/22-test-strategy-and-acceptance.md#bk-014-ledger-history-verification--2026-10-24).
 
-The Ledger-local BK-014 contribution does not register a partial public provider. BK-015 now has an internal receipt contribution and a complete `LedgerQueriesService` delegator: it verifies participant/fact composition, excludes GENESIS and non-participants, returns only immutable approved labels/facts, and is covered by PostgreSQL/Testcontainers proxy tests. AM-02 now has the Accounts-owned `JdbcAccountIdentityQueries` provider and real Accounts–Ledger composition evidence; current authenticated identity, secure stable HMAC key provisioning and production composition remain pending, so no production bean, fake authentication, fake `LedgerQueries` implementation or fallback key is added. Hải retains History authorization/HTTP ownership and full BK-014/BK-015 acceptance. Deterministic test key material remains test-scoped. Existing AM-04, posting algorithms, public Java contracts, schema/OpenAPI and BK-010 Phase 6 status are unchanged.
+The Ledger-local BK-014 contribution does not register a partial public provider. BK-015 now has an internal receipt contribution and a complete `LedgerQueriesService` delegator: it verifies participant/fact composition, excludes GENESIS and non-participants, returns only immutable approved labels/facts, and is covered by PostgreSQL/Testcontainers proxy tests. AM-02 now has the Accounts-owned `JdbcAccountIdentityQueries` provider and real Accounts–Ledger composition evidence; History/Receipt authorization and HTTP integration, secure stable HMAC key provisioning and production read composition remain pending, so no Receipt production bean, fake authentication, fake `LedgerQueries` implementation or fallback key is added. Hải retains History authorization/HTTP ownership and full BK-014/BK-015 acceptance. Deterministic test key material remains test-scoped. Existing AM-04, posting algorithms, public Java contracts, schema/OpenAPI and BK-010 Phase 6 status are unchanged.
 
 ## BK-015 — Ledger receipt contribution
 
-**IMPLEMENTED — Ledger-local receipt capability, 2026-10-25; BK-015 is not Done.** `ReadCustomerReceipt`, `CustomerReceiptQueryService`, `CustomerReceiptFacts`, `JdbcCustomerReceiptFacts` and `LedgerQueriesService` implement the frozen receipt shape without changing the public API or OpenAPI. PostgreSQL/Testcontainers tests verify transfer/allocation receipts, safe Treasury labeling, identity/fact integrity failures, non-participant privacy, same DataSource/transaction manager and caller-owned read-only `REPEATABLE_READ` snapshots. AM-02 is now implemented by the Accounts-owned `JdbcAccountIdentityQueries` provider and exercised in a real Accounts–Ledger receipt composition test. The implementation still stops before runtime registration: production `CurrentIdentity`, approved HMAC secret provisioning and HTTP/auth composition remain pending. Those dependencies must be supplied by their owning modules before end-to-end acceptance.
+**IMPLEMENTED — Ledger-local receipt capability, 2026-10-25; BK-015 is not Done.** `ReadCustomerReceipt`, `CustomerReceiptQueryService`, `CustomerReceiptFacts`, `JdbcCustomerReceiptFacts` and `LedgerQueriesService` implement the frozen receipt shape without changing the public API or OpenAPI. PostgreSQL/Testcontainers tests verify transfer/allocation receipts, safe Treasury labeling, identity/fact integrity failures, non-participant privacy, same DataSource/transaction manager and caller-owned read-only `REPEATABLE_READ` snapshots. AM-02 is now implemented by the Accounts-owned `JdbcAccountIdentityQueries` provider and exercised in a real Accounts–Ledger receipt composition test. The implementation still stops before runtime registration. Following the 2026-10-26 develop synchronization, BK-007 supplies production `CurrentIdentity` under the `auth` profile; Receipt authorization/HTTP integration, approved stable HMAC secret provisioning and production read-bean composition remain pending. BK-015 remains **Integration Pending / Not Done**; [synchronization evidence](../05-verification/22-test-strategy-and-acceptance.md#bk-015-develop-synchronization--2026-10-26) does not grant end-to-end acceptance.
 
 ## BK-018 — Ledger AM-04 contribution
 

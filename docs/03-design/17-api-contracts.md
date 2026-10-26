@@ -123,7 +123,7 @@ All paths below include `/api/v1`. This is the existing YAML inventory, not a un
 | `POST /api/v1/auth/login` | 200, 401, 503 |
 | `POST /api/v1/auth/logout` | 200, 401 |
 | `GET /api/v1/auth/session` | 200, 401 |
-| `GET /api/v1/accounts/me` | 200, 401, 403 |
+| `GET /api/v1/accounts/me` | 200, 401, 403, 500, 503 |
 | `POST /api/v1/transfers` | 200, 202, 401, 403, 409, 422, 503 |
 | `POST /api/v1/request-outcomes/resolve` | 200, 202, 401, 403, 404, 409, 503 |
 | `GET /api/v1/accounts/me/history` | 200, 401, 403, 422 |
@@ -136,11 +136,50 @@ All paths below include `/api/v1`. This is the existing YAML inventory, not a un
 
 Only transfer/allocation command 422 responses use the required `FinancialRejectionResponse` (`outcome: REJECTED`, code, message) after durable rejection and zero financial effects. Registration/history/status-change 422 responses use generic `ErrorResponse` and establish no financial outcome. Resolve may return a stored REJECTED result under 200; 202 remains non-final. Technical/unknown 503 responses never establish durable business rejection.
 
+### BK-008 Account Overview technical errors — approved 2026-10-26
+
+**APPROVED — scoped amendment, explicit Tech Lead authority.** On 2026-10-26,
+Tiến approved generic `ErrorResponse` 500 (unexpected technical failure) and 503
+(temporary infrastructure unavailability) exclusively for
+`GET /api/v1/accounts/me`. Its existing 200/401/403 responses, successful schema,
+requests and security requirements are preserved. Both added responses reference
+`#/components/schemas/ErrorResponse`; no schema or other operation changes.
+[Decision record](../6-governance/25-design-decision-register.md#2026-10-26--bk-008-account-overview-technical-error-response-amendment).
+
+The existing `GlobalExceptionHandler` remains unchanged: unexpected failures use
+`INTERNAL_ERROR`, unavailable infrastructure uses `SERVICE_UNAVAILABLE`, and both
+return safe public messages. These technical failures are distinct from
+401/403 authentication/authorization denials, business rejections and finalized
+financial outcomes. They must not return successful empty Account data or expose
+private exception details. API-ERR-01 remains open for other affected operations;
+the pending BK-007 and Receipt proposals receive no implicit approval.
+
 ### Protocol-error integration exception — API-ERR-01
 
-The frozen YAML defines no operation response 400 or 500. Existing `common/error/GlobalExceptionHandler.java` maps `INVALID_REQUEST`/framework parsing failures to 400 and unexpected failures to 500; the shared-money guide documents those foundation behaviors. Consequently, connecting those paths unchanged would not satisfy the listed frozen operation responses. This is a targeted adapter/contract integration gap, not approval to emit undocumented statuses or reclassify every 422 as financial REJECTED.
+Except for the explicitly approved Account Overview 500 response above, the
+frozen YAML still omits operation response 500; no operation defines 400. Existing `common/error/GlobalExceptionHandler.java` maps `INVALID_REQUEST`/framework parsing failures to 400 and unexpected failures to 500; the shared-money guide documents those foundation behaviors. Consequently, connecting those paths unchanged on other affected operations would not satisfy their listed frozen responses. This is a targeted adapter/contract integration gap, not approval to emit undocumented statuses or reclassify every 422 as financial REJECTED.
 
-Tiến and affected backend owners, with Sĩ, must review the smallest compatible contract amendment before claiming conformance for those paths: propose generic `ErrorResponse` 400 only for affected protocol-validation operations and determine whether exceptional 500 needs explicit coverage, or demonstrate a compatible adapter mapping that preserves protocol/business/technical distinctions. Do not map malformed financial commands to a false durable rejection or silently add statuses. **No semantic YAML or handler change is made here.** Other approved implementation work continues; no whole-project reapproval is required.
+Tiến and affected backend owners, with Sĩ, must review the smallest compatible contract amendment before claiming conformance for those paths: propose generic `ErrorResponse` 400 only for affected protocol-validation operations and determine whether exceptional 500 needs explicit coverage, or demonstrate a compatible adapter mapping that preserves protocol/business/technical distinctions. Do not map malformed financial commands to a false durable rejection or silently add statuses. **No further semantic YAML or handler change is authorized here.** Other approved implementation work continues; no whole-project reapproval is required.
+
+### BK-007 security-denial amendment proposal — pending Tech Lead review
+
+**PROPOSED, NOT APPROVED — 2026-10-25.** PR #31 review requests a scoped resolution of the security filter's existing 403 responses. The following table enumerates the frozen auth operations affected; it is a proposal, not a change to the frozen YAML or permission to claim full conformance.
+
+| Operation | Current frozen responses | Existing denial producing 403 | Proposed addition |
+|---|---|---|---|
+| `GET /api/v1/auth/csrf` | 200 | HTTPS required but request is insecure | 403, generic `ErrorResponse` |
+| `POST /api/v1/auth/register` | 201, 409, 422, 503 | Missing/invalid/header-mismatched CSRF, rejected Origin, or insecure transport | 403, generic `ErrorResponse` |
+| `POST /api/v1/auth/login` | 200, 401, 503 | Missing/invalid/header-mismatched CSRF, rejected Origin, or insecure transport | 403, generic `ErrorResponse` |
+| `POST /api/v1/auth/logout` | 200, 401 | Missing/invalid/header-mismatched CSRF, rejected Origin, or insecure transport | 403, generic `ErrorResponse` |
+| `GET /api/v1/auth/session` | 200, 401 | HTTPS required but request is insecure | 403, generic `ErrorResponse` |
+
+Requested decision from Tiến: approve adding only these per-operation 403 response entries using the existing `#/components/schemas/ErrorResponse`, with generic `FORBIDDEN` / `Access denied.` output, or supply an equally secure reviewed alternative. CSRF/origin/transport denials occur before the endpoint; they are neither bad credentials (401), business validation (422), technical failure (503), nor durable financial rejection. Preserve successful schemas, request shapes, security schemes, required CSRF, session lifecycle and all existing statuses. Insecure requests must remain denied while the proposal is pending; do not suppress protection or relabel every denial simply to match the current YAML.
+
+The transport gate precedes CSRF/authentication. Thus an insecure request can return 403 before authentication is evaluated; on accepted transport, unsafe requests can fail CSRF before login/session checks. Safe GET operations do not require CSRF and the current Origin rule applies only to unsafe methods. Do not document CSRF/Origin failures as causes on those GET operations.
+
+Cross-cutting observation for Tiến and the Receipt owner: `GET /api/v1/transactions/{reference}/receipt` also omits 403 (current set: 200/401/404), while the same HTTPS/namespace-role guards can reject it before a resource lookup. This requires a separate explicit per-operation disposition with that owner; hidden-resource 404 behavior must remain unchanged. All other frozen banking operations already declare 403. This observation does not authorize implementing BK-015 or adding a blanket global response.
+
+After a decision, update only approved YAML entries and this proposal's status in the decision register, then add operation-level response/schema assertions and rerun security/HTTP checks. Until then, the safe denial behavior is tested but the affected response-contract acceptance remains pending. See [BK-007 evidence](../05-verification/22-test-strategy-and-acceptance.md#bk-007-authentication-corrective-verification--2026-10-25).
 
 ## Required contract-test assertions
 

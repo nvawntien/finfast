@@ -48,53 +48,41 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ApplicationBoundaryVerificationTests {
     private static final String ROOT = "finfast.architecture.fixtures";
 
-@Test
-void adminInspectionEntryUsesItsInboundContractAndControllerOnlyDependsOnThatContract() {
-    var entry = com.finfast.administration.internal.application.port.inbound.AdminInspectionUseCase.class;
-    var implementation = com.finfast.administration.internal.application.usecase.AdminInspectionService.class;
-    var controller = com.finfast.administration.internal.adapter.inbound.http.AdminInspectionController.class;
+    @Test
+    void adminInspectionEntryUsesItsInboundContractAndControllerOnlyDependsOnThatContract() {
+        var entry = com.finfast.administration.internal.application.port.inbound.AdminInspectionUseCase.class;
+        var implementation = com.finfast.administration.internal.application.usecase.AdminInspectionService.class;
+        var controller = com.finfast.administration.internal.adapter.inbound.http.AdminInspectionController.class;
+        assertThat(entry.isInterface()).isTrue();
+        assertThat(entry).isAssignableFrom(implementation);
+        assertThat(entry.getDeclaredMethods()).hasSize(3);
+        assertThat(entry.getDeclaredAnnotations()).isEmpty();
+        assertThat(controller.getConstructors()).hasSize(1);
+        assertThat(controller.getConstructors()[0].getParameterTypes()).containsExactly(entry);
+        assertThat(implementation.getConstructors()).hasSize(1);
+        assertThat(implementation.getConstructors()[0].getParameterTypes()).containsExactly(
+                com.finfast.identity.api.CurrentIdentity.class, com.finfast.accounts.api.AdminAccountQueries.class,
+                AdminFinancialTransactionQueries.class,
+                com.finfast.administration.internal.application.port.outbound.AdminAuditQueries.class,
+                com.finfast.customer.api.CustomerQueries.class);
+    }
 
-    assertThat(entry.isInterface()).isTrue();
-    assertThat(entry).isAssignableFrom(implementation);
-    assertThat(entry.getDeclaredMethods()).hasSize(3);
-    assertThat(entry.getDeclaredAnnotations()).isEmpty();
-
-    assertThat(controller.getConstructors()).hasSize(1);
-    assertThat(controller.getConstructors()[0].getParameterTypes())
-            .containsExactly(entry);
-
-    assertThat(implementation.getConstructors()).hasSize(1);
-    assertThat(implementation.getConstructors()[0].getParameterTypes())
-            .containsExactly(
-                    com.finfast.identity.api.CurrentIdentity.class,
-                    com.finfast.accounts.api.AdminAccountQueries.class,
-                    AdminFinancialTransactionQueries.class,
-                    com.finfast.administration.internal.application.port.outbound.AdminAuditQueries.class,
-                    com.finfast.customer.api.CustomerQueries.class);
-}
-
-@Test
-void historyContributionUsesItsInternalInboundContract() throws Exception {
-    assertThat(ReadCustomerHistory.class.isInterface()).isTrue();
-    assertThat(ReadCustomerHistory.class).isAssignableFrom(CustomerHistoryQueryService.class);
-    assertThat(LedgerQueries.class.isAssignableFrom(CustomerHistoryQueryService.class)).isFalse();
-    assertThat(ReadCustomerHistory.class.getDeclaredMethods()).hasSize(1);
-    assertThat(ReadCustomerHistory.class.getDeclaredAnnotations()).isEmpty();
-
-    var method = CustomerHistoryQueryService.class.getMethod(
-            "history",
-            java.util.UUID.class,
-            LedgerQueries.PageRequest.class);
-
-    assertThat(method.getReturnType()).isEqualTo(LedgerQueries.Page.class);
-
-    var transaction = method.getAnnotation(Transactional.class);
-    assertThat(transaction).isNotNull();
-    assertThat(transaction.propagation()).isEqualTo(Propagation.REQUIRED);
-    assertThat(transaction.readOnly()).isTrue();
-    assertThat(transaction.isolation()).isEqualTo(Isolation.REPEATABLE_READ);
-    assertThat(transaction.rollbackFor()).containsExactly(Exception.class);
-}
+    @Test
+    void historyContributionUsesItsInternalInboundContract() throws Exception {
+        assertThat(ReadCustomerHistory.class.isInterface()).isTrue();
+        assertThat(ReadCustomerHistory.class).isAssignableFrom(CustomerHistoryQueryService.class);
+        assertThat(LedgerQueries.class.isAssignableFrom(CustomerHistoryQueryService.class)).isFalse();
+        assertThat(ReadCustomerHistory.class.getDeclaredMethods()).hasSize(1);
+        assertThat(ReadCustomerHistory.class.getDeclaredAnnotations()).isEmpty();
+        var method = CustomerHistoryQueryService.class.getMethod("history", java.util.UUID.class, LedgerQueries.PageRequest.class);
+        assertThat(method.getReturnType()).isEqualTo(LedgerQueries.Page.class);
+        var transaction = method.getAnnotation(Transactional.class);
+        assertThat(transaction).isNotNull();
+        assertThat(transaction.propagation()).isEqualTo(Propagation.REQUIRED);
+        assertThat(transaction.readOnly()).isTrue();
+        assertThat(transaction.isolation()).isEqualTo(Isolation.REPEATABLE_READ);
+        assertThat(transaction.rollbackFor()).containsExactly(Exception.class);
+    }
 
     @Test
     void receiptContributionCompletesTheFrozenLedgerQueriesProvider() throws Exception {
@@ -163,6 +151,30 @@ void historyContributionUsesItsInternalInboundContract() throws Exception {
         assertThat(transaction.rollbackFor()).containsExactly(Exception.class);
         assertThat(AccountStatusCommands.class).isAssignableFrom(AccountStatusCommandService.class);
         assertThat(AccountStatusCommands.class.getDeclaredAnnotations()).isEmpty();
+    }
+
+    @Test
+    void accountsEntriesUseApprovedPublicContractsAndConcreteMandatoryBoundaries() throws Exception {
+        assertThat(com.finfast.accounts.api.AccountProvisioning.class)
+                .isAssignableFrom(com.finfast.accounts.internal.application.usecase.AccountProvisioningService.class);
+        assertThat(com.finfast.accounts.api.TreasuryProvisioning.class)
+                .isAssignableFrom(com.finfast.accounts.internal.application.usecase.TreasuryProvisioningService.class);
+        assertThat(com.finfast.accounts.api.PostingAccounts.class)
+                .isAssignableFrom(com.finfast.accounts.internal.application.usecase.PostingAccountsService.class);
+        assertThat(com.finfast.accounts.api.AccountQueries.class)
+                .isAssignableFrom(com.finfast.accounts.internal.application.usecase.AccountQueryService.class);
+        for (Class<?> implementation : List.of(
+                com.finfast.accounts.internal.application.usecase.AccountProvisioningService.class,
+                com.finfast.accounts.internal.application.usecase.TreasuryProvisioningService.class,
+                com.finfast.accounts.internal.application.usecase.PostingAccountsService.class)) {
+            for (var entry : implementation.getDeclaredMethods()) {
+                if (!java.lang.reflect.Modifier.isPublic(entry.getModifiers())) { continue; }
+                var transaction = entry.getAnnotation(Transactional.class);
+                assertThat(transaction).as(entry.toString()).isNotNull();
+                assertThat(transaction.propagation()).isEqualTo(Propagation.MANDATORY);
+                assertThat(transaction.rollbackFor()).containsExactly(Exception.class);
+            }
+        }
     }
 
     @Test

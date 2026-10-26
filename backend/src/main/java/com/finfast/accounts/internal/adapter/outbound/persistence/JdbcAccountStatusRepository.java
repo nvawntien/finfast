@@ -5,6 +5,7 @@ import com.finfast.accounts.internal.application.dto.AccountStatusSnapshot;
 import com.finfast.accounts.internal.application.port.outbound.AccountStatusRepository;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -12,8 +13,9 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
-/** PostgreSQL status persistence; the caller owns the outer transaction and row lock. */
+/** JDBC status persistence; the caller owns the outer transaction and row lock. */
 @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
+@Repository
 public class JdbcAccountStatusRepository implements AccountStatusRepository {
     private final JdbcTemplate jdbc;
 

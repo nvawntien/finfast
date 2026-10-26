@@ -24,7 +24,9 @@ import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Controller;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Propagation;
@@ -138,9 +140,15 @@ class BootstrapConfigurationTests {
     @TestConfiguration(proxyBeanMethods = false)
     static class StartupProviders {
         @Bean AdminProvisioning admins() { return mock(AdminProvisioning.class); }
-        @Bean TreasuryProvisioning treasuries() { return mock(TreasuryProvisioning.class); }
+        @Bean @Primary TreasuryProvisioning treasuries() { return mock(TreasuryProvisioning.class); }
         @Bean GenesisPosting genesis() { return mock(GenesisPosting.class); }
         @Bean GenesisDatasetInspection inspection() { return mock(GenesisDatasetInspection.class); }
+        /**
+         * This run intentionally excludes DataSource auto-configuration.  Supply only the
+         * JDBC abstraction needed to compose persistence adapters; no production JDBC bean
+         * or database connection is introduced by the test.
+         */
+        @Bean JdbcTemplate jdbcTemplate() { return mock(JdbcTemplate.class); }
         @Bean PlatformTransactionManager transactionManager() { return mock(PlatformTransactionManager.class); }
     }
 }

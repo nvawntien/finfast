@@ -5,7 +5,7 @@ import com.finfast.accounts.api.CustomerAccount;
 import java.util.Objects;
 import java.util.UUID;
 
-/** Immutable row state returned after the Accounts status row is locked. */
+/** Immutable state returned after the Accounts status row is locked. */
 public record AccountStatusSnapshot(UUID accountId, boolean treasury, CustomerAccount.Status status) {
     public AccountStatusSnapshot {
         Objects.requireNonNull(accountId, "accountId");

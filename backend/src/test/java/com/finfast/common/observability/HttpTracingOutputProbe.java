@@ -1,11 +1,15 @@
 package com.finfast.common.observability;
 
 import com.finfast.FinfastApplication;
+import org.springframework.jdbc.core.JdbcTemplate;
+
 import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.web.server.context.WebServerApplicationContext;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.net.URI;
@@ -16,12 +20,17 @@ import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 /** Child-JVM fixture with real HTTP instrumentation and the repository's profile-specific encoder. */
 public final class HttpTracingOutputProbe {
 
     public static void main(String[] args) throws Exception {
-        var application = new SpringApplication(FinfastApplication.class, HttpTracingFixtures.Configuration.class);
+        var application = new SpringApplication(
+        FinfastApplication.class,
+        HttpTracingFixtures.Configuration.class,
+        MockDatabaseConfiguration.class
+);
         try (var context = application.run(args);
              var http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build()) {
             String base = "http://127.0.0.1:" + ((WebServerApplicationContext) context).getWebServer().getPort();
@@ -50,4 +59,14 @@ public final class HttpTracingOutputProbe {
             LoggerFactory.getLogger(HttpTracingOutputProbe.class).info("HTTP tracing probe complete; health UP");
         }
     }
+
+
+    @TestConfiguration(proxyBeanMethods = false)
+public static class MockDatabaseConfiguration {
+
+    @Bean
+    JdbcTemplate jdbcTemplate() {
+        return mock(JdbcTemplate.class);
+    }
+}
 }

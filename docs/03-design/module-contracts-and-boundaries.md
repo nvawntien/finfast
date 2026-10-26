@@ -188,6 +188,14 @@ concrete consumers rather than exposing an unrestricted repository-shaped API.
 
 **BK-015 implementation checkpoint — 2026-10-25:** Ledger now implements the frozen receipt projection internally through `ReadCustomerReceipt`, `CustomerReceiptQueryService`, `CustomerReceiptFacts` and `JdbcCustomerReceiptFacts`, and completes the public `LedgerQueries` delegation in `LedgerQueriesService`. The PostgreSQL adapter selects one committed ordinary fact by exact reference and participant, reconstructs both immutable entries, and exposes only approved Customer/Treasury labels; unknown and non-participant references remain empty, while inconsistent identities/facts fail technically. The use case validates both AM-02 identity UUIDs and reuses the participant identity without a duplicate lookup. The use case and adapter require the caller-owned REQUIRED/read-only `REPEATABLE_READ` transaction and use the same bound `DataSource`/transaction manager; real Accounts–Ledger receipt composition is covered by PostgreSQL/Testcontainers tests. This is still an internal Ledger contribution: no fake `CurrentIdentity`, fallback HMAC key, HTTP adapter or production bean registration is added. The frozen public API and OpenAPI remain unchanged; BK-015 end-to-end acceptance is still pending.
 
+**BK-015 synchronization — 2026-10-26:** the reviewed receipt implementation and
+real AM-02 composition are retained alongside merged BK-007/BK-008. BK-007 now
+supplies production `CurrentIdentity` under `auth`; the remaining Receipt work is
+History-owned authorization/HTTP integration, approved stable HMAC key provisioning
+and production read-bean composition. No new public capability or wiring is added.
+BK-015 remains **Integration Pending / Not Done**; see the
+[synchronization evidence](../05-verification/22-test-strategy-and-acceptance.md#bk-015-develop-synchronization--2026-10-26).
+
 ### Identity / Customer
 
 | Package / source | Exact methods / records | Caller and semantics |
