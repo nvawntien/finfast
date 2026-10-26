@@ -2,14 +2,17 @@ package com.finfast.accounts.internal.adapter.inbound.http;
 
 import com.finfast.accounts.api.AccountQueries;
 import com.finfast.accounts.api.CustomerAccount;
-import org.springframework.http.HttpStatus;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Objects;
-import java.security.Principal;
 import java.util.UUID;
 
 /**
@@ -17,10 +20,9 @@ import java.util.UUID;
  * Exposes GET /api/v1/accounts/me according to frozen OpenAPI contract and UC-ACC-01.
  */
 @RestController
+@Profile("auth")
 @RequestMapping("/api/v1/accounts")
 public class AccountOverviewController {
-
-    public static final String ATTR_CUSTOMER_ID = "authenticatedCustomerId";
 
     private final AccountQueries accountQueries;
     public AccountOverviewController(AccountQueries accountQueries) {
@@ -28,20 +30,23 @@ public class AccountOverviewController {
     }
 
     @GetMapping("/me")
-    public ResponseEntity<AccountOverviewResponse> myAccount(Principal principal) {
-        if (principal == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    public ResponseEntity<AccountOverviewResponse> myAccount(Authentication authentication,
+            @AuthenticationPrincipal(expression = "role == 'CUSTOMER' ? customerId : null",
+                    errorOnInvalidType = true) UUID customerId) {
+        // The security chain owns authentication and the server-held principal. Project only
+        // its typed Customer ID at this transport boundary; authentication name is a User identity.
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new AuthenticationCredentialsNotFoundException("Customer authentication required");
         }
-        UUID customerId;
-        try {
-            customerId = UUID.fromString(principal.getName());
-        } catch (RuntimeException invalidCustomerIdentity) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        if (customerId == null || authentication.getAuthorities().stream()
+                .noneMatch(authority -> "ROLE_CUSTOMER".equals(authority.getAuthority()))) {
+            throw new AccessDeniedException("Customer identity required");
         }
 
-        CustomerAccount account = accountQueries.findByCustomerId(customerId).orElse(null);
-        if (account == null) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        CustomerAccount account = accountQueries.findByCustomerId(customerId)
+                .orElseThrow(() -> new AccessDeniedException("Account unavailable"));
+        if (!customerId.equals(account.customerId())) {
+            throw new AccessDeniedException("Account unavailable");
         }
 
         return ResponseEntity.ok(AccountOverviewResponse.from(account));

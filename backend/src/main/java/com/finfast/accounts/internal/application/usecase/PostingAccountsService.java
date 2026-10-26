@@ -39,7 +39,7 @@ public class PostingAccountsService implements PostingAccounts {
     }
 
     @Override
-    @Transactional(propagation = Propagation.MANDATORY)
+    @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
     public Decision transfer(UUID sourceAccountId,
                              UUID expectedSourceCustomerId,
                              AccountNumber recipientNumber,
@@ -114,7 +114,7 @@ public class PostingAccountsService implements PostingAccounts {
     }
 
     @Override
-    @Transactional(propagation = Propagation.MANDATORY)
+    @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
     public Decision allocate(AccountNumber recipientNumber, VndAmount amount) {
         Objects.requireNonNull(recipientNumber, "recipientNumber");
         Objects.requireNonNull(amount, "amount").requirePositive();
@@ -185,7 +185,7 @@ public class PostingAccountsService implements PostingAccounts {
     }
 
     @Override
-    @Transactional(propagation = Propagation.MANDATORY)
+    @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
     public void initializeTreasury(UUID treasuryAccountId, VndAmount initialSupply) {
         Objects.requireNonNull(treasuryAccountId, "treasuryAccountId");
         Objects.requireNonNull(initialSupply, "initialSupply").requirePositive();

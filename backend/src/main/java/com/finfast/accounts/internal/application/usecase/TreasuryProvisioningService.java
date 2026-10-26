@@ -36,7 +36,7 @@ public class TreasuryProvisioningService implements TreasuryProvisioning {
     }
 
     @Override
-    @Transactional(propagation = Propagation.MANDATORY)
+    @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
     public UUID openTreasury() {
         if (repository.existsTreasury()) {
             throw new ApplicationException(AccountErrorCode.TREASURY_ALREADY_EXISTS);

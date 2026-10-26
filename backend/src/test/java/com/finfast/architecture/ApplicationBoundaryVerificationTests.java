@@ -135,6 +135,30 @@ class ApplicationBoundaryVerificationTests {
     }
 
     @Test
+    void accountsEntriesUseApprovedPublicContractsAndConcreteMandatoryBoundaries() throws Exception {
+        assertThat(com.finfast.accounts.api.AccountProvisioning.class)
+                .isAssignableFrom(com.finfast.accounts.internal.application.usecase.AccountProvisioningService.class);
+        assertThat(com.finfast.accounts.api.TreasuryProvisioning.class)
+                .isAssignableFrom(com.finfast.accounts.internal.application.usecase.TreasuryProvisioningService.class);
+        assertThat(com.finfast.accounts.api.PostingAccounts.class)
+                .isAssignableFrom(com.finfast.accounts.internal.application.usecase.PostingAccountsService.class);
+        assertThat(com.finfast.accounts.api.AccountQueries.class)
+                .isAssignableFrom(com.finfast.accounts.internal.application.usecase.AccountQueryService.class);
+        for (Class<?> implementation : List.of(
+                com.finfast.accounts.internal.application.usecase.AccountProvisioningService.class,
+                com.finfast.accounts.internal.application.usecase.TreasuryProvisioningService.class,
+                com.finfast.accounts.internal.application.usecase.PostingAccountsService.class)) {
+            for (var entry : implementation.getDeclaredMethods()) {
+                if (!java.lang.reflect.Modifier.isPublic(entry.getModifiers())) { continue; }
+                var transaction = entry.getAnnotation(Transactional.class);
+                assertThat(transaction).as(entry.toString()).isNotNull();
+                assertThat(transaction.propagation()).isEqualTo(Propagation.MANDATORY);
+                assertThat(transaction.rollbackFor()).containsExactly(Exception.class);
+            }
+        }
+    }
+
+    @Test
     void legalPortDtoImplementationAdapterDirectionsAndConcreteHelpersPass() {
         var classes = new ClassFileImporter().importClasses(InboundPortFixtures.Allocate.class,
                 ApplicationDtoFixtures.Command.class, ApplicationDtoFixtures.Result.class,

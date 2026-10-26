@@ -37,7 +37,7 @@ public class AccountProvisioningService implements AccountProvisioning {
     }
 
     @Override
-    @Transactional(propagation = Propagation.MANDATORY)
+    @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
     public CustomerAccount openCustomerAccount(UUID customerId) {
         Objects.requireNonNull(customerId, "customerId");
 

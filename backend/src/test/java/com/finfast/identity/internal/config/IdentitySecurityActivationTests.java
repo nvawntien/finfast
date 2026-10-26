@@ -12,6 +12,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Profile;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -93,7 +94,11 @@ class IdentitySecurityActivationTests {
     static class Mvc { }
 
     @TestConfiguration(proxyBeanMethods = false) @Import(BankingProbe.class)
-    static class BankingFixture { }
+    static class BankingFixture {
+        // The real application also scans Accounts JDBC adapters. Keep this no-database
+        // activation test composed far enough to reach the unchanged security guard.
+        @Bean JdbcTemplate activationJdbc() { return mock(JdbcTemplate.class); }
+    }
 
     @RestController @Profile("activation-probe")
     static class BankingProbe {

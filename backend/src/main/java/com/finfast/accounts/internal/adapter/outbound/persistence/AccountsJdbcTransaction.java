@@ -17,7 +17,7 @@ final class AccountsJdbcTransaction {
     static void requireWrite(JdbcTemplate jdbc) {
         if (!TransactionSynchronizationManager.isActualTransactionActive()
                 || TransactionSynchronizationManager.isCurrentTransactionReadOnly()) {
-            throw new IllegalTransactionStateException("Accounts status mutation requires a write transaction");
+            throw new IllegalTransactionStateException("Accounts mutation requires a write transaction");
         }
         jdbc.execute((ConnectionCallback<Void>) connection -> {
             if (!DataSourceUtils.isConnectionTransactional(DataSourceUtils.getTargetConnection(connection),
@@ -25,7 +25,7 @@ final class AccountsJdbcTransaction {
                     || connection.getAutoCommit() || connection.isReadOnly()
                     || connection.getTransactionIsolation() != Connection.TRANSACTION_READ_COMMITTED) {
                 throw new IllegalTransactionStateException(
-                        "Accounts status mutation requires bound READ COMMITTED JDBC");
+                        "Accounts mutation requires bound READ COMMITTED JDBC");
             }
             return null;
         });

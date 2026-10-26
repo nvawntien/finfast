@@ -7,9 +7,12 @@ import com.finfast.accounts.internal.domain.entity.Account;
 import com.finfast.accounts.internal.domain.valueobject.AccountType;
 import com.finfast.common.money.VndAmount;
 import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -38,9 +41,11 @@ public class JdbcAccountRepository implements AccountRepositoryPort {
     }
 
     @Override
+    @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
     public void insert(Account account) {
         Objects.requireNonNull(account, "account");
-        jdbc.update(
+        AccountsJdbcTransaction.requireWrite(jdbc);
+        int affected = jdbc.update(
                 "INSERT INTO public.account (id, account_number, customer_id, account_type, status, currency, balance_vnd) "
                         + "VALUES (?, ?, ?, ?, ?, ?, ?)",
                 account.id(),
@@ -50,6 +55,9 @@ public class JdbcAccountRepository implements AccountRepositoryPort {
                 account.status().name(),
                 account.currency(),
                 account.balance().value());
+        if (affected != 1) {
+            throw new DataIntegrityViolationException("Expected exactly one Account row to insert");
+        }
     }
 
     @Override
@@ -76,12 +84,15 @@ public class JdbcAccountRepository implements AccountRepositoryPort {
     }
 
     @Override
+    @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
     public Optional<Account> lockById(UUID id) {
         Objects.requireNonNull(id, "id");
+        AccountsJdbcTransaction.requireWrite(jdbc);
         return querySingle(SELECT_BASE + "WHERE id = ? FOR UPDATE", id);
     }
 
     @Override
+    @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
     public List<Account> lockPair(UUID firstId, UUID secondId) {
         Objects.requireNonNull(firstId, "firstId");
         Objects.requireNonNull(secondId, "secondId");
@@ -95,9 +106,11 @@ public class JdbcAccountRepository implements AccountRepositoryPort {
     }
 
     @Override
+    @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
     public void updateBalance(UUID id, VndAmount balance) {
         Objects.requireNonNull(id, "id");
         Objects.requireNonNull(balance, "balance");
+        AccountsJdbcTransaction.requireWrite(jdbc);
         int affected = jdbc.update("UPDATE public.account SET balance_vnd = ? WHERE id = ?", balance.value(), id);
         if (affected != 1) {
             throw new IllegalStateException("Expected exactly one account balance row to update, got " + affected);
@@ -105,9 +118,11 @@ public class JdbcAccountRepository implements AccountRepositoryPort {
     }
 
     @Override
+    @Transactional(propagation = Propagation.MANDATORY, rollbackFor = Exception.class)
     public void updateStatus(UUID id, CustomerAccount.Status status) {
         Objects.requireNonNull(id, "id");
         Objects.requireNonNull(status, "status");
+        AccountsJdbcTransaction.requireWrite(jdbc);
         int affected = jdbc.update("UPDATE public.account SET status = ? WHERE id = ?", status.name(), id);
         if (affected != 1) {
             throw new IllegalStateException("Expected exactly one account status row to update, got " + affected);
