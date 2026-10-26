@@ -1,0 +1,15 @@
+# Explicit BK-007 integration profile; no credentials or fixture users are provided.
+server:
+  servlet:
+    session:
+      timeout: 30m
+      tracking-modes: cookie
+      cookie:
+        name: FINFAST_SESSION
+        http-only: true
+        secure: true
+        same-site: lax
+finfast:
+  auth:
+    bcrypt-strength: 12
+    require-https: true

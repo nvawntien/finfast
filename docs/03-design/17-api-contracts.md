@@ -142,6 +142,26 @@ The frozen YAML defines no operation response 400 or 500. Existing `common/error
 
 Tiến and affected backend owners, with Sĩ, must review the smallest compatible contract amendment before claiming conformance for those paths: propose generic `ErrorResponse` 400 only for affected protocol-validation operations and determine whether exceptional 500 needs explicit coverage, or demonstrate a compatible adapter mapping that preserves protocol/business/technical distinctions. Do not map malformed financial commands to a false durable rejection or silently add statuses. **No semantic YAML or handler change is made here.** Other approved implementation work continues; no whole-project reapproval is required.
 
+### BK-007 security-denial amendment proposal — pending Tech Lead review
+
+**PROPOSED, NOT APPROVED — 2026-10-25.** PR #31 review requests a scoped resolution of the security filter's existing 403 responses. The following table enumerates the frozen auth operations affected; it is a proposal, not a change to the frozen YAML or permission to claim full conformance.
+
+| Operation | Current frozen responses | Existing denial producing 403 | Proposed addition |
+|---|---|---|---|
+| `GET /api/v1/auth/csrf` | 200 | HTTPS required but request is insecure | 403, generic `ErrorResponse` |
+| `POST /api/v1/auth/register` | 201, 409, 422, 503 | Missing/invalid/header-mismatched CSRF, rejected Origin, or insecure transport | 403, generic `ErrorResponse` |
+| `POST /api/v1/auth/login` | 200, 401, 503 | Missing/invalid/header-mismatched CSRF, rejected Origin, or insecure transport | 403, generic `ErrorResponse` |
+| `POST /api/v1/auth/logout` | 200, 401 | Missing/invalid/header-mismatched CSRF, rejected Origin, or insecure transport | 403, generic `ErrorResponse` |
+| `GET /api/v1/auth/session` | 200, 401 | HTTPS required but request is insecure | 403, generic `ErrorResponse` |
+
+Requested decision from Tiến: approve adding only these per-operation 403 response entries using the existing `#/components/schemas/ErrorResponse`, with generic `FORBIDDEN` / `Access denied.` output, or supply an equally secure reviewed alternative. CSRF/origin/transport denials occur before the endpoint; they are neither bad credentials (401), business validation (422), technical failure (503), nor durable financial rejection. Preserve successful schemas, request shapes, security schemes, required CSRF, session lifecycle and all existing statuses. Insecure requests must remain denied while the proposal is pending; do not suppress protection or relabel every denial simply to match the current YAML.
+
+The transport gate precedes CSRF/authentication. Thus an insecure request can return 403 before authentication is evaluated; on accepted transport, unsafe requests can fail CSRF before login/session checks. Safe GET operations do not require CSRF and the current Origin rule applies only to unsafe methods. Do not document CSRF/Origin failures as causes on those GET operations.
+
+Cross-cutting observation for Tiến and the Receipt owner: `GET /api/v1/transactions/{reference}/receipt` also omits 403 (current set: 200/401/404), while the same HTTPS/namespace-role guards can reject it before a resource lookup. This requires a separate explicit per-operation disposition with that owner; hidden-resource 404 behavior must remain unchanged. All other frozen banking operations already declare 403. This observation does not authorize implementing BK-015 or adding a blanket global response.
+
+After a decision, update only approved YAML entries and this proposal's status in the decision register, then add operation-level response/schema assertions and rerun security/HTTP checks. Until then, the safe denial behavior is tested but the affected response-contract acceptance remains pending. See [BK-007 evidence](../05-verification/22-test-strategy-and-acceptance.md#bk-007-authentication-corrective-verification--2026-10-25).
+
 ## Required contract-test assertions
 
 1. Auth/session cookie, logout, CSRF rejection, role/ownership and hidden-resource paths (AC-002/024/027/028/030).
