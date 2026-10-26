@@ -760,7 +760,52 @@ Documentation validation passes 27 Markdown files, 473 local links and 88 OpenAP
 - [Cursor unit vectors](../../backend/src/test/java/com/finfast/ledger/internal/application/service/HistoryCursorCodecTests.java): 41 invocations. Fixed canonical golden vector independently calculated with Python struct/HMAC, round-trip/MAX positions, defensive key copying, same/different-key behavior, modified fields/tags, invalid Base64url/padding/aliases, truncated/oversized input, authenticated unsupported versions and invalid position/page bounds. Production uses standard JCA HMAC-SHA256 and constant-time MAC comparison, not custom cryptographic primitives. Test-only deterministic key bytes establish no production secret provisioning.
 - [Entry-contract verification](../../backend/src/test/java/com/finfast/architecture/ApplicationBoundaryVerificationTests.java): confirms the internal History inbound interface, existing public DTOs and concrete REQUIRED/read-only/REPEATABLE READ/checked-failure rollback declaration. Public `LedgerQueries` signatures, History-only capability permission, graph and existing positive/negative architecture rules are unchanged.
 
-The [test support](../../backend/src/test/java/com/finfast/LedgerHistoryTestSupport.java) reuses existing isolated databases, Spring transaction composition, Ledger fact storage/position allocator and bounded test deadlines. Its Accounts identity SQL explicitly uses the same bound DataSource/snapshot and is strictly test-scoped. This cannot establish Hải's real AM-02 provider correctness or resource participation, current History authentication/authorization, production HMAC key provisioning, deployment restart, public provider/receipt composition or end-to-end acceptance. See [implementation/composition boundaries](../03-design/16-domain-model-and-data-design.md#bk-014-ledger-history-implementation). BK-014 is not Done, BK-015 is not implemented and BK-010 Phase 6 remains unchanged.
+The [test support](../../backend/src/test/java/com/finfast/LedgerHistoryTestSupport.java) reuses existing isolated databases, Spring transaction composition, Ledger fact storage/position allocator and bounded test deadlines. Its Accounts identity SQL explicitly uses the same bound DataSource/snapshot and is strictly test-scoped. This cannot establish Hải's real AM-02 provider correctness or resource participation, current History authentication/authorization, production HMAC key provisioning, deployment restart, public provider registration or end-to-end acceptance. See [implementation/composition boundaries](../03-design/16-domain-model-and-data-design.md#bk-014-ledger-history-implementation). BK-014 is not Done, BK-015 is not Done and BK-010 Phase 6 remains unchanged.
+
+## BK-015 Ledger receipt verification — 2026-10-24
+
+**IMPLEMENTED — Ledger-local receipt contribution; production composition/full BK-015 acceptance pending.** [LedgerReceiptIntegrationTests](../../backend/src/test/java/com/finfast/LedgerReceiptIntegrationTests.java) and [LedgerReceiptAccountsCompositionIntegrationTests](../../backend/src/test/java/com/finfast/LedgerReceiptAccountsCompositionIntegrationTests.java) use disposable PostgreSQL/Testcontainers databases and actual Spring transaction proxies. They verify immutable transfer receipts for either participant, safe Treasury-to-Customer allocation labels, privacy for unknown/non-participant/GENESIS references, participant/counterparty identity validation, incomplete-fact and provider-failure propagation, duplicate participant lookup avoidance, mandatory caller transaction enforcement, and stable snapshot/transaction-manager participation with the real AM-02 JDBC provider. [ApplicationBoundaryVerificationTests](../../backend/src/test/java/com/finfast/architecture/ApplicationBoundaryVerificationTests.java) verifies the internal receipt entry contract, the complete public `LedgerQueries` delegator and REQUIRED/read-only/REPEATABLE READ rollback metadata.
+
+At the original receipt checkpoint, production `CurrentIdentity`, approved stable HMAC secret provisioning and HTTP/auth composition were unavailable, and the real AM-02 provider was not production-wired. This historical evidence does not claim runtime readiness; the later synchronization below updates provider availability without granting end-to-end acceptance. Therefore no fake authentication, fake `LedgerQueries` provider, fallback key or speculative production bean is registered. The frozen API/OpenAPI, schema and BK-014 history contract are unchanged. Focused tests establish provider composition only; end-to-end authorization, secret deployment, process restart and release acceptance remain pending.
+
+### BK-015 develop synchronization — 2026-10-26
+
+**Integration Pending / Not Done.** Starting feature HEAD was reviewed
+`c44d92be40b38dad99ab0d7a42ed69a24ffdae8a`; latest fetched develop was
+`b7d12f4a6b56f512ec1649fe0736549772ae10bd`, including merged BK-007 and BK-008
+PR #26. The starting workspace was clean; the feature was 15 develop commits
+behind and five commits ahead. A normal merge preserves both histories without
+rebase, squash or blanket conflict strategies. Three overlapping files
+(`ApplicationBoundaryVerificationTests`, backlog and this verification document)
+merged without textual conflicts. All develop entry checks and the Receipt check
+are retained; Administration/History assertion formatting follows develop.
+
+All five reviewed Receipt production files and both Receipt integration suites
+remain unchanged from the starting feature HEAD. The combined tree retains the
+latest Accounts implementation/tests, Identity security, Ledger posting core,
+Bootstrap/Administration, frozen public APIs/OpenAPI, schema and architecture rules.
+BK-007 now supplies `CurrentIdentity` under `auth`. Receipt HTTP/authorization,
+approved stable HMAC secret provisioning, production read-bean composition,
+restart and complete acceptance remain downstream work; none is implemented by
+this synchronization. The original independent receipt evidence above is retained.
+
+Executed locally with Java 21.0.12.1 / Spring Boot 4.1.1 / isolated PostgreSQL
+16.15 Testcontainers, using unchanged V1/V2 and no developer database:
+
+| Executed check | Result |
+|---|---|
+| Focused Receipt/real Accounts composition/AM-02/history composition/application-boundary/production-architecture suites | PASS: 58 tests, zero failures/errors/skips |
+| `cd backend && ./mvnw --batch-mode --no-transfer-progress clean verify` | PASS: 1,573 tests across 87 suites, zero failures/errors/skips; executable JAR packaged |
+| `LedgerReceiptIntegrationTests` / `LedgerReceiptAccountsCompositionIntegrationTests` | PASS: 10 / 1 tests, reviewed sources unchanged |
+| Accounts PostgreSQL/HTTP suites inherited from develop | PASS: 60 tests, including Account Overview 500/503 |
+| BK-007 authentication HTTP / authentication unit / activation suites | PASS: 17 / 21 / 8 tests |
+| Architecture/capability/layer suites | PASS: 160 tests; all develop and feature method bodies retained, no duplicate methods or weakened rules |
+| `python3 scripts/check_backend_jar.py` | PASS: executable JAR and test-code/dependency isolation |
+| Pinned OpenAPI validator, docs link/reference/duplicate-key checks, docs Compose config, `git diff --check` and scope audit | PASS; frozen OpenAPI/public APIs unchanged; net contribution limited to the original 12 Receipt/test/documentation files |
+
+No tests were disabled, excluded or skipped. This is local synchronization
+verification; hosted CI on the merge commit, final Tech Lead review and full
+BK-015 acceptance remain separate. Nothing was pushed or merged into develop.
 
 ## BK-005 registration core verification — 2026-10-25
 

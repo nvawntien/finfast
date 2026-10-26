@@ -19,7 +19,10 @@ import com.finfast.ledger.internal.application.usecase.GenesisPostingService;
 import com.finfast.ledger.internal.application.usecase.TransferPostingService;
 import com.finfast.accounts.internal.application.usecase.AccountStatusCommandService;
 import com.finfast.ledger.internal.application.port.inbound.ReadCustomerHistory;
+import com.finfast.ledger.internal.application.port.inbound.ReadCustomerReceipt;
 import com.finfast.ledger.internal.application.usecase.CustomerHistoryQueryService;
+import com.finfast.ledger.internal.application.usecase.CustomerReceiptQueryService;
+import com.finfast.ledger.internal.application.usecase.LedgerQueriesService;
 import com.finfast.ledger.api.LedgerQueries;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.lang.ArchRule;
@@ -65,7 +68,7 @@ class ApplicationBoundaryVerificationTests {
     }
 
     @Test
-    void historyContributionUsesAnInternalInboundContractUntilReceiptCompositionIsAvailable() throws Exception {
+    void historyContributionUsesItsInternalInboundContract() throws Exception {
         assertThat(ReadCustomerHistory.class.isInterface()).isTrue();
         assertThat(ReadCustomerHistory.class).isAssignableFrom(CustomerHistoryQueryService.class);
         assertThat(LedgerQueries.class.isAssignableFrom(CustomerHistoryQueryService.class)).isFalse();
@@ -73,6 +76,22 @@ class ApplicationBoundaryVerificationTests {
         assertThat(ReadCustomerHistory.class.getDeclaredAnnotations()).isEmpty();
         var method = CustomerHistoryQueryService.class.getMethod("history", java.util.UUID.class, LedgerQueries.PageRequest.class);
         assertThat(method.getReturnType()).isEqualTo(LedgerQueries.Page.class);
+        var transaction = method.getAnnotation(Transactional.class);
+        assertThat(transaction).isNotNull();
+        assertThat(transaction.propagation()).isEqualTo(Propagation.REQUIRED);
+        assertThat(transaction.readOnly()).isTrue();
+        assertThat(transaction.isolation()).isEqualTo(Isolation.REPEATABLE_READ);
+        assertThat(transaction.rollbackFor()).containsExactly(Exception.class);
+    }
+
+    @Test
+    void receiptContributionCompletesTheFrozenLedgerQueriesProvider() throws Exception {
+        assertThat(ReadCustomerReceipt.class.isInterface()).isTrue();
+        assertThat(ReadCustomerReceipt.class).isAssignableFrom(CustomerReceiptQueryService.class);
+        assertThat(LedgerQueries.class).isAssignableFrom(LedgerQueriesService.class);
+        assertThat(ReadCustomerReceipt.class.getDeclaredMethods()).hasSize(1);
+        var method = CustomerReceiptQueryService.class.getMethod("receipt", java.util.UUID.class, String.class);
+        assertThat(method.getReturnType()).isEqualTo(java.util.Optional.class);
         var transaction = method.getAnnotation(Transactional.class);
         assertThat(transaction).isNotNull();
         assertThat(transaction.propagation()).isEqualTo(Propagation.REQUIRED);
