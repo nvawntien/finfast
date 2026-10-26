@@ -20,13 +20,16 @@ Use genuine isolated PostgreSQL 16/Testcontainers for locking, visibility, uniqu
 
 ## BK-008 corrective implementation evidence — 2026-10-26
 
-The starting checkout was clean `feat/BK-008-accounts` at
+The original corrective checkout was clean `feat/BK-008-accounts` at
 `54adbc98e61dcf0bf746f618d9d8c67f604212f8`, with the completed merge of fetched
 `origin/develop` `f534907f6cc965a179ea11fba51c37ee5d2ad859` preserved. No merge was
 pending and develop had no commits missing from the feature branch. Correct
 existing Accounts work, the shared status capability and frozen contracts/schema
-are retained. This checkpoint concerns the local corrective working tree; it does
-not assert publication, hosted CI or final acceptance.
+are retained. The original results below describe that corrective checkpoint.
+The approved REST follow-up starts from clean, reviewed
+`f8d6652f7a052a42a8712f06231dac20156e3acb` on the same branch, with fetched develop
+still at `f534907f6cc965a179ea11fba51c37ee5d2ad859` and no pending merge or missing
+develop commits. New-commit hosted CI and final acceptance are not claimed.
 
 | Review finding | Root cause and correction | Evidence |
 |---|---|---|
@@ -77,7 +80,7 @@ UncategorizedSQLException; the corrected assertion checks that actual wrapper an
 the exact server SQLSTATE. The fixtures/assertions were corrected to exercise the
 intended paths, preserving V2 and security guards. These failed runs are not counted as PASS.
 
-Final local commands/results, after the assertion corrections:
+Original corrective local commands/results, before the REST amendment:
 
 | Executed check | Observed result |
 |---|---|
@@ -96,15 +99,52 @@ complete run passed 1,560 cases; a subsequent full run with the stronger NOWAIT
 probe failed two wrapper assertions. The final clean rerun above passed all 1,560
 with the corrected exact SQLSTATE assertions. Hosted CI was not run.
 
-REST limitation: GET `/api/v1/accounts/me` lists only 200/401/403 in frozen YAML.
-The existing shared handler's technical 500/503 responses remain outside that set;
-the security suite explicitly proves the existing 503 behavior without claiming
-full endpoint conformance. API-ERR-01 needs a scoped decision, with generic
-ErrorResponse 500/503 additions the smallest proposed resolution. Neither the
-YAML nor shared handler is changed. Registration HTTP, production Ledger/Bootstrap
-composition, real AdminProvisioning, full audit/idempotency workflow, hosted CI,
-restart/browser/performance and final canonical acceptance remain downstream
-obligations. No BK-008 Done or whole-system production-readiness claim is made.
+### Approved REST amendment follow-up — 2026-10-26
+
+**APPROVED — explicit Tech Lead authority.** The prior BK-008 technical-response
+contract blocker is resolved by the scoped
+[decision](../6-governance/25-design-decision-register.md#2026-10-26--bk-008-account-overview-technical-error-response-amendment).
+Only GET `/api/v1/accounts/me` gains 500 and 503 using the existing generic
+`ErrorResponse`; its exact response set is now 200/401/403/500/503. Success/request
+shapes, security and the shared `GlobalExceptionHandler` are unchanged. A structural
+comparison to the reviewed OpenAPI baseline checks that removing just those two
+response entries reconstructs the original specification exactly.
+
+`unexpectedQueryFailureUsesSafeInternalErrorWithoutAnAuthorizationOrFinancialOutcome`
+logs in through real BK-007 CSRF/session handling, injects an unexpected runtime
+failure through the existing test-only Account query spy, and verifies HTTP 500,
+JSON with exactly code/message, `INTERNAL_ERROR`, a nonempty public message and
+no private exception/SQL/stack/password/secret/Customer/Account details. Existing
+`technicalPersistenceFailureUsesSharedErrorAndCannotBecomeDenialOrEmptySuccess`
+continues to verify actual HTTP 503 `SERVICE_UNAVAILABLE`. Both run through the
+embedded server, real security chain and existing shared serialization/handler.
+The original 59 Accounts PostgreSQL/HTTP cases are retained; this adds one, making
+60 across the six suites, with 10 in Account Overview security HTTP.
+
+Latest amendment verification, Java 21.0.12.1 / Spring Boot 4.1.1 / isolated
+PostgreSQL 16.15, executed locally on the final amendment tree:
+
+| Executed check | Observed result |
+|---|---|
+| `cd backend && ./mvnw --batch-mode --no-transfer-progress -Dtest=AccountOverviewSecurityIntegrationTests test` | PASS: 10 tests, zero failures/errors/skips, including actual HTTP 500 and 503 |
+| `cd backend && ./mvnw --batch-mode --no-transfer-progress clean verify` | PASS: 1,561 tests across 85 suites, zero failures/errors/skips; executable JAR packaged |
+| Six Accounts PostgreSQL/HTTP suites | PASS: original 59 cases retained plus the new 500 case, 60 total |
+| Architecture/capability/layer suites | PASS: 159 tests, unchanged rules and negative fixtures |
+| `python3 scripts/check_backend_jar.py` | PASS: executable packaging and test-code/dependency isolation |
+| Pinned OpenAPI validator and `scripts/check_docs.py` | PASS: valid schema, local links/references and no duplicate YAML keys |
+| Structural OpenAPI comparison, docs Compose configuration and `git diff --check` | PASS: only the two authorized response entries differ; whitespace and configuration valid |
+
+All existing security, Ledger, Bootstrap and other regressions remain enabled and
+pass in the full run. No production implementation or test exclusion changes.
+Hosted CI for the amendment commit has not been run; publishing the commit and
+requiring its matching workflow to pass remain final review actions.
+
+API-ERR-01 remains open for other affected operations. Pending BK-007/Receipt
+amendments are not approved by this decision. Registration HTTP, production
+Ledger/Bootstrap composition, real AdminProvisioning, full audit/idempotency
+workflow, restart/browser/performance and final canonical acceptance remain
+downstream obligations, not blockers to this independent approved amendment.
+BK-008 is not marked Done and no whole-system production-readiness claim is made.
 
 ## BK-010 FIX-001 and Phase 2 execution — 2026-10-22
 

@@ -176,6 +176,19 @@ class AccountOverviewSecurityIntegrationTests {
         doThrow(new DataAccessResourceFailureException("Injected private SQL failure")).when(queries).findByCustomerId(customer);
         error(get("/api/v1/accounts/me", session), 503, "SERVICE_UNAVAILABLE");
     }
+    @Test void unexpectedQueryFailureUsesSafeInternalErrorWithoutAnAuthorizationOrFinancialOutcome() throws Exception {
+        String session = login();
+        String privateMessage = "synthetic-unexpected-query-failure";
+        String technicalSecret = "synthetic-technical-secret";
+        doThrow(new IllegalStateException(privateMessage + " SQL stackTrace " + technicalSecret
+                + " customer=" + customer + " account=" + account)).when(queries).findByCustomerId(customer);
+
+        var response = get("/api/v1/accounts/me", session);
+        error(response, 500, "INTERNAL_ERROR");
+        assertThat(response.body()).doesNotContain(privateMessage, technicalSecret, "stackTrace",
+                "IllegalStateException", "com.finfast", "java.lang", "password", "synthetic-password", email);
+        verify(queries).findByCustomerId(customer);
+    }
     static class ExpiringSessions implements HttpSessionListener {
         volatile HttpSession current;
         @Override public void sessionCreated(HttpSessionEvent event) { current = event.getSession(); }

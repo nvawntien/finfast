@@ -285,3 +285,33 @@ Tiến separately authorized FIX-001 and Phase 2 implementation after the docume
 **Phase 2 — IMPLEMENTED AND VERIFIED, infrastructure scope only:** Ledger-owned JDBC storage/reconstruction and transactional singleton posting-position allocation join an existing outer transaction. Actual Spring proxies, partial-write rollback, counter bounds, lock waiting, commit serialization and rollback reuse were verified on isolated PostgreSQL 16.15. The completed full Maven `verify` passed 568 tests with zero failures/errors/skips. See [test strategy execution evidence](../05-verification/22-test-strategy-and-acceptance.md#bk-010-fix-001-and-phase-2-execution--2026-10-22) for exact commands, initial failures/fixes and evidence limits, and [data design implementation notes](../03-design/16-domain-model-and-data-design.md#11-phase-2-internal-jdbc-infrastructure) for adapter responsibilities and future Spring wiring.
 
 These primitives are not public posting providers or commit acknowledgements. No Accounts balances, Idempotency outcomes, Admin audit or production GENESIS workflow were implemented. Phase 3–6 remain NOT STARTED. Tiến must coordinate future GenesisPosting wiring with Hải's real Treasury/Accounts capability and Trung's Bootstrap outer setup; Minh's durable outcomes/Transfers and Administration success audit remain later integration obligations. Missing History/Receipt metadata, Admin projections, production reconciliation access, API-ERR-01 and external/security/deployment/performance evidence retain their existing owners and impacts. No full AC/CONS, BK-010 completion or final release acceptance is granted by this implementation record.
+
+## 2026-10-26 — BK-008 Account Overview Technical Error Response Amendment
+
+**Authority: explicit Tech Lead approval (Tiến), 2026-10-26.** This is a narrowly
+scoped exception to the V1 REST contract freeze, not a new full API baseline or
+project-wide reapproval.
+
+- **APPROVED:** add HTTP 500 for unexpected technical failure and HTTP 503 for
+  temporary infrastructure unavailability exclusively to `GET /api/v1/accounts/me`.
+  Both use the existing `#/components/schemas/ErrorResponse`.
+- Preserve 200/401/403, existing request/success/error shapes, required fields and
+  security requirements. Preserve the shared `GlobalExceptionHandler` mappings
+  (`INTERNAL_ERROR` / `SERVICE_UNAVAILABLE`); technical failures are neither
+  authentication denials nor business rejections or finalized financial outcomes.
+- No other endpoint receives an implicit amendment. API-ERR-01 remains open for
+  other affected operations; pending BK-007 and Receipt amendments remain pending.
+- No public Java API, Flyway migration, financial business policy, module
+  dependency, security implementation or production Accounts change is authorized.
+
+[API inventory and scope](../03-design/17-api-contracts.md#bk-008-account-overview-technical-errors--approved-2026-10-26).
+**IMPLEMENTED AND VERIFIED LOCALLY:** only the approved operation's 500/503
+response entries were added to OpenAPI. The existing Account Overview HTTP suite
+passes 10 cases, including a new safe unexpected-failure 500 test and the retained
+503 test through real login/session/HTTP serialization. Java 21 full
+`clean verify` passes 1,561 tests across 85 suites, zero failures/errors/skips;
+executable packaging, architecture (159 cases), OpenAPI/schema/link/duplicate-key,
+whitespace and isolated-response structural checks pass. Shared production handling
+is unchanged. [Executed evidence and limits](../05-verification/22-test-strategy-and-acceptance.md#approved-rest-amendment-follow-up--2026-10-26).
+New-commit hosted CI and final release acceptance are not claimed; BK-008 is not
+marked Done.

@@ -64,15 +64,13 @@ in tests; no new Registration HTTP, production Ledger wiring, Admin provisioning
 audit/idempotency orchestration or Bootstrap workflow is supplied by this change.
 See [executed evidence and review findings](../05-verification/22-test-strategy-and-acceptance.md#bk-008-corrective-implementation-evidence--2026-10-26).
 
-**REST conformance blocker:** the frozen Account Overview response set is
-200/401/403. Technical read failures still propagate to the existing common
-handler (503 for unavailable persistence, 500 for unexpected failures), rather
-than becoming a false authorization denial or empty success. API-ERR-01 therefore
-still needs a scoped Tech Lead disposition for this endpoint before full REST
-conformance can be claimed. The smallest proposed resolution is to approve its
-existing generic ErrorResponse 500/503 responses; no YAML or handler change is made
-here. Hosted CI, downstream production composition and final AC/CONS/release
-acceptance remain separate; BK-008 is not marked Done.
+**Scoped REST amendment approved — 2026-10-26:** Account Overview now declares
+200/401/403/500/503. The added technical responses use existing generic
+ErrorResponse and preserve the shared handler, successful schema and security.
+[Explicit Tech Lead decision](../6-governance/25-design-decision-register.md#2026-10-26--bk-008-account-overview-technical-error-response-amendment).
+The prior BK-008 500/503 contract blocker is resolved; API-ERR-01 remains open for
+other affected operations. New-commit hosted CI, downstream production composition
+and final AC/CONS/release acceptance remain separate; BK-008 is not marked Done.
 
 ## BK-016/BK-018 corrective implementation checkpoint — 2026-10-25
 
