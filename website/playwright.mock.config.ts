@@ -6,7 +6,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   use: { browserName: 'chromium', channel: process.env.PLAYWRIGHT_CHANNEL || undefined },
   projects: [
-    { name: 'mock-browser', testMatch: 'mock.spec.ts', use: { baseURL: 'http://127.0.0.1:3001' } },
+    { name: 'mock-browser', testMatch: ['mock.spec.ts', 'ux.spec.ts'], use: { baseURL: 'http://127.0.0.1:3001' } },
     { name: 'production', testMatch: 'production.spec.ts', use: { baseURL: 'http://127.0.0.1:3002' } },
   ],
   webServer: [

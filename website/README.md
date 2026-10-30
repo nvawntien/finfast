@@ -777,6 +777,37 @@ Phase 6 artifacts checked above, not new runs; runtime code has not changed. Rea
 backend integration: 0 executed, blocked, not passed. No new integration tests against
 nonexistent handlers were claimed. Only this README changed; no commit or push.
 
+### Customer mock UX verification (2026-10-30)
+
+`tests/mock/ux.spec.ts` runs the actual MSW browser worker across Dashboard,
+History, Receipt and Transfer/Recovery. It checks 360x800, 768x1024, 1440x900,
+720x450 (200% equivalent CSS viewport from 1440x900), and 320x256 (400% equivalent
+CSS viewport from 1280x1024), horizontal reflow, axe, labels, keyboard navigation
+and confirmation/outcome focus. These viewport tests do not automate native browser
+menu zoom. Earlier regression tests also cover 200% text enlargement. Native zoom,
+manual screen-reader review and Firefox/WebKit remain unverified.
+
+MSW fault scenarios cover Account 500/503, pending reads and manual retry, history
+network/empty states, hidden foreign receipts, session expiry and a late Account
+response during session revalidation. Reload recovery verifies that authentication
+is required before showing the pending intent and that resolve sends no second
+transfer. The test scenario module lives under `tests/mock/`, uses the exported
+development-only worker and is not an application import or production fixture.
+
+An observed Transfer UI defect was fixed: Account 500/503 now reports service
+unavailability rather than invalid source-account data. The form stays unavailable
+until an explicit successful GET retry. No financial behavior or contract changed.
+
+These are frontend mock/intercepted-browser checks, not real backend E2E or proof
+of server authorization, financial commits or exactly-once delivery. Phase 7B
+browser runtime and the five missing Phase 7C HTTP APIs remain separate blockers.
+
+Final verification: typecheck/build and production bundle isolation passed;
+324 unit/integration tests, 228 intercepted browser regression cases and 18
+MSW/production browser cases passed, zero final failures/skips. Ten new MSW UX
+cases are included. Artifacts: `.cache/ux-full-browser/`, `.cache/ux-full-mock/`.
+`make help` is unavailable on this Windows host; existing npm scripts were used.
+
 ### Phase 7A account amendment and compatibility (2026-10-26)
 
 This checkpoint supersedes the remote-readiness snapshot below: `origin/develop`
