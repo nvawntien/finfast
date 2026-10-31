@@ -43,8 +43,10 @@ relevant to the current task.
 
 Approved V1 requirements remain operative while implementation is incomplete.
 Product intent, source implementation, executed verification, and release
-acceptance are separate. OpenSpec is not yet initialized on this baseline;
-initialization does not itself transfer behavioral authority.
+acceptance are separate. OpenSpec is initialized, and its main specifications
+are still being established. The detailed V1 sources above remain operative
+until their obligations are explicitly reconciled into accepted OpenSpec
+specifications; initialization does not itself transfer behavioral authority.
 
 ## Browse the API locally
 

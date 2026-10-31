@@ -1,32 +1,17 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  Complete the approved FinFast V1 baseline using simulated funds and synthetic data.
+  Start with AGENTS.md and docs/README.md, then read the sources relevant to the change.
+  Existing approved V1 obligations remain operative until reconciled into accepted specs.
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
-
-# Per-operation guidance (optional)
-# Add advisory guidance for how apply and archive work should be conducted.
-# This is separate from artifact rules above.
-# Example:
-#   operations:
-#     apply:
-#       guidance:
-#         - Keep test summaries concise
-#     archive:
-#       guidance:
-#         - Summarize the archive outcome before finishing
+rules:
+  proposal:
+    - Cite authoritative source sections and applicable FR, BR and AC identifiers.
+    - Name prerequisite changes and required baseline commits; distinguish prerequisites for implementation from those for complete acceptance.
+  design:
+    - Identify existing runtime composition and missing providers using source and configuration.
+    - Assign ownership of shared interfaces, provider registration and configuration when changes overlap.
+  tasks:
+    - Include production wiring and meaningful runtime, contract or browser verification as applicable.
+    - For financial changes, cover applicable rollback, commit, retry, concurrency and failure-injection scenarios with isolated PostgreSQL and real transaction proxies.
