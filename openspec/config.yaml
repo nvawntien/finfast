@@ -4,6 +4,7 @@ context: |
   Complete the approved FinFast V1 baseline using simulated funds and synthetic data.
   Start with AGENTS.md and docs/README.md, then read the sources relevant to the change.
   Existing approved V1 obligations remain operative until reconciled into accepted specs.
+  During this phase, v1-completion is the integration branch; follow docs/development/workflow.md for branch and session setup.
 
 rules:
   proposal:

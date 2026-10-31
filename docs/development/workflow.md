@@ -11,19 +11,38 @@ Active work lives under `openspec/changes/<change-name>/` with artifacts such as
 
 ## Branch and session setup
 
-For each OpenSpec change, create a branch named `change/<change-name>` from the
-current `develop` baseline before starting implementation. Keep its artifacts
-and implementation on that branch. Resume an existing change on its own branch.
-For example:
+During V1 completion, use `v1-completion` as the temporary integration branch.
+Initialize it from the latest fetched `origin/develop` and publish it before
+launching change sessions. Integrate verified changes into `v1-completion`;
+integrate the completed V1 into `develop` after its acceptance checks.
+
+For each OpenSpec change, fetch origin and create `change/<change-name>` from
+the latest `origin/v1-completion` before starting implementation. Keep its
+artifacts and implementation on that branch. Resume an existing change on its
+own branch. For example:
 
 ```sh
-git switch -c change/complete-customer-onboarding develop
+git fetch origin
+git switch -c change/complete-customer-onboarding origin/v1-completion
 ```
 
 Inspect the branch, worktree and local changes first. Concurrent sessions use
 separate branches and worktrees, with one active change per session. Record the
-base commit and prerequisite changes in the change's artifacts. Verify that the
-required dependency commits are present before relying on their implementation.
+base commit and prerequisite changes in the change's artifacts. Dependent
+changes start implementation after their prerequisites have been integrated
+into `v1-completion` and relevant verification has passed. Confirm the required
+commits are present; an artifact or another session's uncommitted work is not
+an integrated dependency.
+
+Use this baseline block in a fresh session's change-specific prompt:
+
+```text
+Inspect the current branch, worktree and local changes. Fetch origin and resolve
+the latest origin/v1-completion commit. Record its full SHA in the proposal.
+Create change/<change-name> from that commit in a separate worktree, with one
+active change per session. Confirm that prerequisite changes are integrated
+and verified on v1-completion before implementation. Preserve existing work.
+```
 
 ## Typical flow
 
