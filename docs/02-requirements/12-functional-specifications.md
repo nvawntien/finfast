@@ -1,5 +1,7 @@
 # 12 — Functional Specifications (behavioral contracts)
 
+> **Source transition:** Durable high-level product scope is summarized in the [maintained PRD](../product/prd.md). This document remains operative for detailed behavioral specifications until each obligation is explicitly reconciled into an accepted OpenSpec specification. Canonical business meaning remains in [04](../01-discovery/04-use-cases.md), [06](../01-discovery/06-business-rules.md), and the detailed clauses in [PRD source 09](09-product-requirements.md).
+
 > Status: **APPROVED — DERIVED V1 IMPLEMENTATION SPECIFICATION (2026-10-22)**, explicitly authorized by Tiến alongside PRD 09, UX 14 and API 17/existing YAML. [Approval record](../6-governance/25-design-decision-register.md#2026-10-22--v1-product-ux-and-rest-contract-freeze). Canonical business meaning remains in [04](../01-discovery/04-use-cases.md), [06](../01-discovery/06-business-rules.md) and approved [09](09-product-requirements.md). BK-003/TD-001..016 and module ownership remain unchanged. Existing behaviors/mappings below are approved for implementation; provider completion, real integration/security tests and final release acceptance are not established.
 
 ## Universal conventions

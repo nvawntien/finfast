@@ -16,7 +16,7 @@ Follow [AGENTS.md](../../AGENTS.md) and the [approved decision register](../6-go
 
 | Required P1 output | Canonical source | Content in this handoff / review status |
 |---|---|---|
-| Business Problem Statement | [Vision 01 §§1–3](../01-discovery/01-product-vision-and-scope.md), [PRD 09 §2](09-product-requirements.md) | Section 2: documented from approved scope |
+| Business Problem Statement | [Product vision](../product/vision.md), [product PRD](../product/prd.md), and detailed [PRD 09 §2](09-product-requirements.md) | Section 2: documented from approved scope |
 | Users / Stakeholders | [Actors 03](../01-discovery/03-actors.md), PRD §3 | Section 3: documented; course persona-to-role mapping awaits team decision |
 | Functional Requirements | [Use cases 04](../01-discovery/04-use-cases.md), [rules 06](../01-discovery/06-business-rules.md), PRD §6 | Section 4: mapped; suspicious-transaction detection remains a course gap |
 | NFRs with targets | PRD §§7–9, [verification 22](../05-verification/22-test-strategy-and-acceptance.md) | Section 5: targets and evidence defined; at-rest requirement needs scope/design disposition |

@@ -14,7 +14,7 @@ The [decision register](../6-governance/25-design-decision-register.md#engineeri
 | PostgreSQL concurrency/recovery | Scope wait + fresh statement, duplicate/hash-collision/conflicting payload, opposite-direction unsigned UUID lock order, Treasury/freeze races, 3 total attempts with nominal 25/75 ms backoff within 2 s/remaining lock budget, ambiguous commit resolution, counter late-commit ordering | 3 Phase 2 counter, 3 Phase 3 GENESIS and 7 Phase 4 ordinary race/timeout cases plus 5 Phase 5 committed-snapshot/mixed-workload cases executed successfully; real Accounts/Bootstrap and scope/freeze/restart/retry integration NOT RUN; Minh with owners. Require independent connections/barriers and SQLSTATE assertions, not H2/mocks |
 | Read/API/security/browser | High-water/HMAC owner/account/page/version binding, changed cursor rejected, secret continuity across restart; session CSRF/expiry/logout/login rotation, role/ownership and BCrypt cost/72-byte Unicode boundary; existing OpenAPI status/schema assertions | NOT RUN for absent endpoints; Hưng/Hải/Trung/Sĩ; affected metadata/Admin projections await narrow capability amendment |
 | Full financial acceptance | AC-003 ordinary movement, AC-008 allocation, AC-010 full rollback, AC-022 every Account balance, AC-023 supply, AC-031 immutable facts; rest of 38 AC/19 CONS crosswalk below; required audit and restart | NOT RUN for full workflows; Tiến/Minh/Sĩ coordinate owners. Phase 5 verifies synthetic fixtures through reusable consistent cross-table probes; real-provider AC-022/023 acceptance remains pending; no production boundary bypass |
-| Capacity/deployment | Exact PRD §9 workload and outcome distribution; separate disjoint/hot/duplicate/Treasury diagnostics, scope/Account/counter waits and WAL; private durable DB/TLS/backups/recovery | EV-001/002 pending verification, EV-003 awaiting measurement; Minh/Trung/Sĩ/Hưng |
+| Capacity/deployment | Exact approved EV-003 workload and outcome distribution in the verification strategy; separate disjoint/hot/duplicate/Treasury diagnostics, scope/Account/counter waits and WAL; private durable DB/TLS/backups/recovery | EV-001/002 pending verification, EV-003 awaiting measurement; Minh/Trung/Sĩ/Hưng |
 
 Use genuine isolated PostgreSQL 16/Testcontainers for locking, visibility, uniqueness, row guards, partial writes, commit/restart and aggregate SQL semantics. Unit fakes prove consumer logic only. Documentation tooling validates references/schema, not transaction behavior. Keep every historical execution record below tied to its original review/revision; do not present it as a new run.
 
@@ -892,7 +892,7 @@ BK-005 core is now present on the merged baseline, but its real AccountProvision
 | API contract tests | Valid/invalid request/response, privacy, cookie/CSRF/session behavior | OpenAPI conformance and unexpected-field/role checks |
 | Fault/restart tests | Verify atomic commit, outcome uncertainty, GENESIS once | Inject SQL failure, kill process after commit, restart preserved dataset |
 | Browser E2E tests | Complete CUSTOMER/ADMIN workflows and responsive UI | WEB-01..08; AC-038 |
-| Performance test | Reproducible target workload and correctness under load | PRD §9 / EV-003 report plus reconciliation |
+| Performance test | Reproducible target workload and correctness under load | Verification strategy / EV-003 report plus reconciliation |
 | Manual UAT | Owner evaluates required outcomes with realistic synthetic flows | Signoff matrix, video/screenshots/logs linked to AC IDs |
 
 **Important:** a unit test of a mocked repository cannot prove a PostgreSQL concurrency or durability requirement. Run the stateful scenarios on an actual DB equivalent to the deployed engine.
@@ -1063,7 +1063,7 @@ Run the prescribed benchmark below unchanged before separate diagnostic loads. F
 
 ## PRD performance test (NFR-004; EV-003)
 
-Use the **exact** fixture/schedule/clean-pass acceptance criteria in [09 PRD §9](../02-requirements/09-product-requirements.md). Dedicated 100-Customer, 50-pair dataset; 300 warm-up intents and 3,000 measured intents, every 100ms; report primary attempts separately from recovered outcomes. Zero financial-invariant violations. EV-003 remains AWAITING MEASUREMENT, not a passed gate.
+Use the **exact** fixture/schedule/clean-pass acceptance criteria in [approved EV-003 benchmark protocol](../verification/strategy.md#nfr-004--ev-003-benchmark-protocol). Dedicated 100-Customer, 50-pair dataset; 300 warm-up intents and 3,000 measured intents, every 100ms; report primary attempts separately from recovered outcomes. Zero financial-invariant violations. EV-003 remains AWAITING MEASUREMENT, not a passed gate.
 
 ## Evidence record template
 
@@ -1193,5 +1193,8 @@ The intended required check names equal explicit job names, not the workflow nam
 maintainer selects them under **Settings → Rules → Rulesets** for both `develop`
 and `main`. Replace any retired `validate` requirement only after the new check is
 available. PR approvals remain a separate requirement. Frontend dependency
+installation from a lockfile, lint, type checks, unit tests and production build
+will become a fourth check only after the real stack and successful runs exist.
+uirement. Frontend dependency
 installation from a lockfile, lint, type checks, unit tests and production build
 will become a fourth check only after the real stack and successful runs exist.

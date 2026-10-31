@@ -2,6 +2,8 @@
 
 > Historical discovery decisions below remain dated/unchanged. Current technical selections and evidence gates are in the later [2026-10-22 engineering freeze](../6-governance/25-design-decision-register.md#v1-engineering-design-freeze--2026-10-22); this does not reopen accepted A-* or closed OQ-* or rewrite DEC-* approvals.
 
+> **Product routing:** Durable product scope is maintained in [product vision](../product/vision.md) and [product requirements](../product/prd.md). This discovery record remains the provenance for approved assumptions, closed questions, product decisions, and unresolved EV-001 through EV-003 evidence.
+
 > **Stage:** Phase 1 — Domain Discovery\
 > **Status:** Finalized V1 business discovery baseline — project owner decisions recorded\
 > **Version:** 1.0 | **Last updated:** 2026-10-16
@@ -135,7 +137,7 @@ All entries below record the **project owner** as authority on **2026-10-16**, b
 | Risk | Why it matters | Mitigation |
 |---|---|---|
 | V1 expands toward a full banking suite | Delays foundation delivery | Preserve explicit exclusions; future domains and P1 need later prioritization |
-| Ledger/transaction/request terms diverge | Conflicting requirements and tests | Use [02 — Glossary](./02-domain-glossary.md); positive Transfer Amount differs from signed delta |
+| Ledger/transaction/request terms diverge | Conflicting requirements and tests | Use the [product glossary](../product/glossary.md); positive Transfer Amount differs from signed delta |
 | Concurrency or atomic audit is omitted | Negative balances, duplicates, or unaudited changes | Carry AC/CONS coverage and rule traceability into PRD/testing |
 | External course/deployment constraint discovered late | Deployment direction may need review | Verify EV-001/EV-002; do not invent requirements |
 | Restart repeats seed or changes supply | Money is created incorrectly | Once-only GENESIS; AC-020/AC-021 and conservation checks |
@@ -173,4 +175,6 @@ FinFast is independently authored. External references support general understan
 - [Apache Fineract source repository](https://github.com/apache/fineract)
 - [Fineract documentation](https://fineract.apache.org/docs/stable/)
 
-**Related:** [01 — Product Vision](./01-product-vision-and-scope.md) · [06 — Business Rules](./06-business-rules.md) · [08 — PRD Handoff](./08-prd-handoff.md)
+**Product authority:** [Product vision](../product/vision.md) · [Product requirements](../product/prd.md) · [Product glossary](../product/glossary.md)
+
+**Discovery provenance and behavior:** [06 - Business Rules](./06-business-rules.md) · [08 - PRD Handoff](./08-prd-handoff.md)

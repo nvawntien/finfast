@@ -1,154 +1,79 @@
-# Shared error and VND contracts
+# Shared error and money guidance
 
-> External-contract authority — 2026-10-22: [Product/UX/REST approval](../6-governance/25-design-decision-register.md#2026-10-22--v1-product-ux-and-rest-contract-freeze) freezes the existing YAML semantics. Generic foundation 400/500 mappings below remain implemented behavior, not automatically listed V1 operation responses; [API-ERR-01](17-api-contracts.md#protocol-error-integration-exception--api-err-01) requires a narrow integration disposition before affected adapter conformance. No handler, money type or dependency changes here.
+This guide owns cross-cutting error and VND semantics. Exact Java declarations
+are maintained in [common error source](../../backend/src/main/java/com/finfast/common/error/)
+and [common money source](../../backend/src/main/java/com/finfast/common/money/).
+The [OpenAPI V1 YAML](contracts/openapi-v1.yaml) owns external schemas and
+operation responses. This guide does not define banking workflows or final
+financial outcomes.
 
-> Current authority: [TD-001/003/008 freeze](../6-governance/25-design-decision-register.md#engineering-decisions-and-scoped-statuses). Shared code is implemented, financial providers remain absent on audited `develop`, and selected designs are not evidence of committed banking behavior. Existing runtime and historical test claims below retain their original scope.
-
-Implemented in Step 4E.1: reusable error and numeric infrastructure, with no banking
-services, endpoints, persistence adapters or durable financial outcomes.
-The [business rules](../01-discovery/06-business-rules.md) remain authoritative
-(BR-ACC-03/04, BR-TRF-01/12; numeric acceptance AC-016).
-[TD-001 and TD-008](../6-governance/25-design-decision-register.md#engineering-decisions-and-scoped-statuses) are now approved within the freeze's explicit design/existing-contract scopes.
-The original scoped implementation followed the then-current direction without approving all proposed routes/codes/mappings. Current TD-008 separately preserves the existing OpenAPI contract direction; it adds no endpoint implementation.
+The 2026-10-22 Product/UX/REST approval freezes the existing YAML semantics.
+Generic framework mappings do not add operation responses. The scoped
+[API-ERR-01 integration exception](17-api-contracts.md#protocol-error-integration-exception--api-err-01)
+remains subject to its recorded decision and owner review.
 
 ## Expected errors
 
-Define immutable error catalogs under the owning module, normally as enums.
-`ErrorCode` and `ApplicationException` depend only on Java. For example, a future
-module can define the following catalog; it is illustrative, not a shipped API:
+- The owning module defines stable machine codes and safe public messages for
+  its expected errors. Messages are fixed catalog text, not request values, SQL,
+  credentials, or infrastructure exception details.
+- Preserve technical causes when propagating failures, but do not expose raw
+  exception messages or turn an unexpected technical failure into an expected
+  business error.
+- Keep domain and application rules independent of HTTP. The HTTP boundary maps
+  errors only where the exact OpenAPI operation permits that response.
+- A generic error response does not imply `REJECTED`, `PROCESSING`, `UNKNOWN`,
+  rollback, or a committed financial outcome. Financial finality belongs to the
+  owning use case and caller transaction.
 
-```java
-import com.finfast.common.error.ApplicationException;
-import com.finfast.common.error.ErrorCode;
+The exact exception, error-code, and transport implementations live in
+[`common.error`](../../backend/src/main/java/com/finfast/common/error/) and the
+[HTTP error handler source](../../backend/src/main/java/com/finfast/common/error/GlobalExceptionHandler.java).
+Use [API guidance](17-api-contracts.md) for contract inspection and the pending
+operation-specific exception disposition.
 
-enum ModuleErrors implements ErrorCode {
-    RESOURCE_NOT_FOUND;
+## Integral VND
 
-    public String code() { return "RESOURCE_NOT_FOUND"; }
-    public String publicMessage() { return "The requested resource was not found."; }
-    public Category category() { return Category.NOT_FOUND; }
-}
+- Represent VND monetary values with integral arithmetic. Do not convert money
+  through binary floating point, round values, or silently overflow.
+- Keep nonnegative monetary amounts distinct from signed Ledger deltas. The
+  owning Ledger rules validate nonzero entries and balanced postings.
+- At the REST boundary, use the exact string representation and bounds in the
+  OpenAPI contract. Do not maintain another JSON schema or copy parser details
+  into Markdown.
+- Validate before persistence. Database `BIGINT` fields store integral VND;
+  schema bounds alone do not establish balanced postings, reconciled balances,
+  or total-supply correctness.
 
-// At the use-case boundary, after applying the module's disclosure policy:
-// throw new ApplicationException(ModuleErrors.RESOURCE_NOT_FOUND);
-// If wrapping an expected failure, preserve its cause:
-// throw new ApplicationException(ModuleErrors.RESOURCE_NOT_FOUND, cause);
-```
-
-Codes are stable machine identifiers. Public messages must be safe catalog
-constants, never request values, SQL, credentials or infrastructure exception
-messages. The exception snapshots the catalog fields and preserves the original
-cause. There is no shared catalog of future business errors or mutable registry.
-Do not relabel an unexpected technical failure as an expected application error.
-
-Only `GlobalExceptionHandler` maps transport-independent categories to HTTP:
-
-| Category | HTTP |
-|---|---|
-| `INVALID_REQUEST` | 400 |
-| `NOT_FOUND` | 404 |
-| `CONFLICT` | 409 |
-| `FORBIDDEN` | 403 |
-| `UNAUTHORIZED` | 401 |
-| `UNPROCESSABLE` | 422 |
-
-The 2026-10-25 Admin read correction adds `UNAUTHORIZED` to the common category
-mapping, retaining the existing category behavior and code/message response.
-Identity-owned safe catalogs can distinguish missing/expired authentication from
-wrong-role `FORBIDDEN` without transport dependencies in application code. There
-is still no production `CurrentIdentity` provider or typed Identity error contract
-on this checkout; test-only catalog exceptions prove the common mapping and
-Administration boundary, not real session authentication. Arbitrary security or
-infrastructure exceptions are not inferred to be 401/403.
-
-These generic adapter conventions do not override the existing endpoint-specific OpenAPI. The later TD-008 freeze preserves that contract direction without inventing new codes/statuses.
-The owning use case must choose safe disclosure and authorization semantics.
-Controllers need no repetitive catch blocks or success envelope. Expected errors
-produce only `{"code":"RESOURCE_NOT_FOUND","message":"The requested resource was not found."}`
-and do not generate ERROR reports. Invalid catalog definitions fail fast.
-
-Unexpected exceptions still produce safe `INTERNAL_ERROR`/500; selected existing
-infrastructure failures produce `SERVICE_UNAVAILABLE`/503. Technical errors are
-logged once at the terminal MVC boundary with their original cause, using the
-existing [logging/error contract](logging-and-error-handling.md). Existing headers,
-406 handling, vendor JSON, explicit `q=0`, committed-response and async behavior
-remain in the existing Spring MVC handler.
-
-Generic `ErrorResponse` remains **code + message only**. Neither a Java exception
-nor HTTP 422/503 proves a committed financial rejection or rollback. Only a future
-authorized financial use case may return the specialized `FinancialRejectionResponse`
-after its final outcome commits. Generic errors never add `REJECTED`, `PROCESSING`
-or `UNKNOWN`. The MVC boundary does not cover security filters or background jobs.
-
-## Integer VND
-
-`VndAmount` is a small immutable Java record holding `0..Long.MAX_VALUE`. A named
-type prevents accidental non-money JSON serialization and negative amounts, while
-avoiding a currency framework. It does not represent signed ledger deltas.
-
-```java
-import com.finfast.common.money.VndAmount;
-import com.finfast.common.money.VndArithmetic;
-
-VndAmount zero = new VndAmount(0);
-VndAmount amount = VndAmount.parse("200000").requirePositive();
-VndAmount total = amount.plus(new VndAmount(1));    // 200001
-VndAmount remainder = total.minus(amount);         // 1
-String decimal = amount.toDecimalString();         // "200000"
-long debit = VndArithmetic.negateExact(amount.value()); // -200000
-```
-
-`parse` accepts only ASCII `^(0|[1-9][0-9]*)$` within signed 64-bit range. It rejects
-null, empty, signs, leading zeros, whitespace, fractions, exponents, Unicode digits
-and overflow. Inputs longer than 19 characters are rejected before scanning.
-It never trims, rounds, parses through floating point or echoes rejected input.
-Malformed values throw `IllegalArgumentException` with a fixed safe message.
-
-`requirePositive()` rejects zero; zero remains valid for balances. `plus` and
-`minus` return new nonnegative values. A negative result such as `0 - 1` throws
-`IllegalArgumentException`. `VndArithmetic` exposes exact signed addition,
-subtraction and negation via Java's `Math.*Exact`; overflow/underflow throws
-`ArithmeticException`, including `Long.MAX_VALUE + 1` and negating `Long.MIN_VALUE`.
-Signed arithmetic permits negative/zero results; Ledger must enforce nonzero
-deltas and its posting rules. There is no silent wraparound or commercial cap.
+Exact declarations and serializers are in
+[`VndAmount`](../../backend/src/main/java/com/finfast/common/money/VndAmount.java),
+[`VndArithmetic`](../../backend/src/main/java/com/finfast/common/money/VndArithmetic.java),
+and the [money JSON adapter](../../backend/src/main/java/com/finfast/common/money/json/VndAmountJson.java).
+The [migration README](../../backend/src/main/resources/db/migration/README.md)
+describes schema constraints; the
+[data and transaction guide](../architecture/data-and-transactions.md) describes
+financial invariants and commit requirements.
 
 ## HTTP and database boundaries
 
-The separate `common.money.json.VndAmountJson` adapter uses Spring Boot's existing
-Jackson 3 `@JacksonComponent` support. DTO fields typed as `VndAmount` read/write
-JSON strings, such as `{"amountVnd":"200000"}`. Numeric tokens (including integer
-tokens), booleans, objects and arrays are rejected rather than coerced. Ordinary
-`long` fields still serialize as numbers; no global numeric setting changes.
-Use `@Valid` on request DTOs and `@NotNull` on required `VndAmount` fields to reject
-missing/null values. Optional money fields may remain null.
+Keep protocol errors distinct from accepted business rejections. Malformed JSON,
+unreadable values, or invalid wire encodings follow the framework and exact
+operation contract. Only an authorized use case can create a durable financial
+rejection, and the required outcome must commit with the operation. A technical
+or uncertain commit failure remains non-final. See the operative
+[use cases](../01-discovery/04-use-cases.md) and
+[business rules](../01-discovery/06-business-rules.md) for behavior.
 
-Generic typed money decoding failures reach the existing safe `INVALID_REQUEST`/400 boundary. For transfer/allocation intent acceptance, TD-003 requires the owning financial adapter to retain distinguishable raw typed invalid monetary input before positive value/Intent construction; financially accepted numeric rejections use the existing durable REJECTED/422 contract. Unreadable JSON, ambiguous duplicate properties and unpersistable text remain protocol failures. Do not apply the generic typed decoder blindly to erase this distinction; no codec/handler or semantic OpenAPI change is made in this documentation task.
-Positive-operation validation remains explicit in the owning module: validate
-before writes and use its safe expected error catalog. Do not globally classify
-all `IllegalArgumentException` or arithmetic failures as client errors; an
-unexpected programming/numeric error remains a technical failure, never a final
-financial rejection.
-
-Persist `amount.value()` with JDBC as `BIGINT` and reconstruct with
-`new VndAmount(storedValue)` when that field is nonnegative. No JDBC adapter or
-schema change is introduced. Use the existing frozen `AdminFinancialTransaction.entries[].deltaVnd` signed decimal-string schema for Ledger transport; the nonnegative OpenAPI `MoneyVnd` and Java `VndAmount` remain unchanged. No new money type or routine contract approval is needed.
-
-Accounts still owns persisted balance/status/ownership invariants and locking;
-Transfers owns positive intent/authorization; Ledger owns balanced immutable
-postings/reconciliation; Idempotency owns scoped durable outcomes. Numeric checks
-alone prove none of these transaction-level guarantees.
+Generic exception mappings and typed money conversion are implementation
+mechanisms, not permission to add REST statuses, coerce input, or bypass module
+ownership. Exact response differences and unresolved integration exceptions
+remain in [API guidance](17-api-contracts.md) and the decision register.
 
 ## Verification
 
-With Java 21, from `backend/`:
-
-```sh
-./mvnw -Dtest=ApplicationExceptionTests,GlobalExceptionHandlerTests,VndAmountTests,VndArithmeticTests,VndAmountJsonTests test
-./mvnw test
-./mvnw package
-```
-
-The full suite needs a Testcontainers-compatible runtime and uses isolated
-PostgreSQL databases. Focused tests cover safe expected/technical HTTP errors,
-negotiation/headers, exact numeric boundaries and actual MVC/Jackson money
-round trips. They do not establish a posting service or financial final outcome.
+Run the relevant existing Java and PostgreSQL tests through the commands in the
+[root README](../../README.md) and [Makefile](../../Makefile). Actual test sources
+live under [`backend/src/test/java/com/finfast`](../../backend/src/test/java/com/finfast/).
+The [verification strategy](../verification/strategy.md) explains the evidence
+needed for real HTTP, transaction, and financial outcomes. Structural or unit
+tests alone do not prove durable financial behavior.

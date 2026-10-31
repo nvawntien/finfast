@@ -1,8 +1,10 @@
 # 15 — System Context, Containers, Modules and Security Boundaries
 
-The mandatory convention in §3 applies across the system. The [module contracts](module-contracts-and-boundaries.md) define exact Java capabilities; [data design](16-domain-model-and-data-design.md) defines financial/transaction protocols; [API design and OpenAPI](17-api-contracts.md) define the frozen external interface. The [decision register](../6-governance/25-design-decision-register.md) records authority and historical decisions separately from these engineering rules. Implementation evidence and release acceptance remain separate.
+The mandatory convention in §3 applies across the system. [Module boundaries](../architecture/boundaries.md) summarize ownership and allowed dependencies; [data design](16-domain-model-and-data-design.md) retains detailed financial/transaction protocols; [API guidance and OpenAPI](17-api-contracts.md) route to the frozen external interface. The [decision register](../6-governance/25-design-decision-register.md) records authority and historical decisions separately from these engineering rules. Implementation evidence and release acceptance remain separate.
 
 Java 21, Spring Boot 4.1.1, Maven Wrapper and PostgreSQL 16 with Flyway form one deployable modular monolith. Deployment resources remain subject to EV-001/002; session/CSRF/BCrypt design selections require actual security verification.
+
+> **Routing:** The concise target map and module ownership now live in [architecture overview](../architecture/overview.md) and [module boundaries](../architecture/boundaries.md). This file retains detailed approved Java package, adapter, and enforcement conventions.
 
 The Modular Monolith sets deployment and logical module boundaries. DDD gives each module ownership of its domain concepts and invariants. Pragmatic Hexagonal Architecture keeps business logic separate from HTTP and persistence adapters without requiring an interface for every class. One six-person team can work within these boundaries while financial operations still share one database transaction. No mandatory microservices, Kafka, Kubernetes, Redis, event sourcing, distributed transactions or separate module databases are introduced. Provider and infrastructure sizing await EV-001/002.
 
@@ -45,7 +47,7 @@ flowchart TB
 
 ## 3. Module ownership and the controlled posting path
 
-The [canonical module guide](module-contracts-and-boundaries.md) defines exact capabilities and ownership. Accounts owns balances/statuses; Ledger coordinates paired movements and immutable facts. Transfers/Administration own their complete application transactions, including final outcomes and required audit. Public contracts, concrete implementations, provider wiring and verified integration are separate evidence levels.
+The [module boundaries](../architecture/boundaries.md) define approved capabilities and ownership. Accounts owns balances/statuses; Ledger coordinates postings and immutable facts. Transfers/Administration own their application transactions, including final outcomes and required audits. Public contracts, concrete implementations, provider wiring, and verified integration are separate evidence levels.
 
 | Module | Owns | Contract / permitted consumers and provider responsibilities |
 |---|---|---|
@@ -249,15 +251,15 @@ required by this baseline.
   GenesisPosting implementation. Private helper delegation needs a concrete reviewed
   amendment rather than a blanket exception. Import/call checks
   cannot prove runtime authorization, transaction guards, atomicity or SQL ownership.
-  Follow the [module collaboration guide](module-contracts-and-boundaries.md) and
-  real PostgreSQL/transaction gates in [22](../05-verification/22-test-strategy-and-acceptance.md).
+  Follow [module boundaries](../architecture/boundaries.md) and the real
+  PostgreSQL/transaction gates in the [verification strategy](../verification/strategy.md).
 
 - Reusable structural rules protect internal responsibility packages, inbound/outbound interfaces and port purity, DTO dependency direction, constructor injection and adapter dependency direction. Inbound adapters cannot own Spring transactions. Inbound adapters cannot depend on concrete application implementations, domain entities/services, outbound ports/adapters or configuration; pure value mapping does not authorize business orchestration. Outbound adapters cannot invoke application entries/inbound adapters. Domain/application checks exclude persistence frameworks as well as HTTP/JDBC. [ApplicationBoundaryVerificationTests](../../backend/src/test/java/com/finfast/architecture/ApplicationBoundaryVerificationTests.java) verifies current entry/DTO/transaction declarations and Ledger's existing public contracts. [HexagonalConventionVerificationTests](../../backend/src/test/java/com/finfast/architecture/HexagonalConventionVerificationTests.java) proves permitted structure and representative forbidden directions, including generic leaks and field/setter injection.
 - Every implementation must pass the complete applicable rules, not just the rule exercised by an illustrative fixture. Feature-facing entry intent cannot be inferred reliably for every helper; verify each entry's interface relationship explicitly rather than requiring every application class to implement an interface. Dependency checks cannot establish SQL table ownership, detect every service-locator shortcut, prove runtime authorization, or confirm transaction-manager composition, commit/rollback and durability. Require code review and focused real PostgreSQL/proxy/failure/concurrency tests for those obligations. Mocks establish collaborator behavior only; they do not establish durable idempotency or acceptance.
 
-**TD-016-AM-01..04** permit exactly Bootstrap → Ledger GENESIS inspection; Ledger → Accounts identity; Administration → Accounts Customer listing; Administration → Ledger financial inspection. All are existing graph directions: nine modules and 18 edges remain unchanged. AM-05 TreasuryInspection is NOT SELECTED — V1 and has no source/permission entry. `LedgerQueries` remains History-only and all unrelated posting/provisioning restrictions remain intact. [Approved inventory](module-contracts-and-boundaries.md#approved-read-capabilities--td-016-am-0104), [final decision](../6-governance/25-design-decision-register.md#final-v1-capability-decision--2026-10-23). Capability permission is separate from production provider wiring and feature acceptance.
+**TD-016-AM-01..04** permit exactly Bootstrap to Ledger GENESIS inspection; Ledger to Accounts identity; Administration to Accounts Customer listing; Administration to Ledger financial inspection. All are existing graph directions: nine modules and 18 edges remain unchanged. AM-05 TreasuryInspection is not selected for V1 and has no source/permission entry. `LedgerQueries` remains History-only and all unrelated posting/provisioning restrictions remain intact. See [approved module capability summary](../architecture/boundaries.md#approved-posting-capabilities) and the [final decision](../6-governance/25-design-decision-register.md#final-v1-capability-decision--2026-10-23). Capability permission is separate from production provider wiring and feature acceptance.
 
-## 4. Approved security design (implementation and evidence pending)
+## 4. Approved security design
 
 - **Auth:** HTTPS only; server-side session storage with protected HttpOnly cookie, Secure under HTTPS and explicit SameSite (initial Lax where the actual frontend/Core topology permits); renew session ID after authentication, use explicit expiry and logout invalidation. `SameSite` alone is insufficient CSRF defense.
 - **CSRF:** Spring Security CSRF token through the existing `/api/v1/auth/csrf` contract and its defined header for cookie-authenticated mutations, along with Origin/Referer checking where appropriate. No state-changing GET endpoint.

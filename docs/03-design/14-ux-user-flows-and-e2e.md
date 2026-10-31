@@ -6,6 +6,8 @@
 
 ## Information architecture
 
+> **Source transition:** High-level UX outcomes are summarized in the [maintained product PRD](../product/prd.md). This approved source remains operative for detailed screens, state behavior, WEB identifiers, and executable browser journeys until their obligations are explicitly reconciled into accepted OpenSpec specifications. Browser execution remains unverified.
+
 ```mermaid
 flowchart LR
   Visitor --> Register
