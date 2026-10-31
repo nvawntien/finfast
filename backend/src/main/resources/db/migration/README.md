@@ -1,6 +1,6 @@
 # Database migrations
 
-> Boundary reminder: V1/V2 are IMPLEMENTED schema guarantees, not posting providers or a completed bank. PostgreSQL text/varchar/JSONB cannot persist NUL; the separate BK-010 Phase 1 reference validation finding FIX-001 remains open. No applied migration is edited. Full cross-row cardinality, arithmetic, atomic audit/outcome and authorization remain application/test obligations under the approved freeze.
+> Boundary reminder: V1/V2 define schema constraints, not a complete banking application. PostgreSQL text/varchar/JSONB cannot persist NUL, so Ledger domain validation rejects NUL references before JDBC; FIX-001 is implemented in source and tests. Cross-row cardinality, arithmetic, authorization, and transaction commit semantics remain application responsibilities. The schema is unchanged.
 
 Flyway is the schema source of truth and runs automatically at Spring Boot startup.
 The concrete schema decisions approved in Step 4B.1 take precedence over older
@@ -63,9 +63,11 @@ Only these four additional indexes are defined:
   links valid. Updates cannot alter the singleton ID, references or initial supply;
   DELETE/TRUNCATE are rejected. Every UPDATE must advance `last_commit_seq` by
   exactly one; exhaustion is rejected before BIGINT addition can overflow in the guard.
-  Counter-only updates do not read or lock Accounts, preserving the future
-  Account-before-dataset lock order. No posting/counter-allocation algorithm is
-  implemented, and the counter is not a PostgreSQL sequence.
+  Counter-only updates do not read or lock Accounts, preserving the approved
+  Account-before-dataset lock order. The schema only enforces an exact one-step
+  update; Ledger application source currently reserves positions through its JDBC
+  allocator inside the caller transaction. That adapter does not itself establish
+  a committed posting or full production workflow.
 - Audit status fields must both be present for status operations. SUCCESS requires
   ACTIVE → FROZEN or FROZEN → ACTIVE for the corresponding action; UNCHANGED permits
   equal valid statuses. Allocation requires SUCCESS, a transaction and no status
@@ -108,10 +110,14 @@ Row constraints and append-only guards do not establish correct financial postin
   strategy is selected by TD-003; real proof remains pending), full canonical intent comparison,
   immutable final results and dataset-lifetime retention; the
   UNIQUE constraint alone does not implement replay, retries or authorization.
-- The future posting path must increment the global counter transactionally under
-  the dataset row lock and match it to `commit_seq`. No `nextval()` ordering shortcut
-  is supplied. Commit-order correctness and counter contention require later tests
-  and benchmarks; numeric overflow must also be handled by application code.
+- Ledger application source currently reserves a posting position by incrementing
+  the dataset counter transactionally and uses that value for `commit_seq`. Reserve
+  only after Accounts has locked and validated the participants. The balance
+  mutation, position, immutable facts, final outcome, and required audit must still
+  join the caller-owned transaction. The schema guard enforces a one-step counter
+  update, not caller orchestration, commit order, authorization, or release
+  correctness. See the [data and transaction constraints](../../../../../../docs/architecture/data-and-transactions.md)
+  and the [Ledger source](../../../java/com/finfast/ledger/internal/adapter/outbound/persistence/JdbcPostingPositionAllocator.java).
 
 GENESIS is a separate controlled bootstrap operation. A future atomic bootstrap
 can insert Treasury, its GENESIS transaction, positive Ledger Entry and then Dataset
@@ -131,17 +137,12 @@ The tests reuse the pinned PostgreSQL 16.15 Testcontainers configuration. No hos
 PostgreSQL or manually started Compose stack is needed. Container connection details
 override local datasource settings; tests never target the persistent developer database.
 
-| Test class | Coverage |
-|---|---|
-| `PostgresIntegrationTests` | Fresh V1/V2 migration and validation, eight empty banking tables, connectivity |
-| `SchemaStructureTests` | Named PK/FK/UNIQUE/CHECK definitions, four approved indexes, enabled triggers/functions |
-| `IdentityAndAccountConstraintTests` | User/profile constraints, Account ownership/type/status/currency/balance rules |
-| `SchemaIdentityAndCounterTests` | Immutable Account identity/ownership, removal guards, immutable dataset configuration, exact counter increments, exhaustion and GENESIS consistency |
-| `FinancialTransactionAndLedgerTests` | Financial row constraints, uniqueness/FKs and UPDATE/DELETE/TRUNCATE append-only guards, including zero-match statements |
-| `DatasetControlConstraintTests` | Singleton, positive supply, reference types, counter rejection and removal guards |
-| `RequestOutcomeConstraintTests` | Scoped case-sensitive opaque keys, field bounds, final-outcome shapes and JSONB round trips |
-| `AdminAuditConstraintTests` | Allocation/status audit shapes, common constraints, FKs and unique audited transaction |
-| `DatabaseAtomicityAndConcurrencyTests` | Four explicit rollback scenarios, concurrent counter increments and concurrent outcome uniqueness |
+The [database test sources](../../../../test/java/com/finfast/) exercise migration
+and schema constraints on isolated PostgreSQL. Separate
+[Ledger integration tests](../../../../test/java/com/finfast/ledger/) cover the
+application contribution and transaction-proxied posting primitives. Neither
+schema tests nor this guide establish complete end-to-end banking workflows or
+release acceptance.
 
 Ordinary constraint tests roll back fixtures; savepoints recover expected PostgreSQL
 statement errors without disabling triggers. Commit/concurrency tests create a separate
@@ -152,14 +153,15 @@ Concurrency tests use latches, bounded database/network/test timeouts and observ
 [`pg_blocking_pids`](https://www.postgresql.org/docs/16/functions-info.html#FUNCTIONS-INFO-SESSION-TABLE)
 waits, with worker failures propagated; they use no scheduling sleeps or stress workload.
 
-These tests exercise database-enforced PK/FK/UNIQUE/CHECK constraints, partial unique
-indexes, Account identity/ownership immutability, dataset rules and append-only facts.
-Rollback tests demonstrate PostgreSQL transaction behavior using test-only SQL, not
-implemented posting services. Counter serialization does not prove account-lock ordering;
-the uniqueness race does not implement or prove advisory-lock request coordination.
-Balanced paired entries, ledger/balance reconciliation, service-level atomic outcomes,
-authorization, mandatory success audits, complete controlled GENESIS and counter
-performance remain responsibilities of future application tests and benchmarks.
+The schema tests exercise database-enforced PK/FK/UNIQUE/CHECK constraints, partial
+unique indexes, Account identity/ownership immutability, dataset rules, and append-only
+facts. Separate Ledger tests exercise implemented posting contributions using actual
+Spring transaction proxies and PostgreSQL. They do not establish complete production
+composition, authorization across all workflows, durable Idempotency outcomes, required
+Administration audits, or V1 release acceptance. Counter serialization does not prove
+all Account lock ordering; schema tests do not prove request-level advisory-lock
+coordination or performance. Use the [verification strategy](../../../../../../docs/verification/strategy.md)
+for the required end-to-end evidence.
 
 ## Adding future migrations safely
 
