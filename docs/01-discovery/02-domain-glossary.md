@@ -4,6 +4,8 @@
 > **Status:** Approved V1 terminology — project owner baseline, not an exhaustive banking dictionary\
 > **Version:** 1.0 | **Last updated:** 2026-10-16
 
+> **Source transition:** The maintained product vocabulary now lives in [docs/product/glossary.md](../product/glossary.md). This approved discovery glossary is retained as migration provenance, not as a second maintained glossary. Canonical business rules remain in [06](./06-business-rules.md).
+
 ## 1. Purpose
 
 This glossary gives the team a **shared ubiquitous language** for discussions, PRD requirements, diagrams, future API contracts, tests, and implementation. **FinFast Core Banking Platform** is the long-term product; **FinFast V1 Core Banking Foundation** is its limited, simulated-funds first release. Words marked **SIMPLIFIED** have a narrower meaning in V1 than in real banking. These definitions express FinFast's own decisions.
@@ -108,4 +110,6 @@ Apache Fineract is a general research reference only, not an implementation depe
 - [Apache Fineract — main repository](https://github.com/apache/fineract)
 - [Apache Fineract — platform documentation](https://fineract.apache.org/docs/stable/)
 
-**Related:** [01 — Vision & Scope](./01-product-vision-and-scope.md) · [06 — Business Rules](./06-business-rules.md)
+**Current product vocabulary:** [Product glossary](../product/glossary.md) · [Product vision](../product/vision.md)
+
+**Operative behavior:** [06 - Business Rules](./06-business-rules.md) · [04 - Use Cases](./04-use-cases.md)

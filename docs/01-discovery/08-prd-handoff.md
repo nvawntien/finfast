@@ -1,6 +1,6 @@
 # 08 — FinFast V1 Business Discovery: PRD Handoff
 
-> Current routing — 2026-10-22: this approved discovery handoff is historical; PRD 09 and its existing V1 browser elaborations are now approved for implementation by Tiến's later [Product/UX/REST freeze](../6-governance/25-design-decision-register.md#2026-10-22--v1-product-ux-and-rest-contract-freeze). The later [engineering freeze](../6-governance/25-design-decision-register.md#v1-engineering-design-freeze--2026-10-22) selects technical mechanisms and the PRD §9 benchmark method; external/runtime evidence remains pending. The original discovery approval and scope below are unchanged.
+> **Source transition:** This approved discovery handoff is historical. Durable product scope is maintained in [product vision](../product/vision.md), [product requirements](../product/prd.md), and [product glossary](../product/glossary.md). The original approval is recorded in the later [Product/UX/REST freeze](../6-governance/25-design-decision-register.md#2026-10-22--v1-product-ux-and-rest-contract-freeze). Detailed behavior, the benchmark method, and external/runtime evidence dependencies remain in their operative sources. This handoff is not a second maintained PRD or a statement of implementation/release status.
 
 > **Product:** FinFast Core Banking Platform\
 > **Release:** FinFast V1 Core Banking Foundation\
@@ -16,8 +16,8 @@ V1 is the **Core Banking Foundation**, limited to simulated funds, Customer/Acco
 
 Source documents remain available:
 
-1. [01 — Product Vision and V1 Scope](./01-product-vision-and-scope.md)
-2. [02 — Domain Glossary](./02-domain-glossary.md)
+1. [Product vision and V1 scope](../product/vision.md)
+2. [Domain glossary](../product/glossary.md)
 3. [03 — Actors and Stakeholders](./03-actors.md)
 4. [04 — Use Case Catalogue and Acceptance Scenarios](./04-use-cases.md)
 5. [05 — Business Process Flows](./05-business-processes.md)

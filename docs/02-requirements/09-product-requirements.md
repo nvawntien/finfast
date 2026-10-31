@@ -2,6 +2,8 @@
 
 > **APPROVED — V1 PRODUCT AND DELIVERY REQUIREMENTS BASELINE (2026-10-22):** Tiến (Tech Lead) explicitly approves the existing FR-001..013, UX-001..005 and NFR-001..006, the documented browser checks and unchanged §9 benchmark as the V1 implementation baseline. [Approval record](../6-governance/25-design-decision-register.md#2026-10-22--v1-product-ux-and-rest-contract-freeze). This extends the earlier engineering-only freeze; it does not fabricate a separate project-owner signature or grant runtime/release acceptance. EV-001/002 remain PENDING VERIFICATION; EV-003 remains AWAITING MEASUREMENT.
 
+> **Source transition:** The maintained high-level V1 product requirements now live in [docs/product/prd.md](../product/prd.md). This original approved PRD remains operative for its detailed FR clauses, UX/NFR acceptance content, and traceability until each obligation is explicitly reconciled into an accepted OpenSpec specification. The approved EV-003 benchmark method is maintained in the [verification strategy](../verification/strategy.md#nfr-004--ev-003-benchmark-protocol). Preserve the identifiers and approval above; this source is not a second maintained high-level PRD.
+
 > **Product:** FinFast Core Banking Platform\
 > **Release:** FinFast V1 Core Banking Foundation\
 > **Status:** APPROVED — V1 PRODUCT AND DELIVERY REQUIREMENTS BASELINE (2026-10-22)\
@@ -15,9 +17,9 @@ This PRD defines what FinFast V1 must deliver, how users experience it, and what
 
 | Source | Requirements input |
 |---|---|
-| [01 - Product Vision and V1 Scope](../01-discovery/01-product-vision-and-scope.md) | Product outcomes, release boundaries, priorities, channels, and initial constraints |
-| [02 - Domain Glossary](../01-discovery/02-domain-glossary.md) | Canonical terminology and distinctions between identities, accounts, requests, postings, and audit records |
-| [03 - Actors and Stakeholders](../01-discovery/03-actors.md) | CUSTOMER and ADMIN permissions and ownership boundaries |
+| [Product vision and V1 scope](../product/vision.md) | Product outcomes, release boundaries, priorities, channels, and initial constraints |
+| [Domain glossary](../product/glossary.md) | Canonical product terminology and distinctions between identities, accounts, requests, movements, and audit records |
+| [Actor and role details](../01-discovery/03-actors.md) | Detailed CUSTOMER and ADMIN permissions and ownership boundaries, retained as operative behavior |
 | [04 - Use Case Catalogue](../01-discovery/04-use-cases.md) | Ten use cases and 38 canonical acceptance scenarios |
 | [05 - Business Process Flows](../01-discovery/05-business-processes.md) | BP-01 through BP-06, including controlled initialization and recovery |
 | [06 - Business Rules](../01-discovery/06-business-rules.md) | All 38 mandatory business rules and CONS-01 through CONS-19 risk mappings |
@@ -26,7 +28,7 @@ This PRD defines what FinFast V1 must deliver, how users experience it, and what
 
 The existing UC, BR, AC, CONS, A, OQ, DEC, BP, and EV identifiers retain their meanings. The use cases, rules, and acceptance scenarios remain canonical in their linked documents. New FR, UX, and NFR identifiers organize delivery requirements without replacing those identifiers. A policy change requires an explicit project-owner decision and updates to affected source requirements.
 
-The source documents settle the recorded banking-policy questions. The later 2026-10-22 Product/UX/REST freeze approves the existing V1 requirements and browser elaborations, including 360x800, 768x1024 and 1440x900 CSS pixels, desktop 200% zoom and keyboard checks. These are approved test specifications, not browser passes or WCAG certification. The exact §9 benchmark method remains approved under TD-013, with measurements pending. The later authorization does not retroactively enlarge the original discovery approval.
+The source documents settle the recorded banking-policy questions. The later 2026-10-22 Product/UX/REST freeze approves the existing V1 requirements and browser elaborations, including 360x800, 768x1024 and 1440x900 CSS pixels, desktop 200% zoom and keyboard checks. These are approved test specifications, not browser passes or WCAG certification. The benchmark method is maintained in the [verification strategy](../verification/strategy.md#nfr-004--ev-003-benchmark-protocol) and remains approved under TD-013, with measurements pending. The later authorization does not retroactively enlarge the original discovery approval.
 
 Historical provenance: the original 2026-10-17 PRD draft interpreted an omitted GENESIS term in vision A-007 and an unsupported parenthetical about course scaling. The engineering freeze corrected those source statements. Current meaning remains one controlled `GENESIS`; actual course/scaling obligations still require EV-001 evidence. OQ-006 names no mandated cloud. Neither correction adds a V1 technology or changes financial scope.
 
@@ -294,30 +296,12 @@ Exact password/session parameters, numeric representation, concurrency mechanism
 
 ## 9. Performance acceptance protocol
 
-The discovery target is transfer-request **p95 <= 2 seconds at 10 requests/second for 5 minutes**. The following reproducible workload is the TD-013 APPROVED method for EV-003 (2026-10-22 freeze), not an observed result or production SLA.
-
-### 9.1 Environment and setup
-
-1. Complete EV-001/EV-002 before selecting the benchmark environment. Record application revision, configuration, resource sizing, database/storage, deployment topology, TLS path, load-generator location, and relevant session/connection settings.
-2. Use a dedicated synthetic benchmark dataset initialized once with the default 100,000,000 VND supply. Register 100 Customers and allocate exactly 1,000,000 VND to each through normal authorized, audited funding. Treasury then holds 0 VND; all Accounts remain ACTIVE. Setup is outside measurement.
-3. Divide the Customers into 50 fixed pairs, with members A and B in each pair. Use authenticated browser-equivalent requests and a unique key for every new intent. Do not freeze, allocate, or introduce unrelated workload during the measured run.
-4. Warm up for 30 seconds at the same scheduled rate using 300 intents and a separate key namespace. Use the schedule below; wait for warm-up outcomes and verify balances return to 1,000,000 VND per Customer before measurement.
-
-### 9.2 Measured workload
-
-- Schedule exactly **3,000 new transfer intents over 300 seconds**, one every 100 milliseconds, without waiting for the preceding response to schedule the next request. Provide enough client concurrency to sustain the offered rate and report scheduling delay.
-- For zero-based intent index `n`, select pair `n modulo 50`. Transfer 1,000 VND A-to-B when `floor(n / 50)` is even and B-to-A when it is odd. Assign a unique run-scoped key to each new intent.
-- Every pair has 60 measured intents, 30 in each direction. All requests are eligible under the setup, there are no expected business rejections, and successful completion restores each Customer's initial benchmark balance.
-- Measure elapsed request time from client request initiation to receipt of the final response, including network/application/database time. Record the client timeout and percentile method before the run. Record latency for all attempts and completed responses separately; retries are separate attempts linked to their original intent.
-- If any response is lost, technical, or non-final, resolve the intent using the original key after submission. Report the original response and recovery separately. Recovery does not convert a failed or incomplete primary measurement into a clean success sample.
-
-### 9.3 Report and decision
-
-The benchmark report must include offered/achieved request rate, submitted intents, request attempts, completed new movements, final rejections, conflicts, technical errors, timeouts, non-final replies, unresolved intents, latency distribution, p95, environment details, and recovery outcomes.
-
-For the approved benchmark method, a clean performance pass requires sustaining the workload, all 3,000 eligible intents completing once, no unexpected rejected/technical/timeout/non-final primary responses, completed-request p95 <= 2 seconds, and zero invariant violations. Faster rejection responses cannot establish successful-transfer performance. Separately reconcile every Account, check two entries per ordinary movement, verify one GENESIS, and verify total supply after warm-up and the measured run.
-
-Record deviations and their causes against EV-003 for owner review. A missed provisional latency target cannot be relabeled as achieved; an environment limit cannot justify a financial-invariant violation. Extended course-driven load/autoscaling evidence is a separate follow-on workload whose exact criteria depend on EV-001.
+The approved TD-013 EV-003 benchmark procedure was moved without changing its
+workload or clean-pass criteria to the
+[verification strategy](../verification/strategy.md#nfr-004--ev-003-benchmark-protocol).
+Its approval remains covered by the 2026-10-22 baseline approval above and the
+[canonical decision record](../6-governance/25-design-decision-register.md#2026-10-22--v1-product-ux-and-rest-contract-freeze).
+This heading remains for existing links. No performance result is claimed.
 
 ## 10. Requirements traceability and acceptance
 

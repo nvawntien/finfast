@@ -4,6 +4,8 @@
 > **Status:** Approved V1 actors — project owner baseline\
 > **Version:** 1.0 | **Last updated:** 2026-10-16
 
+> **Source transition:** Durable actor and journey summaries are maintained in [product vision](../product/vision.md) and [product requirements](../product/prd.md). This approved source remains operative for the detailed actor capabilities, restrictions, role boundary, and actor-to-use-case traceability until those obligations are explicitly reconciled into accepted OpenSpec specifications.
+
 ## 1. Purpose and system boundary
 
 Identify **who interacts with FinFast V1 Core Banking Foundation**, why they interact, and what they are permitted to do. Only roles outside the software boundary are UML use-case actors. Background processing performed by FinFast Core is **internal system behavior**, not a separate external actor. V1 has only `CUSTOMER` and `ADMIN` application roles. Customer Web and Admin/Back-office are presentation channels, not new actors; they may share a responsive frontend with role separation.
@@ -112,4 +114,6 @@ flowchart LR
 
 Decision authority: project owner, 2026-10-16. External course requirements are tracked separately in [07](./07-assumptions-and-questions.md); no additional actor is assumed.
 
-**Related:** [04 — Use Cases](./04-use-cases.md) · [06 — Business Rules](./06-business-rules.md) · [07 — Open Questions](./07-assumptions-and-questions.md)
+**Product summaries:** [Product vision](../product/vision.md) · [Product requirements](../product/prd.md)
+
+**Operative behavior:** [04 - Use Cases](./04-use-cases.md) · [06 - Business Rules](./06-business-rules.md) · [07 - Open Questions](./07-assumptions-and-questions.md)

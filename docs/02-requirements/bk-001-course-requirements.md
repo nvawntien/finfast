@@ -10,7 +10,7 @@ The user requested BK-001 on `feature/bk-001-course-requirements`, then supplied
 
 The intake baseline is `develop` at `24896ce1422ce216f6bd75d3666f2e0cf73260d5` (2026-10-22). After fetching `origin`, local `develop` and `origin/develop` matched; the requested feature branch was created from that revision. This identifies the reviewed baseline, not a permanent claim about a moving branch.
 
-Apply [AGENTS.md](../../AGENTS.md), the approved [scope](../01-discovery/01-product-vision-and-scope.md), [PRD](09-product-requirements.md) and [decision register](../6-governance/25-design-decision-register.md). A newly evidenced course conflict must be recorded and reconciled by the appropriate authority; it must not be silently omitted from the course assessment or automatically implemented over the approved design.
+Apply [AGENTS.md](../../AGENTS.md), the maintained [product scope](../product/vision.md) and [product requirements](../product/prd.md), the detailed [PRD source](09-product-requirements.md), and the [decision register](../6-governance/25-design-decision-register.md). A newly evidenced course conflict must be recorded and reconciled by the appropriate authority; it must not be silently omitted from the course assessment or automatically implemented over the approved design.
 
 ## 2. Evidence register
 

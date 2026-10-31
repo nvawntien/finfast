@@ -1,6 +1,8 @@
 # 16 — Domain Model, ERD, PostgreSQL Data and Invariants
 
-> **APPROVED — DESIGN, evidence pending (2026-10-22):** The later [V1 freeze](../6-governance/25-design-decision-register.md#v1-engineering-design-freeze--2026-10-22) explicitly selects TD-001..014; BK-003/TD-015/016 are already merged. This is implementation guidance, not financial runtime verification. Actual [V1/V2 migrations](../../backend/src/main/resources/db/migration/README.md) are schema authority; conceptual diagrams below do not create additional tables/constraints. Approved business meaning and public Java signatures are preserved. No full General Ledger is implied.
+> **Routing:** Durable financial-data and transaction constraints are summarized in [data and transactions](../architecture/data-and-transactions.md). This source retains detailed approved protocols. Dated implementation and execution evidence is routed to [verification record 22](../05-verification/22-test-strategy-and-acceptance.md); it is not a current progress report.
+
+> **Approval scope:** The [2026-10-22 V1 freeze](../6-governance/25-design-decision-register.md#v1-engineering-design-freeze--2026-10-22) selects TD-001..014; BK-003 and TD-015/016 are recorded in the same decision authority. This guide documents the selected data and transaction design, not execution evidence. The [V1/V2 migrations](../../backend/src/main/resources/db/migration/README.md) own schema guarantees; conceptual diagrams below do not create extra tables or constraints. Approved business meaning and public Java signatures are preserved. No full General Ledger is implied.
 
 ## 1. Domain relationships
 
@@ -153,7 +155,7 @@ Note: Mermaid diagrams are conceptual. The checked-in V1/V2 SQL and migration gu
 | `app_user` | UUID PK; `email_normalized` UNIQUE NOT NULL; `role` CUSTOMER/ADMIN; password hash | Stored email uniqueness and allowed role values; application normalizes email and prevents Admin self-registration |
 | `customer` | UUID PK; UNIQUE `user_id` FK; display_name | At most one profile per User; application creates the required Customer profile during registration |
 | `account` | UUID PK; UNIQUE `account_number`; `customer_id` nullable FK with UNIQUE; `account_type`; `status`; `currency='VND'`; `balance_vnd BIGINT CHECK >=0` | CUSTOMER has exactly one owner; TREASURY is system-owned; no negative balance |
-| `dataset_control` | singleton PK (=1); Treasury/GENESIS FKs; immutable initial supply; `last_commit_seq` | One supply and one Treasury linkage; globally serialized posting order (TD-004 design; posting implementation pending) |
+| `dataset_control` | singleton PK (=1); Treasury/GENESIS FKs; immutable initial supply; `last_commit_seq` | One supply and one Treasury linkage; supports TD-004 transactional posting order, whose application behavior is outside the schema guarantee |
 | `financial_transaction` | UUID PK; UNIQUE immutable `reference`; UNIQUE `commit_seq`; type enum; amount BIGINT CHECK >0; `committed_at` | Financial facts only when committed; exact ordinary/GENESIS cardinality checked in posting layer and tests |
 | `ledger_entry` | UUID PK; FK tx/account; `delta_vnd BIGINT CHECK <>0`; UNIQUE `(transaction_id, account_id)` | Unique transaction/Account pair and nonzero delta; application enforces paired entries or the single positive GENESIS entry |
 | `request_outcome` | UNIQUE (`initiator_user_id`,`operation_type`,`idempotency_key`) with all three NOT NULL; canonicalization version, canonical intent, fingerprint, final kind and response snapshot; nullable tx FK; rejection code | Unique full scope and valid final-row shape; application enforces lifetime retention, immutable outcomes and technical/business separation |
@@ -211,25 +213,47 @@ Technical/persistence failures must escape the transactional boundary with rollb
 
 The durable-commit premise also needs explicit PostgreSQL configuration: retain `fsync=on`, `full_page_writes=on` and synchronous local WAL flush (`synchronous_commit=on` for this selected single-database design), with persistent storage for financial facts, outcomes and required audits. Do not disable durability to make a benchmark pass. Record and verify the actual configuration during restart/crash tests; confirming a transaction on a configuration that can lose acknowledged commits does not satisfy the promised final outcome. This is an implementation safeguard for existing durability requirements, not a production HA commitment. See [PostgreSQL WAL and commit settings](https://www.postgresql.org/docs/16/runtime-config-wal.html).
 
-### Committed inspection boundary — TD-016-AM-01
+### Committed inspection boundary  TD-016-AM-01
 
-**APPROVED — V1 by Tiến, 2026-10-23.** `JdbcGenesisDatasetInspection` starts/joins a read-only REPEATABLE READ transaction through its concrete Spring proxy and checks the actual bound resource, read-only mode, isolation and disabled autocommit. SELECTs access Ledger-owned tables only and reconstruct existing validated facts. Unproxied calls without a compatible transaction, write/aborted setup transactions and incompatible resources/isolation fail. No REQUIRES_NEW, financial commit, Account SQL, automatic Bean or write is added.
+Bootstrap may inspect committed Ledger GENESIS and dataset-linkage facts through
+the approved TD-016-AM-01 capability. The inspection is read-only and uses one
+REPEATABLE READ snapshot on the caller's bound transaction resource. It does not
+read Accounts tables, commit financial work, or provide a production setup
+initializer.
 
-Empty requires no dataset/financial/entry facts. A result verifies GENESIS position 1, finite timestamp/currency/reference, one matching positive Treasury entry, supply/linkage and contiguous committed position/counter agreement. Incomplete/orphan/inconsistent Ledger state fails technically. Ordinary entry correctness and Account balances are not fully reconciled here.
+An empty result is valid only when dataset, transaction, and entry facts are all
+absent. An initialized result must establish GENESIS position 1, one matching
+positive Treasury entry, amount and supply linkage, and contiguous committed
+position/counter agreement. Incomplete or inconsistent Ledger state fails
+technically. This check does not reconcile ordinary entries or Account balances.
 
-After failed setup, Bootstrap unwinds the transaction before a fresh inspection; it may inspect a committed winner only after loser rollback. Existing V1/V2 guards protect singleton Treasury, type/system ownership/ACTIVE/VND/nonnegative balance, immutable Account identity, dataset FKs/insertion linkage and immutable initial supply. AM-05 TreasuryInspection is NOT SELECTED — V1: no additional Accounts read is required for this scoped initialization evidence. Real Accounts provisioning, outer transaction integration, protected Admin setup, concurrent recovery and restart tests remain necessary. Never compare current Treasury balance directly to initial supply after allocations, or treat valid Treasury/GENESIS existence as full financial reconciliation. Full balance/supply/ordinary-entry reconciliation and operator acceptance remain separate; no production reconciliation API is introduced.
+After failed setup, Bootstrap must unwind the transaction before a fresh
+inspection and may inspect a committed winner only after the losing transaction
+rolls back. Existing migrations protect singleton Treasury, immutable Account
+identity, dataset references, and initial supply. AM-05 Treasury inspection was
+not selected for V1. Do not compare current Treasury balance with initial supply
+after allocations or treat valid GENESIS linkage as full financial reconciliation.
 
-### Committed Admin financial inspection — TD-016-AM-04
+### Committed Admin financial inspection  TD-016-AM-04
 
-**IMPLEMENTED — Ledger contribution, 2026-10-24; real-provider integration pending.** [AdminFinancialTransactionQueryService](../../backend/src/main/java/com/finfast/ledger/internal/application/usecase/AdminFinancialTransactionQueryService.java) implements the existing public inbound contract without a duplicate inbound port. Its concrete Spring REQUIRED/read-only/REPEATABLE READ entry calls the Ledger-owned [CommittedFinancialTransactions](../../backend/src/main/java/com/finfast/ledger/internal/application/port/outbound/CommittedFinancialTransactions.java) outbound port and Accounts' approved `AccountIdentityQueries`. Administration remains responsible for ADMIN authorization before invocation.
+Administration owns Admin authorization before invoking the approved AM-04
+Ledger capability. The Ledger projection reads committed financial facts and all
+entries from Ledger-owned tables in one read-only REPEATABLE READ snapshot. It
+orders transactions by committed position and entries deterministically; recorded
+time is not ordering authority. The projection preserves the committed reference,
+type, amount, and signed entries, including GENESIS. It does not read audit or
+idempotency records, mutate data, retry, or commit independently.
 
-[JdbcCommittedFinancialTransactions](../../backend/src/main/java/com/finfast/ledger/internal/adapter/outbound/persistence/JdbcCommittedFinancialTransactions.java) requires the caller's transaction and the actual bound, non-autocommit, read-only REPEATABLE READ connection. It reuses the established GENESIS inspection for empty-state, supply, linkage and contiguous position/counter checks, then reads every transaction and its complete entries in one joined query. SQL accesses only Ledger-owned tables. The shared `FinancialTransactionRows` reconstruction is also used by `JdbcFinancialTransactionRepository.findById`; unchanged domain factories enforce GENESIS/ordinary cardinality, distinct participants and exact signed magnitudes. The existing inspection guard moves into `LedgerJdbcTransaction` without weakening its checks; posting SQL/algorithms are unchanged.
-
-Transactions are ordered by `commit_seq DESC`; entries by signed delta then entry UUID. Recorded time is preserved at its stored precision and is never ordering authority. Every original UUID/reference/type/amount is retained. GENESIS remains one positive initialization entry. Identity resolution caches each UUID only within the invocation, rejects missing/mismatched IDs, duplicate Account Numbers and incompatible CUSTOMER/TREASURY roles, and exposes only Account Numbers with signed deltas. Corrupt facts or SQL failures fail the complete listing; no skipping, invented identities, audit/outcome rows, mutation, retry or independent financial commit occurs.
-
-The full-list contract has no paging or row cap: memory grows with transactions/entries and distinct participant identities. Ledger SELECT count is fixed rather than one query per transaction; AM-02's existing single-ID API requires one call per distinct Account. The complete fact set and projection coexist during mapping. Dataset size and latency require operational measurement; no performance acceptance is claimed.
-
-Production composition is intentionally absent although Hải's real AM-02 provider now exists. Future Ledger `internal/config` wiring must inject both concrete implementations through transaction proxies and use the same DataSource/transaction manager for Ledger and Accounts identity reads, with no independent identity snapshot. [Isolated PostgreSQL evidence](../05-verification/22-test-strategy-and-acceptance.md#bk-018-ledger-am-04-verification--2026-10-24) uses a strictly test-scoped Accounts collaborator for AM-04; the real provider's receipt composition is covered separately. Administration/BK-018 authorization/HTTP integration, production wiring and end-to-end acceptance remain pending; BK-010 Phase 6 and complete BK-018 are not completed by this provider.
+Account Numbers are resolved through the approved AM-02 Accounts identity
+capability. Reject missing, mismatched, duplicate, or incompatible Customer and
+Treasury identities as technical inconsistency. Expose Account Numbers and signed
+VND deltas only; do not invent labels, skip corrupt facts, or access Accounts SQL
+from Ledger. The complete committed listing has no paging or row cap, so memory
+and latency depend on dataset size and require measurement. These contracts do
+not establish Admin authorization or runtime provider composition. The
+[decision register](../6-governance/25-design-decision-register.md#final-v1-capability-decision--2026-10-23)
+and [dated verification evidence](../05-verification/22-test-strategy-and-acceptance.md#bk-018-ledger-am-04-verification--2026-10-24)
+retain approval and execution scope.
 
 ### 5.2 Success and final rejection flows
 
@@ -361,37 +385,67 @@ A plain PostgreSQL `nextval()` allocates unique values without holding transacti
 
 None is selected as a replacement. A SQL sequence alone, naive OFFSET paging or timestamp-only ordering does not preserve the selected snapshot design. Optional future projection work does not require a message broker or event sourcing in V1.
 
-**Measurement plan:** run the unchanged [PRD §9 benchmark](../02-requirements/09-product-requirements.md) first. In separate diagnostic runs, compare disjoint Account pairs, one hot debit Account, duplicate-key fan-in and Treasury allocations with fixed fixtures. Sweep 10/25/50/100 requests per second only as resource capacity permits; these are diagnostic loads, not extra V1 acceptance targets. Record offered/achieved throughput, p50/p95/p99 request and transaction latency, timeout/deadlock/retry counts, and separate scope-lock, Account-lock and global-counter wait/hold durations. Correlate application timing with PostgreSQL lock/wait observations, CPU/I/O and commit/WAL latency; retain environment/version, test revision, workload and reconciliation evidence. All runs require zero invariant violations.
+**Measurement plan:** run the unchanged [approved benchmark protocol](../verification/strategy.md#nfr-004--ev-003-benchmark-protocol) first. In separate diagnostic runs, compare disjoint Account pairs, one hot debit Account, duplicate-key fan-in and Treasury allocations with fixed fixtures. Sweep 10/25/50/100 requests per second only as resource capacity permits; these are diagnostic loads, not extra V1 acceptance targets. Record offered/achieved throughput, p50/p95/p99 request and transaction latency, timeout/deadlock/retry counts, and separate scope-lock, Account-lock and global-counter wait/hold durations. Correlate application timing with PostgreSQL lock/wait observations, CPU/I/O and commit/WAL latency; retain environment/version, test revision, workload and reconciliation evidence. All runs require zero invariant violations.
 
 **Revisit TD-004/014** if the baseline misses its target with counter contention as a demonstrated material contributor, or diagnostics show the serialized commit tail limits the agreed expected workload. Do not blame the counter solely from aggregate latency: isolate Account/Treasury contention and infrastructure limits. Any alternative must pass identical late-commit pagination, crash/recovery and reconciliation checks before replacement. No contention measurements or bottleneck finding exist yet.
 
 ### BK-017 Freeze/unfreeze implementation
 
-**IMPLEMENTED — Accounts/Administration contribution, 2026-10-24; runtime/API acceptance pending.** [JdbcAccountStatusRepository](../../backend/src/main/java/com/finfast/accounts/internal/adapter/outbound/persistence/JdbcAccountStatusRepository.java) locks the target Account row with `FOR UPDATE`, reloads type/status and rejects Treasury mutation. [AccountStatusCommandService](../../backend/src/main/java/com/finfast/accounts/internal/application/usecase/AccountStatusCommandService.java) owns the Accounts invariant and requires an existing caller-owned write transaction. [ChangeCustomerStatusService](../../backend/src/main/java/com/finfast/administration/internal/application/usecase/ChangeCustomerStatusService.java) is the Administration outer boundary: it requires an authenticated Admin, rejects blank reasons before writes, calls `AccountStatusCommands`, and writes the complete status audit in the same `REQUIRED`/READ COMMITTED transaction.
-
-ACTIVE↔FROZEN changes produce `FREEZE_ACCOUNT`/`UNFREEZE_ACCOUNT` success audits with before/after status and no transaction ID. Equal status returns `UNCHANGED` without mutation or success audit. Triggered audit failure rolls the status update back; no financial position, balance or receipt is created. PostgreSQL/Testcontainers tests verify actual proxies, same DataSource, row locking and read-only/write transaction rejection. Production composition is intentionally not added until a real `CurrentIdentity` and complete Accounts runtime provider are available; no fake authentication, fake Ledger provider or fallback HMAC key is introduced. REST/OpenAPI, migrations and BK-015 remain unchanged.
+The approved status-change and audit obligations remain in the use cases, business
+rules, and transaction constraints above. The dated BK-017 implementation and
+PostgreSQL evidence are retained in the
+[verification record](../05-verification/22-test-strategy-and-acceptance.md#bk-017-freezeunfreeze-verification--2026-10-24).
+This heading remains for existing references; it does not report current feature
+status.
 
 ### BK-014 Ledger history implementation
 
-**IMPLEMENTED — Ledger-local contribution, 2026-10-24; full provider/integration pending.** [CustomerHistoryQueryService](../../backend/src/main/java/com/finfast/ledger/internal/application/usecase/CustomerHistoryQueryService.java) implements the internal [ReadCustomerHistory](../../backend/src/main/java/com/finfast/ledger/internal/application/port/inbound/ReadCustomerHistory.java) entry using existing `LedgerQueries.PageRequest`, `Page` and `Movement` values. The frozen public interface also declares BK-015 `receipt`; no incomplete public implementation, receipt stub or replacement public API is introduced. Future Ledger composition can delegate the history method through this proxy once real receipt behavior is available. No foreign module may consume the internal port.
+The approved history design uses the TD-004 commit-position bound, authorized
+Customer participant reads, and complete immutable movement reconstruction. Every
+page checks current ownership through the approved AM-02 Accounts identity
+capability; neither an Account UUID nor a valid cursor grants authorization.
+History excludes GENESIS and rejected/non-final requests, orders by committed
+position, and fails technically on inconsistent selected facts. Detailed product
+behavior remains in the operative use cases and business rules.
 
-The concrete REQUIRED/read-only/REPEATABLE READ entry resolves the participant using AM-02 and requires a matching CUSTOMER identity with an owner. History must establish current authenticated Customer ownership before every invocation; neither the UUID nor an authenticated cursor grants access. Ledger caches identities within the call, checks matching UUIDs, unique Numbers/Customer ownership and compatible participant kinds, and exposes exact Customer Account Numbers as counterparty labels. Allocation is incoming and uses the literal label `Treasury`, never its Account Number. Missing/inconsistent metadata is technical failure; no Customer/Identity dependency, display-name invention or Account-table SQL is introduced.
+The first page reads its committed high-water position `H` and selected page in
+one statement or consistent read-only snapshot. It uses `commit_seq <= H`,
+optional `commit_seq < lastSeen`, and descending position order. Select at most
+`limit + 1` transaction headers before joining all entries. Continuations retain
+the original `H`; no database transaction spans browser page requests. The page
+size is 1 through 100, default 20. Emit a cursor only when lookahead proves that
+another movement exists. A bound mismatch or corrupt selected fact fails the
+whole page; a participant read is not full dataset reconciliation.
 
-[JdbcCustomerHistoryFacts](../../backend/src/main/java/com/finfast/ledger/internal/adapter/outbound/persistence/JdbcCustomerHistoryFacts.java) implements the Ledger-owned outbound read port behind a MANDATORY/read-only/REPEATABLE READ proxy and reuses the actual bound-resource/autocommit/read-only/isolation guard. First-page `H` comes from committed `dataset_control.last_commit_seq`, checked against the indexed maximum financial position; wholly absent Ledger state gives zero, while missing/mismatched control fails technically. This is a bound check, not full dataset reconciliation. The page query selects at most `limit + 1` participant transaction headers with `commit_seq <= H`, optional `commit_seq < lastSeen`, `type <> GENESIS`, and descending position order. Only then does it join all entries and reuse `FinancialTransactionRows`/unchanged domain factories. LIMIT never applies to entry rows. Invalid selected facts, including lookahead, fail the whole page. Unattributable or unrelated corruption is outside this participant reader; full reconciliation remains separate.
+The approved cursor is canonical v1: 53 network-order bytes containing a version
+byte, owner Customer UUID, participant Account UUID, signed 64-bit `H`, signed
+64-bit last position, and signed 32-bit effective limit. The token is unpadded
+base64url(payload), a dot, then unpadded base64url(HMAC-SHA256(payload)), exactly
+115 ASCII characters. Position 1 is GENESIS; continuations require
+`H >= lastSeen >= 2` and a limit from 1 through 100. Check bounded shape before
+decoding, authenticate before interpreting fields, compare MACs in constant
+time, and reject noncanonical encodings, altered payload/MAC, owner or Account
+mismatch, unknown versions, invalid bounds, and changed page size without
+revealing the token.
 
-First bound/page and Account identity reads participate in one snapshot. Continuations use the authenticated original bound without capturing a fresh `H`; page limit is exact within 1..100, default 20. A cursor is emitted only when lookahead proves another movement exists, using the last returned position. Empty/exact-final pages have no cursor. No database transaction spans page requests, and no posting/write/retry/independent financial commit occurs.
-
-[HistoryCursorCodec](../../backend/src/main/java/com/finfast/ledger/internal/application/service/HistoryCursorCodec.java) implements a canonical v1 format: 53 bytes in network order, containing one unsigned version byte (`1`), owner Customer UUID (16 bytes), participant Account UUID (16), high-water signed int64 (8), last-seen signed int64 (8), and effective signed int32 limit (4). The token is unpadded base64url(payload), one dot, and unpadded base64url(HMAC-SHA256(payload)): exactly 115 ASCII characters. Continuations require `H >= lastSeen >= 2` and limit 1..100; position 1 is GENESIS. Length/shape are checked before bounded decoding; standard JCA HMAC and constant-time `MessageDigest.isEqual` authenticate bytes before field interpretation. Noncanonical encoding aliases, unknown versions, invalid bounds, modified MAC/payload, Account/owner mismatch and changed page size are rejected with a generic invalid-cursor argument error containing no token. Future History transport mapping must preserve the frozen generic 422 semantics; no HTTP mapping is implemented here.
-
-The codec defensively copies injected key material of at least 32 bytes. Production must supply a dedicated cryptographically generated server-managed key, stable across processes/restarts for retained cursors. No key source, property, fallback, startup random key or production registration is selected here. Real AM-02 and Ledger reads must join the same DataSource/transaction manager through configured proxies; test SQL collaborators do not prove the real provider's participation. Bounded output/reconstruction uses at most 101 valid transactions/202 entries, plus per-request distinct identity lookups. Existing indexes are reused; planner cost for sparse histories and production latency remain unmeasured. No new index/migration or performance claim is introduced.
-
-[Verification evidence](../05-verification/22-test-strategy-and-acceptance.md#bk-014-ledger-history-verification--2026-10-24) distinguishes actual PostgreSQL visibility/counter/proxy tests, cryptographic vectors and test-only Accounts behavior. Key deployment, real Accounts, production `LedgerQueries` registration, Hải's History authorization/application/HTTP work, process restart and end-to-end acceptance remain pending. BK-014 is not Done and BK-010 Phase 6 is unchanged.
+Production must supply at least 32 bytes of cryptographically generated,
+server-managed key material that remains stable across processes and restarts
+while cursors remain valid. Do not create a fallback or random startup key. Use
+the approved Accounts and Ledger providers through transaction proxies on the
+same DataSource and transaction manager. These constraints do not establish
+provider wiring or measured query performance. Dated implementation and test
+results remain in the [verification record](../05-verification/22-test-strategy-and-acceptance.md#bk-014-ledger-history-verification--2026-10-24).
 
 ### BK-015 Ledger receipt implementation
 
-**IMPLEMENTED — Ledger-local contribution, 2026-10-24; runtime/provider acceptance pending.** [CustomerReceiptQueryService](../../backend/src/main/java/com/finfast/ledger/internal/application/usecase/CustomerReceiptQueryService.java) implements the approved receipt projection through the internal [ReadCustomerReceipt](../../backend/src/main/java/com/finfast/ledger/internal/application/port/inbound/ReadCustomerReceipt.java) port. It verifies the participant through `AccountIdentityQueries`, selects only one committed ordinary fact through [JdbcCustomerReceiptFacts](../../backend/src/main/java/com/finfast/ledger/internal/adapter/outbound/persistence/JdbcCustomerReceiptFacts.java), reconstructs the complete paired posting, and maps only INTERNAL_TRANSFER/DEMO_ALLOCATION to the frozen `LedgerQueries.Receipt` value. A missing reference, non-participant, GENESIS or inconsistent participant/fact relationship is not exposed as a private receipt.
-
-The receipt use case and JDBC fact adapter join one caller-owned REQUIRED, read-only `REPEATABLE_READ` transaction and preserve the existing single DataSource/transaction-manager boundary. Participant and counterparty identities are validated against the UUID requested from AM-02, and validated participant identity is reused for mapping. [LedgerQueriesService](../../backend/src/main/java/com/finfast/ledger/internal/application/usecase/LedgerQueriesService.java) now delegates both frozen methods through their internal inbound proxies; it does not add a new API or authorization source. AM-02 now has the Accounts-owned `JdbcAccountIdentityQueries` provider, with real Accounts–Ledger receipt composition covered by PostgreSQL/Testcontainers; production receipt composition remains unregistered. The original checkpoint lacked production identity/secret composition. Following the 2026-10-26 develop synchronization, BK-007 supplies `CurrentIdentity` under `auth`; Receipt authorization/HTTP integration, approved stable HMAC secret provisioning and production read-bean wiring remain pending. No fake authentication, fake `LedgerQueries` implementation or fallback key is permitted. BK-015 HTTP/security/restart and end-to-end acceptance remain pending.
+A receipt exposes one committed ordinary movement only to an authorized
+participant. Reconstruct the complete immutable posting, exclude GENESIS, and
+preserve privacy-safe behavior for missing references or non-participants.
+Inconsistent selected facts fail technically. Use the approved Accounts identity
+capability and Ledger-owned reads; do not add cross-module SQL or a replacement
+public contract. Detailed behavior remains in the use cases and frozen REST
+contract. Dated BK-015 execution evidence is retained in the
+[verification record](../05-verification/22-test-strategy-and-acceptance.md#bk-015-ledger-receipt-verification--2026-10-24).
 
 ## 9. Reconciliation query principles
 
@@ -402,7 +456,7 @@ The receipt use case and JDBC fact adapter join one caller-owned REQUIRED, read-
 
 ## 10. Implementation obligations and scoped exceptions
 
-The algorithms above no longer await routine approval. Implement/test them under the authorized backlog phase and current module capabilities. The [decision register](../6-governance/25-design-decision-register.md#explicit-exceptions-and-implementation-findings) records genuine remaining exceptions: Account-ID metadata for History/receipt labels, Admin read projections and test-scoped all-account reconciliation. Its historical FIX-001 finding is closed by the separately authorized implementation below. A new production read capability needs a narrow amendment; no private cross-module repository/SQL access is permitted.
+The algorithms above no longer await routine approval. Implement/test them under the authorized backlog phase and current module capabilities. The [decision register](../6-governance/25-design-decision-register.md#explicit-exceptions-and-implementation-findings) records genuine remaining exceptions: Account-ID metadata for History/receipt labels, Admin read projections and test-scoped all-account reconciliation. The decision register records the separately authorized FIX-001 closure; its dated implementation evidence remains in verification record 22. A new production read capability needs a narrow amendment; no private cross-module repository/SQL access is permitted.
 
 Current V1/V2 enforce row shapes/FKs, uniqueness, immutable identities/facts and dataset-counter increment shape. They do **not** enforce complete ordinary cardinality/opposite signs, application authorization, same-transaction balance/outcome/audit changes or commit acknowledgement. GENESIS insert order remains Treasury → transaction → entry → dataset control with protected Admin provisioning in the same outer setup transaction. On a uniqueness race roll back the whole losing setup and verify the winner in a fresh transaction; never reseed an existing dataset.
 
@@ -421,50 +475,40 @@ Counter exhaustion or an invariant/persistence failure is a technical failure re
 
 ## 11. Phase 2 internal JDBC infrastructure
 
-**IMPLEMENTED — infrastructure only, 2026-10-22:** [JdbcFinancialTransactionRepository](../../backend/src/main/java/com/finfast/ledger/internal/adapter/outbound/persistence/JdbcFinancialTransactionRepository.java) inserts a validated immutable transaction and every supplied entry using parameterized SQL on the caller's transaction-bound connection. A single joined read by transaction UUID retrieves the complete fact set, orders entries by signed delta then entry UUID, and reconstructs through the existing validated domain factories. Incomplete/inconsistent facts, unsupported currency and nonfinite persisted timestamps fail as technical integrity errors, never as durable business rejection.
-
-Identifiers, references, integral amounts and supplied positions are preserved. The adapter explicitly truncates supplied timestamps to PostgreSQL microsecond precision in UTC; the immutable input is unchanged. NUL is rejected by the domain and malformed Unicode references by the adapter before SQL. GENESIS reconstruction validates the supplied positive single entry; it cannot establish that its Account is the real Treasury.
-
-[JdbcPostingPositionAllocator](../../backend/src/main/java/com/finfast/ledger/internal/adapter/outbound/persistence/JdbcPostingPositionAllocator.java) reserves the next position with one bounded `UPDATE ... RETURNING` against the existing singleton. Missing/exhausted counters fail; rollback restores the reservation and the row lock lasts until the outer transaction ends. It creates no dataset, SQL sequence, Account, supply or financial fact. Future posting orchestration must first obtain Accounts-owned locks/eligibility, reserve once, then persist complete facts together with balances, final outcomes and any required audit. A counter increment alone is not a posting.
-
-Both concrete adapters require an intercepted Spring `MANDATORY` boundary. [LedgerJdbcTransaction](../../backend/src/main/java/com/finfast/ledger/internal/adapter/outbound/persistence/LedgerJdbcTransaction.java) additionally verifies an active transaction, the bound DataSource connection and disabled autocommit; writes reject read-only or non-READ-COMMITTED transactions. No independent commit, retry transaction or replacement transaction manager is added. A successful method return is tentative until outer commit confirmation.
-
-Phase 2 tests register the actual adapters and standard Spring JDBC transaction manager in an isolated test context. Production registration belongs to future Ledger use-case wiring; these classes do not install startup writers or public posting providers. Accounts balances, authorization, durable idempotency, Admin audit, protected GENESIS orchestration, History/Receipts and production reconciliation remain outside this infrastructure phase. See [executed evidence and its limits](../05-verification/22-test-strategy-and-acceptance.md#bk-010-fix-001-and-phase-2-execution--2026-10-22); full BK-010 financial acceptance is still pending.
+TD-002/004 transaction and posting-position constraints remain in sections 5
+through 8 and in [data and transactions](../architecture/data-and-transactions.md).
+The current position-reservation implementation is in the
+[Ledger adapter source](../../backend/src/main/java/com/finfast/ledger/internal/adapter/outbound/persistence/JdbcPostingPositionAllocator.java).
+This heading remains for existing links. Dated Phase 2 implementation scope,
+commands, and PostgreSQL evidence are in the
+[verification record](../05-verification/22-test-strategy-and-acceptance.md#bk-010-fix-001-and-phase-2-execution--2026-10-22).
 
 ## 12. Phase 3 controlled GENESIS contribution
 
-**IMPLEMENTED — Ledger contribution, 2026-10-22:** [GenesisPostingService](../../backend/src/main/java/com/finfast/ledger/internal/application/usecase/GenesisPostingService.java) implements the frozen `GenesisPosting.initialize(UUID, VndAmount)` with an intercepted `MANDATORY` boundary. It validates required/positive arguments, rejects an existing dataset, calls the Accounts-owned `PostingAccounts.initializeTreasury`, persists one complete immutable GENESIS fact set through Phase 2, inserts matching dataset control, then returns `PostingResult.Pending`. Any technical failure propagates for outer rollback; Pending confirms no commit.
-
-The generated transaction/entry UUIDs are server-owned. Reference `GENESIS-<transaction UUID>` is 44 ASCII characters; uniqueness is backed by existing constraints, never timestamps alone. The supplied `Clock` supplies a timestamp truncated to microseconds so Pending and persisted facts agree. Initial position is 1; no counter allocation occurs before the singleton exists. The one entry credits the supplied Treasury by exactly the positive initial supply. Dataset Treasury, transaction, supply and position derive from that same validated fact set.
-
-Application code consumes the internal [FinancialTransactionStore](../../backend/src/main/java/com/finfast/ledger/internal/application/port/outbound/FinancialTransactionStore.java) and [GenesisDataset](../../backend/src/main/java/com/finfast/ledger/internal/application/port/outbound/GenesisDataset.java) outbound ports, as required by existing application-isolation enforcement. These introduce no public module capability. The existing fact repository implements the write port without changing SQL; [JdbcDatasetControlRepository](../../backend/src/main/java/com/finfast/ledger/internal/adapter/outbound/persistence/JdbcDatasetControlRepository.java) implements insert-only linkage and reuses the actual connection/isolation/read-only guard. Ledger does not query or update Accounts tables in production.
-
-The initial existence check does not lock an absent row. Real Accounts initialization must protect the eligible zero Treasury. Existing unique Treasury, unique GENESIS/reference/position and singleton constraints remain hard backstops. A losing setup propagates failure and rolls back its entire outer transaction; Ledger neither retries nor returns a fresh Pending for an existing dataset. Bootstrap owns any later committed-winner verification in a fresh transaction. V1 immediately checks Treasury/GENESIS types and initial position linkage; the application supplies exact amount/entry relationships, which are not additional database cardinality triggers.
-
-Tests register real Ledger/Spring JDBC beans with a test-only Accounts collaborator against isolated PostgreSQL. Production composition awaits Hải's actual Accounts providers and Trung's Bootstrap orchestration; no automatic bean/startup initializer, protected operator flow, Admin provisioning, credential reset or deployment restart behavior is implemented here. [Phase 3 execution evidence](../05-verification/22-test-strategy-and-acceptance.md#bk-010-phase-3-genesis-contribution-execution--2026-10-22) is partial acceptance evidence only. At that checkpoint Phase 4–6 had not started; the separately authorized Phase 4 contribution follows below. BK-009/BK-010 remain incomplete.
+The controlled setup contract and financial invariants remain in the use cases,
+business rules, and transaction sections above. The exact public declaration is
+[GenesisPosting](../../backend/src/main/java/com/finfast/ledger/api/GenesisPosting.java).
+Dated Phase 3 contribution and verification evidence are in the
+[verification record](../05-verification/22-test-strategy-and-acceptance.md#bk-010-phase-3-genesis-contribution-execution--2026-10-22).
 
 ## 13. Phase 4 ordinary posting contribution
 
-**IMPLEMENTED — Ledger contribution, 2026-10-22:** [TransferPostingService](../../backend/src/main/java/com/finfast/ledger/internal/application/usecase/TransferPostingService.java) implements `FinancialPosting`; [AllocationPostingService](../../backend/src/main/java/com/finfast/ledger/internal/application/usecase/AllocationPostingService.java) implements `AllocationPosting`. Both require an intercepted Spring `MANDATORY` boundary with technical-failure rollback. They remain explicitly composed until the real Accounts provider is available; no missing provider, startup writer or HTTP workflow is installed.
-
-The transfer use case passes the trusted source Account, expected Customer, exact recipient Number and amount to `PostingAccounts.transfer`. Allocation passes only recipient Number and amount to `PostingAccounts.allocate`; Accounts selects Treasury. Accounts owns all participant locks, current type/ownership/status/currency/funds/balance-bound checks and paired pending balances. A returned Accounts rejection passes through unchanged, without a position or financial fact. Note and reason remain unchanged in the caller's immutable intent; the existing Ledger schema gains no text column.
-
-After `Applied`, Ledger reserves exactly one position, constructs a server-owned UUID/reference and microsecond timestamp using its injected Clock, then uses the existing domain factory and `FinancialTransactionStore` to persist one ordinary transaction and two opposite entries on the returned Account UUIDs. References are `TRANSFER-<UUID>` or `ALLOCATION-<UUID>`; they are safe bounded ASCII, with database uniqueness backstops. Debit uses checked negation; positive BIGINT maximum remains supported when Account results permit it. Neither use case can initialize Treasury or generate GENESIS.
-
-The new internal [PostingPositionAllocator](../../backend/src/main/java/com/finfast/ledger/internal/application/port/outbound/PostingPositionAllocator.java) is implemented by the existing JDBC allocator. Its bounded counter `UPDATE ... RETURNING` is unchanged. Before that UPDATE, the adapter checks the existing immutable GENESIS type/amount, singleton supply/position linkage and exactly one matching positive Treasury entry, using Ledger-owned tables only. Incomplete initialization fails technically; a missing singleton or exhausted counter keeps the established failure behavior. This precondition does not reconcile ordinary facts or read/mutate Accounts. The actual JDBC resource/autocommit/READ COMMITTED guard still applies, and technical failure rolls back any pending Account changes. No participant or scope locks are added by Ledger after reservation.
-
-**Scoped error approval:** during Phase 4, Tiến explicitly approved [LedgerPostingError](../../backend/src/main/java/com/finfast/ledger/internal/application/usecase/LedgerPostingError.java): `INVALID_AMOUNT` / `Amount must be positive` and `REASON_REQUIRED` / `Allocation reason is required`, both `UNPROCESSABLE`. Zero amount and blank allocation reason return those business rejections before invoking Accounts or reserving a position. No HTTP status/schema or durable outcome policy changes; technical failures are never relabeled as these codes.
-
-`PostingResult.Pending` remains tentative. Transfers must still persist its durable final outcome, and Administration must still join its final allocation outcome and required success audit, before outer commit confirmation. No retry or recovery is implemented inside Ledger. [Phase 4 PostgreSQL evidence](../05-verification/22-test-strategy-and-acceptance.md#bk-010-phase-4-ordinary-posting-execution--2026-10-22) uses scoped Accounts collaborators, not Hải's production implementation. Real owner integration, authentication, Idempotency, BK-013 audit, HTTP, restart and financial acceptance remain pending. At that Phase 4 checkpoint Phase 5–6 were NOT STARTED; the separately authorized Phase 5 below remains test-only.
+The public Ledger capabilities remain
+[FinancialPosting](../../backend/src/main/java/com/finfast/ledger/api/FinancialPosting.java)
+and [AllocationPosting](../../backend/src/main/java/com/finfast/ledger/api/AllocationPosting.java).
+The scoped Phase 4 approval defines [LedgerPostingError](../../backend/src/main/java/com/finfast/ledger/internal/application/usecase/LedgerPostingError.java)
+`INVALID_AMOUNT` with message
+`Amount must be positive` and `REASON_REQUIRED` with message
+`Allocation reason is required`, both `UNPROCESSABLE`. This does not add a REST
+status or alter durable outcome policy. Detailed V1 behavior and transaction
+responsibilities remain in their approved sources. Dated Phase 4 implementation
+and PostgreSQL evidence are in the
+[verification record](../05-verification/22-test-strategy-and-acceptance.md#bk-010-phase-4-ordinary-posting-execution--2026-10-22).
 
 ## 14. Phase 5 test-scoped reconciliation foundation
 
-**IMPLEMENTED — test-only verification, 2026-10-23:** [LedgerReconciliationVerifier](../../backend/src/test/java/com/finfast/LedgerReconciliationVerifier.java) reads an isolated PostgreSQL database through a fresh connection in a read-only REPEATABLE READ transaction. Account aggregates, financial facts and dataset linkage share one committed MVCC snapshot. Caller tentative writes are excluded. The explicit snapshot-inspection method requires read-only REPEATABLE READ with autocommit disabled; it supports held-snapshot concurrency tests. The verifier reserves no position, locks no Account rows and performs no repair, retry, posting or startup action.
-
-Immutable results contain ordered diagnostic codes, affected UUIDs and exact expected/observed values. Every Account, including Treasury and zero-entry Customer Accounts, is compared to its signed-entry sum from zero. GENESIS contributes once through its positive entry, never as an additional opening balance. Supply, exactly one Treasury/dataset/GENESIS, position 1, supply/participant/linkage, ordinary cardinality/distinct participants/exact debit/credit/net, valid transaction metadata and unique references/positions are checked separately. The counter must equal the greatest committed position; positive unique positions and count equal to maximum also detect gaps in the approved contiguous posting path. Time does not determine order.
-
-PostgreSQL NUMERIC aggregates are read with `BigDecimal.toBigIntegerExact()`; comparisons and combined entry counts use `BigInteger`. Corrupt totals above BIGINT and signed sums below its minimum remain exact. Query failures propagate as technical failures, rather than becoming empty healthy results. Missing initialization is unhealthy.
-
-[Integration tests](../../backend/src/test/java/com/finfast/LedgerReconciliationIntegrationTests.java) cover healthy/malformed committed fixtures, mixed operations, rejections/rollbacks, balance drift, structural constraint rejection and numeric limits. [Concurrency tests](../../backend/src/test/java/com/finfast/LedgerReconciliationConcurrencyTests.java) hold partial/complete pending writes, retain the prior snapshot across a concurrent commit, and verify a fresh snapshot after commit. Existing Phase 4 race/fault tests reuse the stronger verifier through their existing assertion helper; test packages and production code are unchanged.
-
-See [executed Phase 5 evidence](../05-verification/22-test-strategy-and-acceptance.md#bk-010-phase-5-reconciliation-foundations-execution--2026-10-23). Cross-table access is strictly test-scoped under the existing exception. Hải/Tiến must review a capability amendment before any production-wide reader; real Accounts, protected Bootstrap, durable outcomes, required audit and full AC-022/023 acceptance remain pending. Phase 6 is NOT STARTED; BK-010 is not Done.
+Reconciliation requirements are summarized in section 9. The isolated verifier
+and its tests remain source-owned under
+[`backend/src/test/java/com/finfast`](../../backend/src/test/java/com/finfast/).
+Dated Phase 5 implementation and execution evidence are in the
+[verification record](../05-verification/22-test-strategy-and-acceptance.md#bk-010-phase-5-reconciliation-foundations-execution--2026-10-23).

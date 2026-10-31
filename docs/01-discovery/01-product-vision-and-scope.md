@@ -5,6 +5,8 @@
 > **Status:** Approved V1 business discovery baseline — project owner decision\
 > **Version:** 1.0 | **Last updated:** 2026-10-16
 
+> **Source transition:** The maintained product vision and durable V1 scope now live in [docs/product/vision.md](../product/vision.md). This approved discovery document is retained as migration provenance, not as a second maintained product authority. Its approved scope is represented in the successor; detailed behavioral obligations remain in their operative sources.
+
 ## 1. Product summary
 
 **FinFast Core Banking Platform** is an extensible platform independently developed from scratch using Java and Spring Boot. Its long-term vision includes an independently usable Core Banking Platform, Customer-facing Web Banking, Mobile Banking, and an administrative Back-office application. All banking applications use the financial capabilities of FinFast Core, which remain independent of presentation channels.
@@ -124,4 +126,6 @@ These are **references for understanding**, not specifications to copy or a requ
 - [Apache Fineract — platform documentation](https://fineract.apache.org/docs/stable/)
 - [Apache Fineract — consumer-facing project](https://github.com/apache/fineract-consumer-facing)
 
-**Next:** [02 — Domain Glossary](./02-domain-glossary.md) · [07 — Assumptions and Questions](./07-assumptions-and-questions.md)
+**Current product authority:** [Product vision](../product/vision.md) · [Product requirements](../product/prd.md) · [Domain glossary](../product/glossary.md)
+
+**Provenance and behavior:** [07 - Assumptions and Questions](./07-assumptions-and-questions.md) · [04 - Use Cases](./04-use-cases.md) · [06 - Business Rules](./06-business-rules.md)

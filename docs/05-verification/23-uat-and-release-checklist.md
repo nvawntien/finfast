@@ -43,7 +43,7 @@
 - [ ] Docker/container artifact built with revision/digest; CI reproducible; deployed app and PostgreSQL persistent.
 - [ ] TLS and secret configuration verified; database not publicly writable; migrations/setup documented.
 - [ ] Deployment/restart walkthrough preserves GENESIS, ledger, audit, outcomes, sessions handled safely.
-- [ ] EV-003 benchmark executed with PRD §9 offered-rate schedule; report includes complete outcome distribution, original attempts and recoveries, latency, environment and reconciliation.
+- [ ] EV-003 benchmark executed with [approved EV-003 offered-rate schedule](../verification/strategy.md#nfr-004--ev-003-benchmark-protocol); report includes complete outcome distribution, original attempts and recoveries, latency, environment and reconciliation.
 - [ ] Provisional p95 ≤2 s/10 rps/5 min outcome recorded **honestly**, not assumed; deviations escalated with owner disposition.
 - [ ] If actual rubric demands autoscaling/extended testing, separate evidence is provided or the gap explicitly owned, not silently discarded.
 

@@ -1,10 +1,12 @@
 # Logging, HTTP errors and tracing
 
-> Financial implementation status — 2026-10-22: [TD-002/003/008/011](../6-governance/25-design-decision-register.md#engineering-decisions-and-scoped-statuses) now select transaction/recovery/result/audit mechanisms. Existing telemetry/common handlers are not financial providers. Required success audits remain PostgreSQL facts in the operation transaction; logs/traces never establish commit or durable rejection. Preserve the accepted-intent versus protocol-error distinction in the [money guide](shared-error-money-contracts.md#http-and-database-boundaries).
+> Durable rule: logs and traces never establish commit or durable rejection. Required success audits remain PostgreSQL facts in the operation transaction. Preserve the accepted-intent versus protocol-error distinction in the [money guide](shared-error-money-contracts.md#http-and-database-boundaries); selected financial mechanisms and their approval scope are recorded in the [decision register](../6-governance/25-design-decision-register.md#engineering-decisions-and-scoped-statuses).
 
-Implemented technical foundation for Java 21 / Spring Boot 4.1.1. The generic HTTP
-codes below are technical decisions for this step, not approval of new banking
-behavior or implementation of the specified but absent financial endpoints in [API design](17-api-contracts.md).
+This guide owns cross-cutting logging, HTTP error, tracing, and sensitive-data
+policies. Exact configuration and implementation live in source. Verify them at
+the revision under review; this guide is not a current feature-status report.
+Generic HTTP mappings below do not approve new banking behavior. The
+[OpenAPI V1 YAML](contracts/openapi-v1.yaml) remains the exact external contract.
 
 ## Clean business code, centralized observability
 

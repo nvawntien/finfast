@@ -4,6 +4,8 @@
 > **Status:** Approved V1 business flows — project owner baseline, not physical architecture\
 > **Version:** 1.0 | **Last updated:** 2026-10-16
 
+> **Source transition:** Enduring product journey summaries are maintained in the [V1 product requirements](../product/prd.md). This source remains operative for the approved logical process flows and their behavior detail until each obligation is explicitly reconciled into accepted OpenSpec specifications. These flows are logical behavior, not physical architecture.
+
 ## 1. Purpose
 
 Visualize the key **end-to-end behaviors** of FinFast V1 Core Banking Foundation before designing APIs and services. Mermaid diagrams are stored as source-controlled text. **FinFast Core / System** represents logical banking responsibilities, independent of presentation channels; no service, class, schema, or transaction-lock implementation is prescribed.
@@ -200,4 +202,6 @@ Treasury balance + sum(all Customer Account balances) = initial GENESIS supply
 
 Canonical acceptance IDs and their CONS risk mappings are in [04](./04-use-cases.md#4-acceptance-scenario-matrix) and [06](./06-business-rules.md#7-high-risk-consistency-scenarios).
 
-**Related:** [04 — Use Cases](./04-use-cases.md) · [06 — Business Rules](./06-business-rules.md)
+**Product journeys:** [Product requirements](../product/prd.md)
+
+**Operative behavior:** [04 - Use Cases](./04-use-cases.md) · [06 - Business Rules](./06-business-rules.md)
