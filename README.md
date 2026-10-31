@@ -6,16 +6,17 @@ finite Treasury allocations, committed history/receipts and Admin account contro
 Customer and Admin Web interfaces are planned within that scope.
 
 The backend is one deployable Java/Spring Boot modular monolith with DDD-inspired
-modules, pragmatic Hexagonal Architecture and PostgreSQL/Flyway. Implemented
-foundations include eight banking tables without seed data, shared error/VND
-contracts, compile-time module APIs, architecture checks, logging, HTTP tracing
-and optional metrics/dashboards/alerts. Authentication, financial posting services,
-Admin operations, controlled GENESIS setup and the frontend still require implementation.
+modules, pragmatic Hexagonal Architecture and PostgreSQL/Flyway. The source
+includes schema and shared error/VND foundations, public module APIs, architecture
+checks, logging, HTTP tracing, optional metrics/dashboards/alerts, and selected
+Ledger and banking-module contributions. These do not establish a complete,
+production-wired V1 workflow. No browser frontend is present in this revision.
+Check source, tests, and executed evidence for the current scope of any capability.
 
-Start with the [documentation index](docs/README.md) for the approved V1 requirements,
-UX, architecture and Java/REST contracts. The [backlog](docs/02-requirements/10-product-backlog.md)
-records implementation dependencies and remaining work. Design approval is separate
-from passing runtime tests, measured performance and release acceptance.
+Start at the [documentation index](docs/README.md) for the current authority map,
+including approved requirements, architecture, API/Java contracts, verification and
+decisions. This README covers local setup, development commands and CI reproduction;
+the index distinguishes approved intent from implementation and verification evidence.
 
 ## Backend baseline
 
@@ -240,23 +241,16 @@ native datasource environment variables configured above, start it using
 
 For documentation/OpenAPI checks, see [docs/README.md](docs/README.md#validate-documentation-locally-and-in-ci).
 
-## Parallel module development
+## Module contracts and collaboration
 
-Use the [canonical Java module contracts](docs/03-design/module-contracts-and-boundaries.md)
-for exact source links/signatures, owners, permitted consumers, transaction
-obligations, compatibility audit and contract change control. APIs live in
-`com.finfast.<provider>.api`; their presence enables compilation and test mocks,
-not runtime Beans or implemented banking features. Use the approved contracts;
-do not duplicate them, import another module's internals or silently rename/break
-public APIs. For a mismatch, preserve work, compare exact signatures and report to
-Tiến for an integration decision before adapting member-owned code and tests.
-Additional capabilities/edges or breaking changes require prior Tech Lead approval;
-Java, tests, canonical documentation and decisions change together. Concrete locking,
-retry, cursor and bootstrap mechanisms are now selected by the later V1 engineering freeze; this does not claim their implementation or runtime verification.
-The approved Java and documentation baselines are available on `develop`. Each teammate updates their own feature branch from `develop`
-using the agreed team workflow, adapts their implementation and runs Java 21
-`./mvnw --batch-mode --no-transfer-progress verify` with Docker before review.
-Product/UX/Java/REST and selected designs require no routine reapproval within assigned tasks/phases. Frozen-owner reads, full-scope recovery, atomic audit and commit-confirmed success remain mandatory; static/mocked tests cannot prove these financial guarantees. Retained read-capability gaps, FIX-001 and API-ERR-01 remain scoped integration obligations; no bypass or whole-project review is required.
+Use [module boundaries](docs/architecture/boundaries.md) for ownership,
+permitted consumers, capability rules, and contract-change review. Exact public
+Java declarations live in module source. Do not duplicate them, import another
+module's internals, or silently break a public API. Follow the
+[development workflow](docs/development/workflow.md) for Issue and change
+coordination. Financial invariants and API-ERR-01 integration constraints remain
+in their owning authorities; FIX-001 NUL validation is implemented in the Ledger
+domain source and its tests.
 
 ## Continuous integration
 
@@ -373,7 +367,7 @@ make docs-down
 
 This separate design-contract viewer requires no backend or database. Request
 execution is disabled; these documented banking APIs are not implemented endpoints.
-See [documentation tooling](docs/README.md#browse-the-api-locally-doc-01).
+See the [API contract guide](docs/03-design/17-api-contracts.md) for the external API authority.
 
 ## Optional Grafana observability
 
@@ -434,11 +428,11 @@ retention, log/trace queries, networking, resource use and repeatable end-to-end
 | `compose.yaml`, `compose.docs.yaml` | Backend/PostgreSQL and separate Swagger UI stacks |
 | `compose.observed.yaml`, `compose.observability.yaml` | Opt-in backend overlay and six telemetry services |
 | `observability/` | Stack runbook, component configs, Grafana provisioning and verification helpers |
-| `docs/` | Approved discovery, V1 Product/UX/Java/REST and technical implementation baselines, plus pending runtime/external evidence |
+| `docs/` | Product intent, durable engineering guidance, operative detailed requirements, and scoped verification evidence |
 | [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | Backend tests, executable JAR packaging and documentation validation |
 
 Start at the [documentation index](docs/README.md). The
-[logging/error/tracing contract](docs/03-design/logging-and-error-handling.md) defines
+[logging/error/tracing guide](docs/03-design/logging-and-error-handling.md) defines
 **Clean Business Code, Centralized Observability**; the
 [architecture review](observability/architecture-review.md) records dated evidence
 and deployment gates. Implemented schema decisions are explained in the
@@ -446,12 +440,14 @@ and deployment gates. Implemented schema decisions are explained in the
 mechanisms follow the scoped statuses in the current decision register; no foundation test establishes financial workflow correctness.
 
 Before starting a business module, read [AGENTS.md](AGENTS.md), the approved use
-cases/rules through the docs index, the [module collaboration guide](docs/03-design/module-contracts-and-boundaries.md)
+cases/rules through the docs index, the [module boundaries](docs/architecture/boundaries.md)
 and [shared error/VND guide](docs/03-design/shared-error-money-contracts.md).
 Consult owning contributors and obtain Tiến's approval for new public capabilities,
 dependency edges or breaking changes; do not
-access another module's repositories/entities. No empty business-module scaffolding
-or banking implementation is provided by these foundation steps.
+access another module's repositories/entities. This checkout contains selected
+banking-module contributions and tests; their presence does not establish complete
+workflows. Check current source and verification evidence, and do not add empty
+module scaffolding.
 
 ## Security and deployment limits
 

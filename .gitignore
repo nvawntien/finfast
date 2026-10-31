@@ -39,3 +39,4 @@ Thumbs.db
 
 # Python observability verification helpers.
 __pycache__/
+.agents
